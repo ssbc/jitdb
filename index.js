@@ -49,9 +49,6 @@ module.exports = function (dbPath, indexesPath) {
     offsetIndexEmpty = true
   }
   
-  // combine indexes:
-  // var both = authorBitset.new_intersection(postBitset)
-
   const bTimestamp = new Buffer('timestamp')
   const bValue = new Buffer('value')
 
@@ -66,6 +63,7 @@ module.exports = function (dbPath, indexesPath) {
   function getTop10(bitset, cb) {
     var queue = require('./bounded-priority-queue')(10)
 
+    console.log("results", bitset.size())
     console.time("get values and sort top 10")
 
     push(
@@ -83,9 +81,13 @@ module.exports = function (dbPath, indexesPath) {
       })
     )
   }
-  
-  function createIndexes(seek, value, indexName, cb) {
-    var newIndex = new TypedFastBitSet()
+
+  function createIndexes(missingIndexes, cb) {
+    var newIndexes = {}
+    missingIndexes.forEach(m => {
+      newIndexes[m.indexName] = new TypedFastBitSet()
+    })
+
     var count = 0
     const start = Date.now()
     
@@ -98,9 +100,11 @@ module.exports = function (dbPath, indexesPath) {
         if (offsetIndexEmpty)
           indexes['offset'][count] = seq
 
-        var seekKey = seek(buffer)
-        if (~seekKey && bipf.compareString(buffer, seekKey, value) === 0)
-          newIndex.add(count)
+        missingIndexes.forEach(m => {
+          var seekKey = m.seek(buffer)
+          if (~seekKey && bipf.compareString(buffer, seekKey, m.value) === 0)
+            newIndexes[m.indexName].add(count)
+        })
 
         count++
       },
@@ -110,8 +114,10 @@ module.exports = function (dbPath, indexesPath) {
         if (offsetIndexEmpty)
           saveTypedArray('offset', indexes['offset'])
 
-        indexes[indexName] = newIndex
-        saveIndex(indexName, newIndex)
+        for (var indexName in newIndexes) {
+          indexes[indexName] = newIndexes[indexName]
+          saveIndex(indexName, newIndexes[indexName])
+        }
 
         cb()
       }
@@ -119,17 +125,55 @@ module.exports = function (dbPath, indexesPath) {
   }
 
   return {
-    // FIXME: AND / OR
-    // FIXME: multiple lookups
-    query: function(seek, value, indexName, cb) {
-      // why is this slower when loading from cache?
-      if (indexes[indexName]) {
-        getTop10(indexes[indexName], cb)
-      } else {
-        createIndexes(seek, value, indexName, () => {
-          getTop10(indexes[indexName], cb)
+    // operation:
+    //
+    // type  | data
+    // ------------
+    // EQUAL | { seek, value, indexName }
+    // AND   | [operation, ...]
+    // OR    | [operation, ...]
+
+    query: function(operations, cb) {
+      var missingIndexes = []
+
+      function handleOperations(ops) {
+        ops.forEach(op => {
+          if (op.type == 'EQUAL' && !indexes[op.data.indexName])
+            missingIndexes.push(op.data)
+          else if (op.type == 'AND' || op.type == 'OR')
+            handleOperations(op.data)
+          else
+            console.log("Unknown operator type:" + op.type)
         })
       }
+
+      handleOperations(operations)
+
+      console.log(missingIndexes)
+
+      function onIndexesReady() {
+        operations.forEach(op => {
+          // FIXME: recursion
+          if (op.type == 'EQUAL')
+            getTop10(indexes[op.data.indexName], cb)
+          else if (op.type == 'AND')
+          {
+            // FIXME
+            var bitset = indexes[op.data[0].data.indexName].new_intersection(indexes[op.data[1].data.indexName])
+            getTop10(bitset, cb)
+          }
+          else if (op.type == 'OR')
+          {
+            var bitset = indexes[op.data[0].data.indexName].new_union(indexes[op.data[1].data.indexName])
+            getTop10(bitset, cb)
+          }
+        })
+      }
+
+      if (missingIndexes.length > 0)
+        createIndexes(missingIndexes, onIndexesReady)
+      else
+        onIndexesReady()
     },
 
     // FIXME: something like an index watch
