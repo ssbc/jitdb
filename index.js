@@ -130,16 +130,17 @@ module.exports = function (dbPath, indexesPath) {
     // type  | data
     // ------------
     // EQUAL | { seek, value, indexName }
-    // AND   | [operation, ...]
-    // OR    | [operation, ...]
+    // AND   | [operation, operation]
+    // OR    | [operation, operation]
 
-    query: function(operations, cb) {
+    query: function(operation, cb) {
       var missingIndexes = []
 
       function handleOperations(ops) {
         ops.forEach(op => {
-          if (op.type == 'EQUAL' && !indexes[op.data.indexName])
-            missingIndexes.push(op.data)
+          if (op.type == 'EQUAL')
+            if (!indexes[op.data.indexName])
+              missingIndexes.push(op.data)
           else if (op.type == 'AND' || op.type == 'OR')
             handleOperations(op.data)
           else
@@ -147,27 +148,29 @@ module.exports = function (dbPath, indexesPath) {
         })
       }
 
-      handleOperations(operations)
+      handleOperations([operation])
 
-      console.log(missingIndexes)
+      console.log("missing indexes:", missingIndexes)
 
+      function get_index_for_operation(op) {
+        if (op.type == 'EQUAL')
+          return indexes[op.data.indexName]
+        else if (op.type == 'AND')
+        {
+          const op1 = get_index_for_operation(op.data[0])
+          const op2 = get_index_for_operation(op.data[1])
+          return op1.new_intersection(op2)
+        }
+        else if (op.type == 'OR')
+        {
+          const op1 = get_index_for_operation(op.data[0])
+          const op2 = get_index_for_operation(op.data[1])
+          return op1.new_union(op2)
+        }
+      }
+      
       function onIndexesReady() {
-        operations.forEach(op => {
-          // FIXME: recursion
-          if (op.type == 'EQUAL')
-            getTop10(indexes[op.data.indexName], cb)
-          else if (op.type == 'AND')
-          {
-            // FIXME
-            var bitset = indexes[op.data[0].data.indexName].new_intersection(indexes[op.data[1].data.indexName])
-            getTop10(bitset, cb)
-          }
-          else if (op.type == 'OR')
-          {
-            var bitset = indexes[op.data[0].data.indexName].new_union(indexes[op.data[1].data.indexName])
-            getTop10(bitset, cb)
-          }
-        })
+        getTop10(get_index_for_operation(operation), cb)
       }
 
       if (missingIndexes.length > 0)

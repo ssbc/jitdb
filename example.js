@@ -33,14 +33,34 @@ function seekType(buffer) {
 
 // seems the cache needs to be warmed up to get fast results
 
-db.query([{
+db.query({
   type: 'AND',
   data: [
     { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
     { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
   ]
-}], (err, results) => {
+}, (err, results) => {
   results.forEach(x => {
     console.log(util.inspect(x, false, null, true))
   })
 })
+
+/*
+db.query({
+  type: 'AND',
+  data: [
+    { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } },
+    {
+      type: 'OR',
+      data: [
+        { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
+        { type: 'EQUAL', data: { seek: seekType, value: bContactValue, indexName: "type_contact" } },
+      ]
+    }
+  ]
+}, (err, results) => {
+  results.forEach(x => {
+    console.log(util.inspect(x, false, null, true))
+  })
+})
+*/
