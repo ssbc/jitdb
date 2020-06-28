@@ -138,10 +138,10 @@ module.exports = function (dbPath, indexesPath) {
 
       function handleOperations(ops) {
         ops.forEach(op => {
-          if (op.type == 'EQUAL')
+          if (op.type == 'EQUAL') {
             if (!indexes[op.data.indexName])
               missingIndexes.push(op.data)
-          else if (op.type == 'AND' || op.type == 'OR')
+          } else if (op.type == 'AND' || op.type == 'OR')
             handleOperations(op.data)
           else
             console.log("Unknown operator type:" + op.type)
