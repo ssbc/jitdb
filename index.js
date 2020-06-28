@@ -82,6 +82,19 @@ module.exports = function (dbPath, indexesPath) {
     )
   }
 
+  function getAll(bitset, cb) {
+    return push(
+      push.values(bitset.array()),
+      push.asyncMap((val, cb) => {
+        var seq = indexes['offset'][val]
+        raf.get(seq, (err, value) => {
+          cb(null, bipf.decode(value, 0))
+        })
+      }),
+      push.collect(cb)
+    )
+  }
+
   function createIndexes(missingIndexes, cb) {
     var newIndexes = {}
     missingIndexes.forEach(m => {
@@ -133,7 +146,7 @@ module.exports = function (dbPath, indexesPath) {
     // AND   | [operation, operation]
     // OR    | [operation, operation]
 
-    query: function(operation, cb) {
+    query: function(operation, limit, cb) {
       var missingIndexes = []
 
       function handleOperations(ops) {
@@ -170,7 +183,10 @@ module.exports = function (dbPath, indexesPath) {
       }
       
       function onIndexesReady() {
-        getTop10(get_index_for_operation(operation), cb)
+        if (limit)
+          getTop10(get_index_for_operation(operation), cb)
+        else
+          getAll(get_index_for_operation(operation), cb)
       }
 
       if (missingIndexes.length > 0)

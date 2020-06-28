@@ -39,11 +39,23 @@ db.query({
     { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
     { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
   ]
-}, (err, results) => {
+}, false, (err, results) => {
+  console.log(results.length)
+})
+
+/*
+db.query({
+  type: 'AND',
+  data: [
+    { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
+    { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+  ]
+}, true, (err, results) => {
   results.forEach(x => {
     console.log(util.inspect(x, false, null, true))
   })
 })
+*/
 
 /*
 db.query({
@@ -58,7 +70,7 @@ db.query({
       ]
     }
   ]
-}, (err, results) => {
+}, true, (err, results) => {
   results.forEach(x => {
     console.log(util.inspect(x, false, null, true))
   })
