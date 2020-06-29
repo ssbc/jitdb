@@ -47,14 +47,11 @@ module.exports = function (db, indexesPath) {
       dirReader.readEntries(function(entries) {
         for(var i = 0; i < entries.length; i++) {
           var entry = entries[i]
-          if (entry.isDirectory)
-            listDirChrome(fs, entry.fullPath, files, cb)
-          else if (entry.isFile)
-            files.push(entry.fullPath)
+          if (entry.isFile)
+            files.push(entry.name)
         }
+        cb(null, files)
       })
-
-      cb(null, files)
     })
   }
 
@@ -63,7 +60,7 @@ module.exports = function (db, indexesPath) {
       push(
         push.values(files),
         push.asyncMap((file, cb) => {
-          const indexName = path.parse(file).name
+          const indexName = file.replace(/\.[^/.]+$/, "")
           if (file == 'offset.index') {
             loadIndex(path.join(indexesPath, file), (err, data) => {
               indexes[indexName] = data
@@ -99,7 +96,13 @@ module.exports = function (db, indexesPath) {
   var isReady = false
   var waiting = []
   loadIndexes(() => {
-    console.log("loaded indexes", indexes)
+    console.log("loaded indexes", Object.keys(indexes))
+
+    if (!indexes['offset']) {
+      indexes['offset'] = new Uint32Array(1 * 1000 * 1000) // FIXME: fixed size
+      offsetIndexEmpty = true
+    }
+
     isReady = true
     for (var i = 0; i < waiting.length; ++i)
       waiting[i]()
@@ -108,11 +111,6 @@ module.exports = function (db, indexesPath) {
 
   // FIXME: use the seq for this
   var offsetIndexEmpty = false
-  
-  if (!indexes['offset']) {
-    indexes['offset'] = new Uint32Array(1 * 1000 * 1000) // FIXME: fixed size
-    offsetIndexEmpty = true
-  }
   
   const bTimestamp = Buffer.from('timestamp')
   const bValue = Buffer.from('value')
