@@ -1,16 +1,15 @@
-const bValue = new Buffer('value')
-const bContent = new Buffer('content')
+const bValue = Buffer.from('value')
+const bContent = Buffer.from('content')
 
-const bAuthor = new Buffer('author')
-const bAuthorValue = new Buffer('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519')
+const bAuthor = Buffer.from('author')
+const bAuthorValue = Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519')
 
-const bType = new Buffer('type')
-const bPostValue = new Buffer('post')
-const bContactValue = new Buffer('contact')
+const bType = Buffer.from('type')
+const bPostValue = Buffer.from('post')
+const bContactValue = Buffer.from('contact')
 
 const util = require('util')
 const bipf = require('bipf')
-var db = require('./index')(process.argv[2], "./indexes")
 
 function seekAuthor(buffer) {
   var p = 0 // note you pass in p!
@@ -31,48 +30,54 @@ function seekType(buffer) {
   }
 }
 
-// seems the cache needs to be warmed up to get fast results
+var db = require('./index')(process.argv[2], "./indexes")
+db.onReady(() => {
+  // seems the cache needs to be warmed up to get fast results
 
-db.query({
-  type: 'AND',
-  data: [
-    { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
-    { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
-  ]
-}, false, (err, results) => {
-  console.log(results.length)
-})
+  console.time("get all posts from user")
 
-/*
-db.query({
-  type: 'AND',
-  data: [
-    { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
-    { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
-  ]
-}, true, (err, results) => {
-  results.forEach(x => {
-    console.log(util.inspect(x, false, null, true))
+  db.query({
+    type: 'AND',
+    data: [
+      { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
+      { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+    ]
+  }, false, (err, results) => {
+    console.timeEnd("get all posts from user")
+    console.log(results.length)
   })
-})
-*/
 
-/*
-db.query({
-  type: 'AND',
-  data: [
+  /*
+    db.query({
+    type: 'AND',
+    data: [
+    { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
+    { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+    ]
+    }, true, (err, results) => {
+    results.forEach(x => {
+    console.log(util.inspect(x, false, null, true))
+    })
+    })
+  */
+
+  /*
+    db.query({
+    type: 'AND',
+    data: [
     { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } },
     {
-      type: 'OR',
-      data: [
-        { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
-        { type: 'EQUAL', data: { seek: seekType, value: bContactValue, indexName: "type_contact" } },
-      ]
+    type: 'OR',
+    data: [
+    { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
+    { type: 'EQUAL', data: { seek: seekType, value: bContactValue, indexName: "type_contact" } },
+    ]
     }
-  ]
-}, true, (err, results) => {
-  results.forEach(x => {
+    ]
+    }, true, (err, results) => {
+    results.forEach(x => {
     console.log(util.inspect(x, false, null, true))
-  })
+    })
+    })
+  */
 })
-*/

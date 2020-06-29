@@ -1,45 +1,105 @@
 const FlumeLog = require('flumelog-aligned-offset')
 const bipf = require('bipf')
 const TypedFastBitSet = require('typedfastbitset')
-const fs = require('fs')
+const RAF = require('polyraf')
 const path = require('path')
 const push = require('push-stream')
 
 module.exports = function (dbPath, indexesPath) {
   var raf = FlumeLog(dbPath, {block: 64*1024})
 
-  function saveTypedArray(name, arr) {
-    fs.writeFileSync(path.join(indexesPath, name + ".index"), Buffer.from(arr.buffer))
+  function overwrite(filename, buffer, cb) {
+    var file = RAF(filename)
+    file.destroy(() => {
+      file = RAF(filename)
+      file.write(0, buffer, cb ? cb : function() {})
+    })
   }
 
-  function saveIndex(name, index) {
+  function saveTypedArray(name, arr, cb) {
+    overwrite(path.join(indexesPath, name + ".index"), Buffer.from(arr.buffer), cb)
+  }
+
+  function saveIndex(name, index, cb) {
     saveTypedArray(name, index.words)
   }
 
-  function loadIndex(file) {
-    var buf = fs.readFileSync(file)
-    return new Uint32Array(buf.buffer, buf.offset, buf.byteLength/4)
+  function loadIndex(file, cb) {
+    const f = RAF(file)
+    f.stat((err, stat) => {
+      f.read(0, stat.size, (err, buf) => {
+        if (err) return cb(err)
+        else cb(null, new Uint32Array(buf.buffer, buf.offset, buf.byteLength/4))
+      })
+    })
   }
 
   // FIXME: need a per index, latest seq
 
   var indexes = {}
-  
-  function loadIndexes() {
-    const files = fs.readdirSync(indexesPath)
-    files.forEach(file => {
-      if (file == 'offset.index')
-        indexes[path.parse(file).name] = loadIndex(path.join(indexesPath, file))
-      else if (file.endsWith(".index")) {
-        indexes[path.parse(file).name] = new TypedFastBitSet()
-        // FIXME: create PR for this
-        indexes[path.parse(file).name].words = loadIndex(path.join(indexesPath, file))
-        indexes[path.parse(file).name].count = indexes[path.parse(file).name].words.length
-      }
+
+  function listDirChrome(fs, path, files, cb)
+  {
+    fs.root.getDirectory(path, {}, function(dirEntry){
+      var dirReader = dirEntry.createReader()
+      dirReader.readEntries(function(entries) {
+        for(var i = 0; i < entries.length; i++) {
+          var entry = entries[i]
+          if (entry.isDirectory)
+            listDir(fs, entry.fullPath, files, cb)
+          else if (entry.isFile)
+            files.push(entry.fullPath)
+        }
+      })
     })
   }
 
-  loadIndexes()
+  function loadIndexes(cb) {
+    function parseIndexes(err, files) {
+      push(
+        push.values(files),
+        push.asyncMap((file, cb) => {
+          const indexName = path.parse(file).name
+          if (file == 'offset.index') {
+            loadIndex(path.join(indexesPath, file), (err, data) => {
+              indexes[indexName] = data
+              cb()
+            })
+          }
+          else if (file.endsWith(".index")) {
+            indexes[indexName] = new TypedFastBitSet()
+            loadIndex(path.join(indexesPath, file), (err, data) => {
+              // FIXME: create PR for this
+              indexes[indexName].words = data
+              indexes[indexName].count = data.length
+              cb()
+            })
+          }
+        }),
+        push.collect(cb)
+      )
+    }
+
+    if (typeof window !== 'undefined') { // browser
+      window.webkitRequestFileSystem(window.PERSISTENT, 0, function (fs) {
+        listDirChrome(fs, 'indexes', [], parseIndexes)
+      })
+    } else {
+      const fs = require('fs')
+      const mkdirp = require('mkdirp')
+      mkdirp.sync(indexesPath)
+      parseIndexes(null, fs.readdirSync(indexesPath))
+    }
+  }
+
+  var isReady = false
+  var waiting = []
+  loadIndexes(() => {
+    isReady = true
+    for (var i = 0; i < waiting.length; ++i)
+      waiting[i]()
+    waiting = []
+  })
 
   // FIXME: use the seq for this
   var offsetIndexEmpty = false
@@ -49,8 +109,8 @@ module.exports = function (dbPath, indexesPath) {
     offsetIndexEmpty = true
   }
   
-  const bTimestamp = new Buffer('timestamp')
-  const bValue = new Buffer('value')
+  const bTimestamp = Buffer.from('timestamp')
+  const bValue = Buffer.from('value')
 
   function sortData(data, queue) {
     var p = 0 // note you pass in p!
@@ -194,6 +254,12 @@ module.exports = function (dbPath, indexesPath) {
       else
         onIndexesReady()
     },
+
+    onReady: function(cb) {
+      if (isReady)
+        cb()
+      else waiting.push(cb)
+    }
 
     // FIXME: something like an index watch
     // useful for contacts index e.g.
