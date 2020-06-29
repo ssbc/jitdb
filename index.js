@@ -1,19 +1,21 @@
-const FlumeLog = require('flumelog-aligned-offset')
 const bipf = require('bipf')
 const TypedFastBitSet = require('typedfastbitset')
 const RAF = require('polyraf')
 const path = require('path')
 const push = require('push-stream')
 
-module.exports = function (dbPath, indexesPath) {
-  var raf = FlumeLog(dbPath, {block: 64*1024})
+module.exports = function (db, indexesPath) {
 
   function overwrite(filename, buffer, cb) {
+    console.log("writing index to", filename)
     var file = RAF(filename)
-    file.destroy(() => {
-      file = RAF(filename)
+    if (file.deleteable) {
+      file.destroy(() => {
+        file = RAF(filename)
+        file.write(0, buffer, cb ? cb : function() {})
+      })
+    } else
       file.write(0, buffer, cb ? cb : function() {})
-    })
   }
 
   function saveTypedArray(name, arr, cb) {
@@ -40,17 +42,19 @@ module.exports = function (dbPath, indexesPath) {
 
   function listDirChrome(fs, path, files, cb)
   {
-    fs.root.getDirectory(path, {}, function(dirEntry){
+    fs.root.getDirectory(path, {}, function(dirEntry) {
       var dirReader = dirEntry.createReader()
       dirReader.readEntries(function(entries) {
         for(var i = 0; i < entries.length; i++) {
           var entry = entries[i]
           if (entry.isDirectory)
-            listDir(fs, entry.fullPath, files, cb)
+            listDirChrome(fs, entry.fullPath, files, cb)
           else if (entry.isFile)
             files.push(entry.fullPath)
         }
       })
+
+      cb(null, files)
     })
   }
 
@@ -82,7 +86,7 @@ module.exports = function (dbPath, indexesPath) {
 
     if (typeof window !== 'undefined') { // browser
       window.webkitRequestFileSystem(window.PERSISTENT, 0, function (fs) {
-        listDirChrome(fs, 'indexes', [], parseIndexes)
+        listDirChrome(fs, indexesPath, [], parseIndexes)
       })
     } else {
       const fs = require('fs')
@@ -95,6 +99,7 @@ module.exports = function (dbPath, indexesPath) {
   var isReady = false
   var waiting = []
   loadIndexes(() => {
+    console.log("loaded indexes", indexes)
     isReady = true
     for (var i = 0; i < waiting.length; ++i)
       waiting[i]()
@@ -130,7 +135,7 @@ module.exports = function (dbPath, indexesPath) {
       push.values(bitset.array()),
       push.asyncMap((val, cb) => {
         var seq = indexes['offset'][val]
-        raf.get(seq, (err, value) => {
+        db.get(seq, (err, value) => {
           sortData({ seq, value }, queue)
           cb()
         })
@@ -147,7 +152,7 @@ module.exports = function (dbPath, indexesPath) {
       push.values(bitset.array()),
       push.asyncMap((val, cb) => {
         var seq = indexes['offset'][val]
-        raf.get(seq, (err, value) => {
+        db.get(seq, (err, value) => {
           cb(null, bipf.decode(value, 0))
         })
       }),
@@ -164,7 +169,7 @@ module.exports = function (dbPath, indexesPath) {
     var count = 0
     const start = Date.now()
     
-    raf.stream({}).pipe({
+    db.stream({}).pipe({
       paused: false,
       write: function (data) {
         var seq = data.seq

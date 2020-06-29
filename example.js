@@ -10,6 +10,7 @@ const bContactValue = Buffer.from('contact')
 
 const util = require('util')
 const bipf = require('bipf')
+const FlumeLog = require('flumelog-aligned-offset')
 
 function seekAuthor(buffer) {
   var p = 0 // note you pass in p!
@@ -30,7 +31,8 @@ function seekType(buffer) {
   }
 }
 
-var db = require('./index')(process.argv[2], "./indexes")
+var raf = FlumeLog(process.argv[2], {block: 64*1024})
+var db = require('./index')(raf, "./indexes")
 db.onReady(() => {
   // seems the cache needs to be warmed up to get fast results
 
