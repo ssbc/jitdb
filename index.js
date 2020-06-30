@@ -146,6 +146,7 @@ module.exports = function (db, indexesPath) {
   }
 
   function getAll(bitset, cb) {
+    var start = Date.now()
     return push(
       push.values(bitset.array()),
       push.asyncMap((val, cb) => {
@@ -154,7 +155,10 @@ module.exports = function (db, indexesPath) {
           cb(null, bipf.decode(value, 0))
         })
       }),
-      push.collect(cb)
+      push.collect((err, results) => {
+        console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
+        cb(err, results)
+      })
     )
   }
 
@@ -226,7 +230,8 @@ module.exports = function (db, indexesPath) {
 
       handleOperations([operation])
 
-      console.log("missing indexes:", missingIndexes)
+      if (missingIndexes.length > 0)
+        console.log("missing indexes:", missingIndexes)
 
       function get_index_for_operation(op) {
         if (op.type == 'EQUAL')

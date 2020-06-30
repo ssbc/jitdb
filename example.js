@@ -46,7 +46,43 @@ db.onReady(() => {
     ]
   }, false, (err, results) => {
     console.timeEnd("get all posts from user")
-    console.log(results.length)
+
+    console.time("get last 10 posts from user")
+
+    db.query({
+      type: 'AND',
+      data: [
+        { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
+        { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+      ]
+    }, true, (err, results) => {
+      console.timeEnd("get last 10 posts from user")
+
+      var hops = {}
+      const query = { type: 'EQUAL', data: { seek: seekType, value: bContactValue, indexName: "type_contact" } }
+      const isFeed = require('ssb-ref').isFeed
+
+      console.time("contacts")
+
+      db.query(query, false, (err, results) => {
+        results.forEach(data => {
+          var from = data.value.author
+          var to = data.value.content.contact
+          var value =
+              data.value.content.blocking || data.value.content.flagged ? -1 :
+              data.value.content.following === true ? 1
+              : -2
+
+          if(isFeed(from) && isFeed(to)) {
+            hops[from] = hops[from] || {}
+            hops[from][to] = value
+          }
+        })
+
+        console.timeEnd("contacts")
+        //console.log(hops)
+      })
+    })
   })
 
   /*
