@@ -12,10 +12,10 @@ module.exports = function (db, indexesPath) {
     if (file.deleteable) {
       file.destroy(() => {
         file = RAF(filename)
-        file.write(0, buffer, cb ? cb : function() {})
+        file.write(0, buffer, cb)
       })
     } else
-      file.write(0, buffer, cb ? cb : function() {})
+      file.write(0, buffer, cb)
   }
 
   function saveTypedArray(name, arr, cb) {
@@ -114,6 +114,9 @@ module.exports = function (db, indexesPath) {
   
   const bTimestamp = Buffer.from('timestamp')
   const bValue = Buffer.from('value')
+  const bAuthor = Buffer.from('author')
+  const bContent = Buffer.from('content')
+  const bType = Buffer.from('type')
 
   function sortData(data, queue) {
     var p = 0 // note you pass in p!
@@ -267,6 +270,26 @@ module.exports = function (db, indexesPath) {
       if (isReady)
         cb()
       else waiting.push(cb)
+    },
+
+    // helpers
+    seekAuthor: function(buffer) {
+      var p = 0 // note you pass in p!
+      p = bipf.seekKey(buffer, p, bValue)
+
+      if (~p)
+        return bipf.seekKey(buffer, p, bAuthor)
+    },
+
+    seekType: function(buffer) {
+      var p = 0 // note you pass in p!
+      p = bipf.seekKey(buffer, p, bValue)
+
+      if (~p) {
+        p = bipf.seekKey(buffer, p, bContent)
+        if (~p)
+          return bipf.seekKey(buffer, p, bType)
+      }
     }
 
     // FIXME: something like an index watch

@@ -1,35 +1,10 @@
-const bValue = Buffer.from('value')
-const bContent = Buffer.from('content')
-
-const bAuthor = Buffer.from('author')
-const bAuthorValue = Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519')
-
-const bType = Buffer.from('type')
-const bPostValue = Buffer.from('post')
-const bContactValue = Buffer.from('contact')
-
 const util = require('util')
 const bipf = require('bipf')
 const FlumeLog = require('flumelog-aligned-offset')
 
-function seekAuthor(buffer) {
-  var p = 0 // note you pass in p!
-  p = bipf.seekKey(buffer, p, bValue)
-
-  if (~p)
-    return bipf.seekKey(buffer, p, bAuthor)
-}
-
-function seekType(buffer) {
-  var p = 0 // note you pass in p!
-  p = bipf.seekKey(buffer, p, bValue)
-
-  if (~p) {
-    p = bipf.seekKey(buffer, p, bContent)
-    if (~p)
-      return bipf.seekKey(buffer, p, bType)
-  }
-}
+const bAuthorValue = Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519')
+const bPostValue = Buffer.from('post')
+const bContactValue = Buffer.from('contact')
 
 var raf = FlumeLog(process.argv[2], {block: 64*1024})
 var db = require('./index')(raf, "./indexes")
@@ -41,8 +16,8 @@ db.onReady(() => {
   db.query({
     type: 'AND',
     data: [
-      { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
-      { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+      { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexName: "type_post" } },
+      { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
     ]
   }, false, (err, results) => {
     console.timeEnd("get all posts from user")
@@ -52,14 +27,14 @@ db.onReady(() => {
     db.query({
       type: 'AND',
       data: [
-        { type: 'EQUAL', data: { seek: seekType, value: bPostValue, indexName: "type_post" } },
-        { type: 'EQUAL', data: { seek: seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+        { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexName: "type_post" } },
+        { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
       ]
     }, true, (err, results) => {
       console.timeEnd("get last 10 posts from user")
 
       var hops = {}
-      const query = { type: 'EQUAL', data: { seek: seekType, value: bContactValue, indexName: "type_contact" } }
+      const query = { type: 'EQUAL', data: { seek: db.seekType, value: bContactValue, indexName: "type_contact" } }
       const isFeed = require('ssb-ref').isFeed
 
       console.time("contacts")
