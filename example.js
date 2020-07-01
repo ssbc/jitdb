@@ -16,8 +16,8 @@ db.onReady(() => {
   db.query({
     type: 'AND',
     data: [
-      { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexName: "type_post" } },
-      { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+      { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
+      { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } }
     ]
   }, false, (err, results) => {
     console.timeEnd("get all posts from user")
@@ -27,14 +27,14 @@ db.onReady(() => {
     db.query({
       type: 'AND',
       data: [
-        { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexName: "type_post" } },
-        { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexName: "author_arj" } }
+        { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
+        { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } }
       ]
     }, true, (err, results) => {
       console.timeEnd("get last 10 posts from user")
 
       var hops = {}
-      const query = { type: 'EQUAL', data: { seek: db.seekType, value: bContactValue, indexName: "type_contact" } }
+      const query = { type: 'EQUAL', data: { seek: db.seekType, value: bContactValue, indexType: "type" } }
       const isFeed = require('ssb-ref').isFeed
 
       console.time("contacts")

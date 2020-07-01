@@ -13,6 +13,7 @@
     "mkdirp": "^1.0.4",
     "polyraf": "^1.1.0",
     "push-stream": "^11.0.0",
+    "sanitize-filename": "^1.6.3",
     "typedfastbitset": "^0.1.5"
   },
   "author": "Anders Rune Jensen <arj03@protonmail.ch>",

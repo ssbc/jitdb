@@ -3,6 +3,7 @@ const TypedFastBitSet = require('typedfastbitset')
 const RAF = require('polyraf')
 const path = require('path')
 const push = require('push-stream')
+const sanitize = require("sanitize-filename")
 
 module.exports = function (db, indexesPath) {
 
@@ -212,7 +213,7 @@ module.exports = function (db, indexesPath) {
     //
     // type  | data
     // ------------
-    // EQUAL | { seek, value, indexName }
+    // EQUAL | { seek, value, indexType }
     // AND   | [operation, operation]
     // OR    | [operation, operation]
 
@@ -222,6 +223,7 @@ module.exports = function (db, indexesPath) {
       function handleOperations(ops) {
         ops.forEach(op => {
           if (op.type == 'EQUAL') {
+            op.data.indexName = op.data.indexType + "_" + sanitize(op.data.value.toString())
             if (!indexes[op.data.indexName])
               missingIndexes.push(op.data)
           } else if (op.type == 'AND' || op.type == 'OR')
