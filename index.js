@@ -126,11 +126,11 @@ module.exports = function (db, indexesPath) {
     queue.add(data.seq, data.value, seekKey)
   }
 
-  function getTop10(bitset, cb) {
-    var queue = require('./bounded-priority-queue')(10)
+  function getTop(bitset, limit, cb) {
+    var queue = require('./bounded-priority-queue')(limit)
 
     console.log("results", bitset.size())
-    console.time("get values and sort top 10")
+    console.time("get values and sort top " + limit)
 
     push(
       push.values(bitset.array()),
@@ -142,7 +142,7 @@ module.exports = function (db, indexesPath) {
         })
       }),
       push.collect(() => {
-        console.timeEnd("get values and sort top 10")
+        console.timeEnd("get values and sort top " + limit)
         cb(null, queue.sorted.map(x => bipf.decode(x.value, 0)))
       })
     )
@@ -255,7 +255,7 @@ module.exports = function (db, indexesPath) {
       
       function onIndexesReady() {
         if (limit)
-          getTop10(get_index_for_operation(operation), cb)
+          getTop(get_index_for_operation(operation), limit, cb)
         else
           getAll(get_index_for_operation(operation), cb)
       }
