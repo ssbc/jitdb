@@ -118,6 +118,7 @@ module.exports = function (db, indexesPath) {
   const bAuthor = Buffer.from('author')
   const bContent = Buffer.from('content')
   const bType = Buffer.from('type')
+  const bRoot = Buffer.from('root')
 
   function sortData(data, queue) {
     var p = 0 // note you pass in p!
@@ -186,7 +187,11 @@ module.exports = function (db, indexesPath) {
 
         missingIndexes.forEach(m => {
           var seekKey = m.seek(buffer)
-          if (~seekKey && bipf.compareString(buffer, seekKey, m.value) === 0)
+          if (m.value === undefined) {
+            if (seekKey === -1)
+              newIndexes[m.indexName].add(count)
+          }
+          else if (~seekKey && bipf.compareString(buffer, seekKey, m.value) === 0)
             newIndexes[m.indexName].add(count)
         })
 
@@ -223,7 +228,8 @@ module.exports = function (db, indexesPath) {
       function handleOperations(ops) {
         ops.forEach(op => {
           if (op.type == 'EQUAL') {
-            op.data.indexName = op.data.indexType + "_" + sanitize(op.data.value.toString())
+            var name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
+            op.data.indexName = op.data.indexType + "_" + name
             if (!indexes[op.data.indexName])
               missingIndexes.push(op.data)
           } else if (op.type == 'AND' || op.type == 'OR')
@@ -291,6 +297,17 @@ module.exports = function (db, indexesPath) {
         p = bipf.seekKey(buffer, p, bContent)
         if (~p)
           return bipf.seekKey(buffer, p, bType)
+      }
+    },
+
+    seekRoot: function(buffer) {
+      var p = 0 // note you pass in p!
+      p = bipf.seekKey(buffer, p, bValue)
+
+      if (~p) {
+        p = bipf.seekKey(buffer, p, bContent)
+        if (~p)
+          return bipf.seekKey(buffer, p, bRoot)
       }
     }
 

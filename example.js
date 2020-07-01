@@ -11,6 +11,20 @@ var db = require('./index')(raf, "./indexes")
 db.onReady(() => {
   // seems the cache needs to be warmed up to get fast results
 
+  db.query({
+    type: 'AND',
+    data: [
+      { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
+      { type: 'EQUAL', data: { seek: db.seekRoot, value: undefined, indexType: "root" } }
+      ]
+  }, 10, (err, results) => {
+    results.forEach(x => {
+      console.log(util.inspect(x, false, null, true))
+    })
+  })
+
+  return
+  
   console.time("get all posts from user")
 
   db.query({
@@ -19,7 +33,7 @@ db.onReady(() => {
       { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
       { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } }
     ]
-  }, false, (err, results) => {
+  }, 0, (err, results) => {
     console.timeEnd("get all posts from user")
 
     console.time("get last 10 posts from user")
@@ -30,7 +44,7 @@ db.onReady(() => {
         { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
         { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } }
       ]
-    }, true, (err, results) => {
+    }, 10, (err, results) => {
       console.timeEnd("get last 10 posts from user")
 
       var hops = {}
@@ -39,7 +53,7 @@ db.onReady(() => {
 
       console.time("contacts")
 
-      db.query(query, false, (err, results) => {
+      db.query(query, 0, (err, results) => {
         results.forEach(data => {
           var from = data.value.author
           var to = data.value.content.contact
