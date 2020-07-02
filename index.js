@@ -191,6 +191,25 @@ module.exports = function (db, indexesPath) {
     )
   }
 
+  function updateOffsetIndex(count, seq) {
+    if (count > indexes['offset'].count) {
+      indexes['offset'].seq = seq
+      indexes['offset'].data[count] = seq
+      indexes['offset'].count = count
+      return true
+    }
+  }
+
+  function updateIndexValue(opData, index, buffer, count) {
+    var seekKey = opData.seek(buffer)
+    if (opData.value === undefined) {
+      if (seekKey === -1)
+        index.data.add(count)
+    }
+    else if (~seekKey && bipf.compareString(buffer, seekKey, opData.value) === 0)
+      index.data.add(count)
+  }
+
   function updateIndex(op, cb) {
     var index = indexes[op.data.indexName]
 
@@ -202,28 +221,16 @@ module.exports = function (db, indexesPath) {
     var updatedOffsetIndex = false
     const start = Date.now()
 
-    // FIXME: refactor
-
     db.stream({ gt: index.seq }).pipe({
       paused: false,
       write: function (data) {
         var seq = data.seq
         var buffer = data.value
 
-        if (count > indexes['offset'].count) {
-          indexes['offset'].seq = data.seq
-          indexes['offset'].data[count] = data.seq
-          indexes['offset'].count = count
+        if (updateOffsetIndex(count, seq))
           updatedOffsetIndex = true
-        }
 
-        var seekKey = op.data.seek(buffer)
-        if (op.data.value === undefined) {
-          if (seekKey === -1)
-            index.data.add(count)
-        }
-        else if (~seekKey && bipf.compareString(buffer, seekKey, op.data.value) === 0)
-          index.data.add(count)
+        updateIndexValue(op.data, index, buffer, count)
 
         count++
       },
@@ -234,7 +241,6 @@ module.exports = function (db, indexesPath) {
           saveTypedArray('offset', indexes['offset'].seq, count, indexes['offset'].data)
 
         index.seq = indexes['offset'].seq
-
         if (index.data.size() > 10) // FIXME: configurable, maybe percentage?
           saveIndex(op.data.indexName, indexes['offset'].seq, index.data)
 
@@ -263,21 +269,11 @@ module.exports = function (db, indexesPath) {
         var seq = data.seq
         var buffer = data.value
 
-        if (count > indexes['offset'].count) {
-          indexes['offset'].seq = data.seq
-          indexes['offset'].data[count] = data.seq
-          indexes['offset'].count = count
+        if (updateOffsetIndex(count, seq))
           updatedOffsetIndex = true
-        }
 
         missingIndexes.forEach(m => {
-          var seekKey = m.seek(buffer)
-          if (m.value === undefined) {
-            if (seekKey === -1)
-              newIndexes[m.indexName].data.add(count)
-          }
-          else if (~seekKey && bipf.compareString(buffer, seekKey, m.value) === 0)
-            newIndexes[m.indexName].data.add(count)
+          updateIndexValue(m, newIndexes[m.indexName], buffer, count)
         })
 
         count++
@@ -363,7 +359,6 @@ module.exports = function (db, indexesPath) {
       }
       
       function onIndexesReady() {
-        console.log("indexes ready", indexes)
         get_index_for_operation(operation, data => {
           if (limit)
             getTop(data, limit, cb)
