@@ -7,37 +7,57 @@ const sanitize = require("sanitize-filename")
 
 module.exports = function (db, indexesPath) {
 
-  function overwrite(filename, buffer, cb) {
+  function overwrite(filename, seq, count, dataBuffer, cb) {
     console.log("writing index to", filename)
+
+    var b = Buffer.alloc(8)
+    b.writeInt32LE(seq, 0)
+    b.writeInt32LE(count, 4)
+
     var file = RAF(filename)
     if (file.deleteable) {
       file.destroy(() => {
         file = RAF(filename)
-        file.write(0, buffer, cb)
+        file.write(0, b, () => {
+          file.write(8, dataBuffer, cb)
+        })
       })
-    } else
-      file.write(0, buffer, cb)
+    } else {
+      file.write(0, b, () => {
+        file.write(8, dataBuffer, cb)
+      })
+    }
   }
 
-  function saveTypedArray(name, arr, cb) {
-    overwrite(path.join(indexesPath, name + ".index"), Buffer.from(arr.buffer), cb)
+  function saveTypedArray(name, seq, count, arr, cb) {
+    overwrite(path.join(indexesPath, name + ".index"),
+              seq, count, Buffer.from(arr.buffer), cb)
   }
 
-  function saveIndex(name, index, cb) {
-    saveTypedArray(name, index.words)
+  // FIXME: terminology of what is an index
+  function saveIndex(name, seq, index, cb) {
+    console.log("saving index:" + name)
+    saveTypedArray(name, seq, index.count, index.words)
   }
 
   function loadIndex(file, cb) {
     const f = RAF(file)
     f.stat((err, stat) => {
-      f.read(0, stat.size, (err, buf) => {
+      f.read(0, 8, (err, seqCountBuffer) => {
         if (err) return cb(err)
-        else cb(null, new Uint32Array(buf.buffer, buf.offset, buf.byteLength/4))
+        const seq = seqCountBuffer.readInt32LE(0)
+        const count = seqCountBuffer.readInt32LE(4)
+        f.read(8, stat.size-8, (err, buf) => {
+          if (err) return cb(err)
+          else cb(null, {
+            seq,
+            count,
+            data: new Uint32Array(buf.buffer, buf.offset, buf.byteLength/4)
+          })
+        })
       })
     })
   }
-
-  // FIXME: need a per index, latest seq
 
   var indexes = {}
 
@@ -46,7 +66,7 @@ module.exports = function (db, indexesPath) {
     fs.root.getDirectory(path, {}, function(dirEntry) {
       var dirReader = dirEntry.createReader()
       dirReader.readEntries(function(entries) {
-        for(var i = 0; i < entries.length; i++) {
+        for (var i = 0; i < entries.length; i++) {
           var entry = entries[i]
           if (entry.isFile)
             files.push(entry.name)
@@ -69,11 +89,15 @@ module.exports = function (db, indexesPath) {
             })
           }
           else if (file.endsWith(".index")) {
-            indexes[indexName] = new TypedFastBitSet()
-            loadIndex(path.join(indexesPath, file), (err, data) => {
-              // FIXME: create PR for this
-              indexes[indexName].words = data
-              indexes[indexName].count = data.length
+            indexes[indexName] = {
+              seq: 0,
+              data: new TypedFastBitSet()
+            }
+
+            loadIndex(path.join(indexesPath, file), (err, i) => {
+              indexes[indexName].seq = i.seq
+              indexes[indexName].data.words = i.data
+              indexes[indexName].data.count = i.count
               cb()
             })
           }
@@ -100,8 +124,11 @@ module.exports = function (db, indexesPath) {
     console.log("loaded indexes", Object.keys(indexes))
 
     if (!indexes['offset']) {
-      indexes['offset'] = new Uint32Array(1 * 1000 * 1000) // FIXME: fixed size
-      offsetIndexEmpty = true
+      indexes['offset'] = {
+        seq: 0,
+        count: 0,
+        data: new Uint32Array(1000 * 1000) // FIXME: fixed size
+      }
     }
 
     isReady = true
@@ -110,9 +137,6 @@ module.exports = function (db, indexesPath) {
     waiting = []
   })
 
-  // FIXME: use the seq for this
-  var offsetIndexEmpty = false
-  
   const bTimestamp = Buffer.from('timestamp')
   const bValue = Buffer.from('value')
   const bAuthor = Buffer.from('author')
@@ -137,7 +161,7 @@ module.exports = function (db, indexesPath) {
     push(
       push.values(bitset.array()),
       push.asyncMap((val, cb) => {
-        var seq = indexes['offset'][val]
+        var seq = indexes['offset'].data[val]
         db.get(seq, (err, value) => {
           sortData({ seq, value }, queue)
           cb()
@@ -155,7 +179,7 @@ module.exports = function (db, indexesPath) {
     return push(
       push.values(bitset.array()),
       push.asyncMap((val, cb) => {
-        var seq = indexes['offset'][val]
+        var seq = indexes['offset'].data[val]
         db.get(seq, (err, value) => {
           cb(null, bipf.decode(value, 0))
         })
@@ -167,13 +191,70 @@ module.exports = function (db, indexesPath) {
     )
   }
 
+  function updateIndex(op, cb) {
+    var index = indexes[op.data.indexName]
+
+    // find count for index seq
+    for (var count = 0; count < indexes['offset'].data.length; ++count)
+      if (indexes['offset'].data[count] == index.seq)
+        break
+
+    var updatedOffsetIndex = false
+    const start = Date.now()
+
+    // FIXME: refactor
+
+    db.stream({ gt: index.seq }).pipe({
+      paused: false,
+      write: function (data) {
+        var seq = data.seq
+        var buffer = data.value
+
+        if (count > indexes['offset'].count) {
+          indexes['offset'].seq = data.seq
+          indexes['offset'].data[count] = data.seq
+          indexes['offset'].count = count
+          updatedOffsetIndex = true
+        }
+
+        var seekKey = op.data.seek(buffer)
+        if (op.data.value === undefined) {
+          if (seekKey === -1)
+            index.data.add(count)
+        }
+        else if (~seekKey && bipf.compareString(buffer, seekKey, op.data.value) === 0)
+          index.data.add(count)
+
+        count++
+      },
+      end: () => {
+        console.log(`time: ${Date.now()-start}ms, total items: ${count}`)
+
+        if (updatedOffsetIndex)
+          saveTypedArray('offset', indexes['offset'].seq, count, indexes['offset'].data)
+
+        index.seq = indexes['offset'].seq
+
+        if (index.data.size() > 10) // FIXME: configurable, maybe percentage?
+          saveIndex(op.data.indexName, indexes['offset'].seq, index.data)
+
+        cb()
+      }
+    })
+  }
+
   function createIndexes(missingIndexes, cb) {
     var newIndexes = {}
     missingIndexes.forEach(m => {
-      newIndexes[m.indexName] = new TypedFastBitSet()
+      newIndexes[m.indexName] = {
+        seq: 0,
+        data: new TypedFastBitSet()
+      }
     })
 
     var count = 0
+
+    var updatedOffsetIndex = false
     const start = Date.now()
     
     db.stream({}).pipe({
@@ -182,17 +263,21 @@ module.exports = function (db, indexesPath) {
         var seq = data.seq
         var buffer = data.value
 
-        if (offsetIndexEmpty)
-          indexes['offset'][count] = seq
+        if (count > indexes['offset'].count) {
+          indexes['offset'].seq = data.seq
+          indexes['offset'].data[count] = data.seq
+          indexes['offset'].count = count
+          updatedOffsetIndex = true
+        }
 
         missingIndexes.forEach(m => {
           var seekKey = m.seek(buffer)
           if (m.value === undefined) {
             if (seekKey === -1)
-              newIndexes[m.indexName].add(count)
+              newIndexes[m.indexName].data.add(count)
           }
           else if (~seekKey && bipf.compareString(buffer, seekKey, m.value) === 0)
-            newIndexes[m.indexName].add(count)
+            newIndexes[m.indexName].data.add(count)
         })
 
         count++
@@ -200,14 +285,14 @@ module.exports = function (db, indexesPath) {
       end: () => {
         console.log(`time: ${Date.now()-start}ms, total items: ${count}`)
 
-        if (offsetIndexEmpty)
-          saveTypedArray('offset', indexes['offset'])
+        if (updatedOffsetIndex)
+          saveTypedArray('offset', indexes['offset'].seq, count, indexes['offset'].data)
 
         for (var indexName in newIndexes) {
           indexes[indexName] = newIndexes[indexName]
-          if (indexes[indexName].size() > 10) { // FIXME: configurable, maybe percentage?
-            saveIndex(indexName, newIndexes[indexName])
-          }
+          indexes[indexName].seq = indexes['offset'].seq
+          if (indexes[indexName].data.size() > 10) // FIXME: configurable, maybe percentage?
+            saveIndex(indexName, indexes['offset'].seq, newIndexes[indexName].data)
         }
 
         cb()
@@ -246,28 +331,45 @@ module.exports = function (db, indexesPath) {
       if (missingIndexes.length > 0)
         console.log("missing indexes:", missingIndexes)
 
-      function get_index_for_operation(op) {
-        if (op.type == 'EQUAL')
-          return indexes[op.data.indexName]
+      function ensureIndexSync(op, cb) {
+        if (db.since.value > indexes[op.data.indexName].seq)
+          updateIndex(op, cb)
+        else
+          cb()
+      }
+
+      function get_index_for_operation(op, cb) {
+        if (op.type == 'EQUAL') {
+          ensureIndexSync(op, () => {
+            cb(indexes[op.data.indexName].data)
+          })
+        }
         else if (op.type == 'AND')
         {
-          const op1 = get_index_for_operation(op.data[0])
-          const op2 = get_index_for_operation(op.data[1])
-          return op1.new_intersection(op2)
+          get_index_for_operation(op.data[0], (op1) => {
+            get_index_for_operation(op.data[1], (op2) => {
+              cb(op1.new_intersection(op2))
+            })
+          })
         }
         else if (op.type == 'OR')
         {
-          const op1 = get_index_for_operation(op.data[0])
-          const op2 = get_index_for_operation(op.data[1])
-          return op1.new_union(op2)
+          get_index_for_operation(op.data[0], (op1) => {
+            get_index_for_operation(op.data[1], (op2) => {
+              cb(op1.new_union(op2))
+            })
+          })
         }
       }
       
       function onIndexesReady() {
-        if (limit)
-          getTop(get_index_for_operation(operation), limit, cb)
-        else
-          getAll(get_index_for_operation(operation), cb)
+        console.log("indexes ready", indexes)
+        get_index_for_operation(operation, data => {
+          if (limit)
+            getTop(data, limit, cb)
+          else
+            getAll(data, cb)
+        })
       }
 
       if (missingIndexes.length > 0)

@@ -1,12 +1,16 @@
 const util = require('util')
 const bipf = require('bipf')
 const FlumeLog = require('flumelog-aligned-offset')
+const Obv = require('obv')
 
 const bAuthorValue = Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519')
 const bPostValue = Buffer.from('post')
 const bContactValue = Buffer.from('contact')
 
 var raf = FlumeLog(process.argv[2], {block: 64*1024})
+raf.since = Obv()
+raf.onWrite = raf.since.set
+
 var db = require('./index')(raf, "./indexes")
 db.onReady(() => {
   // seems the cache needs to be warmed up to get fast results
@@ -18,13 +22,13 @@ db.onReady(() => {
       { type: 'EQUAL', data: { seek: db.seekRoot, value: undefined, indexType: "root" } }
       ]
   }, 10, (err, results) => {
+    /*
     results.forEach(x => {
       console.log(util.inspect(x, false, null, true))
     })
+    */
   })
 
-  return
-  
   console.time("get all posts from user")
 
   db.query({
@@ -72,6 +76,16 @@ db.onReady(() => {
         //console.log(hops)
       })
     })
+  })
+
+  return
+
+  console.time("get all")
+  db.query({
+    type: 'EQUAL',
+    data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" }
+  }, 0, (err, results) => {
+    console.timeEnd("get all")
   })
 
   /*
