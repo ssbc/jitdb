@@ -205,7 +205,9 @@ module.exports = function (db, indexesPath) {
 
         for (var indexName in newIndexes) {
           indexes[indexName] = newIndexes[indexName]
-          saveIndex(indexName, newIndexes[indexName])
+          if (indexes[indexName].size() > 10) { // FIXME: configurable, maybe percentage?
+            saveIndex(indexName, newIndexes[indexName])
+          }
         }
 
         cb()
