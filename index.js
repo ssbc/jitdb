@@ -100,7 +100,8 @@ module.exports = function (db, indexesPath) {
               indexes[indexName].data.count = i.count
               cb()
             })
-          }
+          } else
+            cb()
         }),
         push.collect(cb)
       )
