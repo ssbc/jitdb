@@ -4,6 +4,7 @@ const RAF = require('polyraf')
 const path = require('path')
 const push = require('push-stream')
 const sanitize = require("sanitize-filename")
+const debounce = require('lodash.debounce')
 
 module.exports = function (db, indexesPath) {
 
@@ -204,11 +205,17 @@ module.exports = function (db, indexesPath) {
   function updateIndexValue(opData, index, buffer, count) {
     var seekKey = opData.seek(buffer)
     if (opData.value === undefined) {
-      if (seekKey === -1)
+      if (seekKey === -1) {
         index.data.add(count)
+        return true
+      }
     }
-    else if (~seekKey && bipf.compareString(buffer, seekKey, opData.value) === 0)
+    else if (~seekKey && bipf.compareString(buffer, seekKey, opData.value) === 0) {
       index.data.add(count)
+      return true
+    }
+
+    return false
   }
 
   function updateIndex(op, cb) {
@@ -225,13 +232,10 @@ module.exports = function (db, indexesPath) {
     db.stream({ gt: index.seq }).pipe({
       paused: false,
       write: function (data) {
-        var seq = data.seq
-        var buffer = data.value
-
-        if (updateOffsetIndex(count, seq))
+        if (updateOffsetIndex(count, data.seq))
           updatedOffsetIndex = true
 
-        updateIndexValue(op.data, index, buffer, count)
+        updateIndexValue(op.data, index, data.value, count)
 
         count++
       },
@@ -374,6 +378,49 @@ module.exports = function (db, indexesPath) {
         onIndexesReady()
     },
 
+    liveQuerySingleIndex: function(op, cb) {
+      var newValues = []
+      var sendNewValues = debounce(function() {
+        var v = newValues.slice(0)
+        newValues = []
+        cb(null, {
+          seq: indexes[op.data.indexName].seq,
+          data: v
+        })
+      }, 300)
+
+      function syncNewValue(val) {
+        newValues.push(val)
+        sendNewValues()
+      }
+
+      // FIXME: refactor
+      var name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
+      op.data.indexName = op.data.indexType + "_" + name
+
+      var index = indexes[op.data.indexName]
+
+      // find count for index seq
+      for (var count = 0; count < indexes['offset'].data.length; ++count)
+        if (indexes['offset'].data[count] == index.seq)
+          break
+
+      db.stream({
+        gt: indexes[op.data.indexName].seq, live: true
+      }).pipe({
+        paused: false,
+        write: function (data) {
+          if (updateOffsetIndex(count, data.seq))
+            updatedOffsetIndex = true
+
+          if (updateIndexValue(op.data, index, data.value, count))
+            syncNewValue(bipf.decode(data.value, 0))
+
+          count++
+        }
+      })
+    },
+
     onReady: function(cb) {
       if (isReady)
         cb()
@@ -410,8 +457,5 @@ module.exports = function (db, indexesPath) {
           return bipf.seekKey(buffer, p, bRoot)
       }
     }
-
-    // FIXME: something like an index watch
-    // useful for contacts index e.g.
   }
 }
