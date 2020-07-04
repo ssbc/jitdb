@@ -378,15 +378,16 @@ module.exports = function (db, indexesPath) {
         onIndexesReady()
     },
 
+    getSeq(op) {
+      return indexes[op.data.indexName].seq
+    },
+
     liveQuerySingleIndex: function(op, cb) {
       var newValues = []
       var sendNewValues = debounce(function() {
         var v = newValues.slice(0)
         newValues = []
-        cb(null, {
-          seq: indexes[op.data.indexName].seq,
-          data: v
-        })
+        cb(null, v)
       }, 300)
 
       function syncNewValue(val) {
