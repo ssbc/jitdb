@@ -7,7 +7,6 @@ const sanitize = require("sanitize-filename")
 const debounce = require('lodash.debounce')
 
 module.exports = function (db, indexesPath) {
-
   function overwrite(filename, seq, count, dataBuffer, cb) {
     console.log("writing index to", filename)
 
@@ -48,12 +47,13 @@ module.exports = function (db, indexesPath) {
         if (err) return cb(err)
         const seq = seqCountBuffer.readInt32LE(0)
         const count = seqCountBuffer.readInt32LE(4)
-        f.read(8, stat.size-8, (err, buf) => {
+        f.read(8, stat.size - 8, (err, buf) => {
           if (err) return cb(err)
           else cb(null, {
             seq,
             count,
-            data: new Uint32Array(buf.buffer, buf.offset, buf.byteLength/4)
+            data: new Uint32Array(buf.buffer, buf.offset,
+                                  buf.byteLength / 4)
           })
         })
       })
@@ -83,7 +83,7 @@ module.exports = function (db, indexesPath) {
         push.values(files),
         push.asyncMap((file, cb) => {
           const indexName = file.replace(/\.[^/.]+$/, "")
-          if (file == 'offset.index') {
+          if (file === 'offset.index') {
             loadIndex(path.join(indexesPath, file), (err, data) => {
               indexes[indexName] = data
               cb()
@@ -150,7 +150,7 @@ module.exports = function (db, indexesPath) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(data.value, p, bValue)
     var seekKey = bipf.seekKey(data.value, p, bTimestamp)
-    
+
     queue.add(data.seq, data.value, seekKey)
   }
 
@@ -223,7 +223,7 @@ module.exports = function (db, indexesPath) {
 
     // find count for index seq
     for (var count = 0; count < indexes['offset'].data.length; ++count)
-      if (indexes['offset'].data[count] == index.seq)
+      if (indexes['offset'].data[count] === index.seq)
         break
 
     var updatedOffsetIndex = false
@@ -315,12 +315,12 @@ module.exports = function (db, indexesPath) {
 
       function handleOperations(ops) {
         ops.forEach(op => {
-          if (op.type == 'EQUAL') {
+          if (op.type === 'EQUAL') {
             var name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
             op.data.indexName = op.data.indexType + "_" + name
             if (!indexes[op.data.indexName])
               missingIndexes.push(op.data)
-          } else if (op.type == 'AND' || op.type == 'OR')
+          } else if (op.type === 'AND' || op.type === 'OR')
             handleOperations(op.data)
           else
             console.log("Unknown operator type:" + op.type)
@@ -339,32 +339,32 @@ module.exports = function (db, indexesPath) {
           cb()
       }
 
-      function get_index_for_operation(op, cb) {
-        if (op.type == 'EQUAL') {
+      function getIndexForOperation(op, cb) {
+        if (op.type === 'EQUAL') {
           ensureIndexSync(op, () => {
             cb(indexes[op.data.indexName].data)
           })
         }
-        else if (op.type == 'AND')
+        else if (op.type === 'AND')
         {
-          get_index_for_operation(op.data[0], (op1) => {
-            get_index_for_operation(op.data[1], (op2) => {
+          getIndexForOperation(op.data[0], (op1) => {
+            getIndexForOperation(op.data[1], (op2) => {
               cb(op1.new_intersection(op2))
             })
           })
         }
-        else if (op.type == 'OR')
+        else if (op.type === 'OR')
         {
-          get_index_for_operation(op.data[0], (op1) => {
-            get_index_for_operation(op.data[1], (op2) => {
+          getIndexForOperation(op.data[0], (op1) => {
+            getIndexForOperation(op.data[1], (op2) => {
               cb(op1.new_union(op2))
             })
           })
         }
       }
-      
+
       function onIndexesReady() {
-        get_index_for_operation(operation, data => {
+        getIndexForOperation(operation, data => {
           if (limit)
             getTop(data, limit, cb)
           else
@@ -403,7 +403,7 @@ module.exports = function (db, indexesPath) {
 
       // find count for index seq
       for (var count = 0; count < indexes['offset'].data.length; ++count)
-        if (indexes['offset'].data[count] == index.seq)
+        if (indexes['offset'].data[count] === index.seq)
           break
 
       db.stream({
@@ -411,8 +411,7 @@ module.exports = function (db, indexesPath) {
       }).pipe({
         paused: false,
         write: function (data) {
-          if (updateOffsetIndex(count, data.seq))
-            updatedOffsetIndex = true
+          updateOffsetIndex(count, data.seq)
 
           if (updateIndexValue(op.data, index, data.value, count))
             syncNewValue(bipf.decode(data.value, 0))
