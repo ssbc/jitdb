@@ -11,7 +11,7 @@ The motivation for this database is that it should be:
  - run in the browser and in node
 
 Flumelog-aligned-offset takes care of persistance of the main log. It
-is expected to use bipf to encode data. On top of this, JITDB lazily
+is expected to use [bipf] to encode data. On top of this, JITDB lazily
 creates and maintains indexes based on the way the data is queried.
 Meaning if you search for messages of type `post` an author `x` two
 indexes will be created the first time. One for type and one for
@@ -25,5 +25,5 @@ streaming the full log not much slower than reading the file. Meaning
 a 350mb log can be scanned in a few seconds.
 
 [flumelog-aligned-offset]: https://github.com/flumedb/flumelog-aligned-offset
-
+[bipf]: https://github.com/dominictarr/bipf/
 
