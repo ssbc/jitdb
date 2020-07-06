@@ -400,15 +400,27 @@ module.exports = function (db, indexesPath) {
       op.data.indexName = op.data.indexType + "_" + name
 
       var index = indexes[op.data.indexName]
+      var count = 0
+      var seq = 0
 
-      // find count for index seq
-      for (var count = 0; count < indexes['offset'].data.length; ++count)
-        if (indexes['offset'].data[count] === index.seq)
-          break
+      if (!index) {
+        index = indexes[op.data.indexName] = {
+          seq: 0,
+          data: new TypedFastBitSet()
+        }
+      } else {
+        seq = index.seq
+        // find count for index seq
+        for (; count < indexes['offset'].data.length; ++count)
+          if (indexes['offset'].data[count] === index.seq)
+            break
+      }
 
-      db.stream({
-        gt: indexes[op.data.indexName].seq, live: true
-      }).pipe({
+      var opts = { live: true }
+      if (seq != 0)
+        opts.gt = seq
+
+      db.stream(opts).pipe({
         paused: false,
         write: function (data) {
           updateOffsetIndex(count, data.seq)
