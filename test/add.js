@@ -44,16 +44,17 @@ db.onReady(() => {
     state = validate.appendNew(state, null, keys, msg, Date.now())
     state = validate.appendNew(state, null, keys2, msg, Date.now())
 
+    const typeQuery = {
+      type: 'EQUAL',
+      data: {
+        seek: db.seekType,
+        value: Buffer.from('post'),
+        indexType: "type"
+      }
+    }
+
     addMsg(state.queue[0].value, (err, msg1) => {
       addMsg(state.queue[1].value, (err, msg2) => {
-        const typeQuery = {
-          type: 'EQUAL',
-          data: {
-            seek: db.seekType,
-            value: Buffer.from('post'),
-            indexType: "type"
-          }
-        }
         db.query(typeQuery, 10, (err, results) => {
           t.equal(results.length, 2)
 
@@ -107,6 +108,35 @@ db.onReady(() => {
                 })
               })
             })
+          })
+        })
+      })
+    })
+  })
+
+  test('Update index', t => {
+    state = validate.initial()
+    const msg = { type: 'posty', text: 'Testing!' }
+    state = validate.appendNew(state, null, keys, msg, Date.now())
+    state = validate.appendNew(state, null, keys2, msg, Date.now())
+
+    const typeQuery = {
+      type: 'EQUAL',
+      data: {
+        seek: db.seekType,
+        value: Buffer.from('posty'),
+        indexType: "type"
+      }
+    }
+
+    addMsg(state.queue[0].value, (err, msg1) => {
+      db.query(typeQuery, 0, (err, results) => {
+        t.equal(results.length, 1)
+
+        addMsg(state.queue[1].value, (err, msg1) => {
+          db.query(typeQuery, 0, (err, results) => {
+            t.equal(results.length, 2)
+            t.end()
           })
         })
       })
