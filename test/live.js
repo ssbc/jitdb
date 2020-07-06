@@ -72,4 +72,42 @@ db.onReady(() => {
       console.log("waiting for live query")
     })
   })
+
+  test('With initial values', t => {
+    state = validate.initial()
+    const msg = { type: 'posty', text: 'Testing!' }
+    state = validate.appendNew(state, null, keys, msg, Date.now())
+    state = validate.appendNew(state, null, keys2, msg, Date.now())
+
+    const typeQuery = {
+      type: 'EQUAL',
+      data: {
+        seek: db.seekType,
+        value: Buffer.from('posty'),
+        indexType: "type"
+      }
+    }
+
+    addMsg(state.queue[0].value, (err, msg1) => {
+      // create index
+      db.query(typeQuery, 0, (err, results) => {
+        t.equal(results.length, 1)
+
+        db.liveQuerySingleIndex(typeQuery, (err, results) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].id, state.queue[1].value.id)
+
+          // rerun on updated index
+          db.query(typeQuery, 0, (err, results) => {
+            t.equal(results.length, 2)
+            t.end()
+          })
+        })
+
+        addMsg(state.queue[1].value, (err, msg1) => {
+          console.log("waiting for live query")
+        })
+      })
+    })
+  })
 })

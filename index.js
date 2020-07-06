@@ -223,8 +223,10 @@ module.exports = function (db, indexesPath) {
 
     // find count for index seq
     for (var count = 0; count < indexes['offset'].data.length; ++count)
-      if (indexes['offset'].data[count] === index.seq)
+      if (indexes['offset'].data[count] === index.seq) {
+        count++
         break
+      }
 
     var updatedOffsetIndex = false
     const start = Date.now()
@@ -412,8 +414,10 @@ module.exports = function (db, indexesPath) {
         seq = index.seq
         // find count for index seq
         for (; count < indexes['offset'].data.length; ++count)
-          if (indexes['offset'].data[count] === index.seq)
+          if (indexes['offset'].data[count] === index.seq) {
+            count++
             break
+          }
       }
 
       var opts = { live: true }
@@ -428,6 +432,7 @@ module.exports = function (db, indexesPath) {
           if (updateIndexValue(op.data, index, data.value, count))
             syncNewValue(bipf.decode(data.value, 0))
 
+          index.seq = data.seq
           count++
         }
       })
