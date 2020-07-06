@@ -25,7 +25,8 @@ streaming the full log not much slower than reading the file. Meaning
 a 350mb log can be scanned in a few seconds.
 
 While this is mainly aimed as a query engine, it is possible to base
-other indexes 
+other indexes types on top of this, such as a reduce index on contact
+messages.
 
 [flumelog-aligned-offset]: https://github.com/flumedb/flumelog-aligned-offset
 [bipf]: https://github.com/dominictarr/bipf/
