@@ -24,6 +24,9 @@ It turns out that the combination of push streams and bipf makes
 streaming the full log not much slower than reading the file. Meaning
 a 350mb log can be scanned in a few seconds.
 
+While this is mainly aimed as a query engine, it is possible to base
+other indexes 
+
 [flumelog-aligned-offset]: https://github.com/flumedb/flumelog-aligned-offset
 [bipf]: https://github.com/dominictarr/bipf/
 
