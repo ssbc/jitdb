@@ -1,5 +1,4 @@
 const util = require('util')
-const bipf = require('bipf')
 const FlumeLog = require('flumelog-aligned-offset')
 const Obv = require('obv')
 
