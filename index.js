@@ -7,6 +7,7 @@ const sanitize = require("sanitize-filename")
 const debounce = require('lodash.debounce')
 
 module.exports = function (db, indexesPath) {
+  // FIXME: use atomic-file instead?
   function overwrite(filename, seq, count, dataBuffer, cb) {
     console.log("writing index to", filename)
 
@@ -60,6 +61,26 @@ module.exports = function (db, indexesPath) {
     })
   }
 
+  function loadFloatIndex(file, cb) {
+    const f = RAF(file)
+    f.stat((err, stat) => {
+      f.read(0, 8, (err, seqCountBuffer) => {
+        if (err) return cb(err)
+        const seq = seqCountBuffer.readInt32LE(0)
+        const count = seqCountBuffer.readInt32LE(4)
+        f.read(8, stat.size - 8, (err, buf) => {
+          if (err) return cb(err)
+          else cb(null, {
+            seq,
+            count,
+            data: new Float32Array(buf.buffer, buf.offset,
+                                   buf.byteLength / 4)
+          })
+        })
+      })
+    })
+  }
+
   var indexes = {}
 
   function listDirChrome(fs, path, files, cb)
@@ -85,6 +106,12 @@ module.exports = function (db, indexesPath) {
           const indexName = file.replace(/\.[^/.]+$/, "")
           if (file === 'offset.index') {
             loadIndex(path.join(indexesPath, file), (err, data) => {
+              indexes[indexName] = data
+              cb()
+            })
+          }
+          else if (file === 'timestamp.index') {
+            loadFloatIndex(path.join(indexesPath, file), (err, data) => {
               indexes[indexName] = data
               cb()
             })
@@ -132,6 +159,13 @@ module.exports = function (db, indexesPath) {
         data: new Uint32Array(1000 * 1000) // FIXME: fixed size
       }
     }
+    if (!indexes['timestamp']) {
+      indexes['timestamp'] = {
+        seq: 0,
+        count: 0,
+        data: new Float32Array(1000 * 1000) // FIXME: fixed size
+      }
+    }
 
     isReady = true
     for (var i = 0; i < waiting.length; ++i)
@@ -160,18 +194,25 @@ module.exports = function (db, indexesPath) {
     console.log("results", bitset.size())
     console.time("get values and sort top " + limit)
 
+    function s(x) {
+      return {
+        val: x,
+        timestamp: indexes['timestamp'].data[x]
+      }
+    }
+    var timestamped = bitset.array().map(s)
+    var sorted = timestamped.sort((a, b) => b.timestamp - a.timestamp)
+
     push(
-      push.values(bitset.array()),
-      push.asyncMap((val, cb) => {
-        var seq = indexes['offset'].data[val]
-        db.get(seq, (err, value) => {
-          sortData({ seq, value }, queue)
-          cb()
-        })
+      push.values(sorted),
+      push.take(limit),
+      push.asyncMap((sorted, cb) => {
+        var seq = indexes['offset'].data[sorted.val]
+        db.get(seq, cb)
       }),
-      push.collect(() => {
+      push.collect((err, results) => {
         console.timeEnd("get values and sort top " + limit)
-        cb(null, queue.sorted.map(x => bipf.decode(x.value, 0)))
+        cb(null, results.map(x => bipf.decode(x, 0)))
       })
     )
   }
@@ -198,6 +239,20 @@ module.exports = function (db, indexesPath) {
       indexes['offset'].seq = seq
       indexes['offset'].data[count] = seq
       indexes['offset'].count = count
+      return true
+    }
+  }
+
+  function updateTimestampIndex(count, seq, data) {
+    if (count > indexes['timestamp'].count) {
+      indexes['timestamp'].seq = seq
+
+      var p = 0 // note you pass in p!
+      p = bipf.seekKey(data.value, p, bValue)
+      var seekKey = bipf.seekKey(data.value, p, bTimestamp)
+
+      indexes['timestamp'].data[count] = bipf.decode(data.value, seekKey)
+      indexes['timestamp'].count = count
       return true
     }
   }
@@ -229,6 +284,7 @@ module.exports = function (db, indexesPath) {
       }
 
     var updatedOffsetIndex = false
+    var updatedTimestampIndex = false
     const start = Date.now()
 
     db.stream({ gt: index.seq }).pipe({
@@ -236,6 +292,9 @@ module.exports = function (db, indexesPath) {
       write: function (data) {
         if (updateOffsetIndex(count, data.seq))
           updatedOffsetIndex = true
+
+        if (updateTimestampIndex(count, data.seq, data))
+          updatedTimestampIndex = true
 
         updateIndexValue(op.data, index, data.value, count)
 
@@ -246,6 +305,9 @@ module.exports = function (db, indexesPath) {
 
         if (updatedOffsetIndex)
           saveTypedArray('offset', indexes['offset'].seq, count, indexes['offset'].data)
+
+        if (updatedTimestampIndex)
+          saveTypedArray('timestamp', indexes['timestamp'].seq, count, indexes['timestamp'].data)
 
         index.seq = indexes['offset'].seq
         if (index.data.size() > 10) // FIXME: configurable, maybe percentage?
@@ -268,6 +330,7 @@ module.exports = function (db, indexesPath) {
     var count = 0
 
     var updatedOffsetIndex = false
+    var updatedTimestampIndex = false
     const start = Date.now()
     
     db.stream({}).pipe({
@@ -278,6 +341,9 @@ module.exports = function (db, indexesPath) {
 
         if (updateOffsetIndex(count, seq))
           updatedOffsetIndex = true
+
+        if (updateTimestampIndex(count, data.seq, data))
+          updatedTimestampIndex = true
 
         missingIndexes.forEach(m => {
           updateIndexValue(m, newIndexes[m.indexName], buffer, count)
@@ -290,6 +356,9 @@ module.exports = function (db, indexesPath) {
 
         if (updatedOffsetIndex)
           saveTypedArray('offset', indexes['offset'].seq, count, indexes['offset'].data)
+
+        if (updatedTimestampIndex)
+          saveTypedArray('timestamp', indexes['timestamp'].seq, count, indexes['timestamp'].data)
 
         for (var indexName in newIndexes) {
           indexes[indexName] = newIndexes[indexName]
@@ -428,6 +497,8 @@ module.exports = function (db, indexesPath) {
         paused: false,
         write: function (data) {
           updateOffsetIndex(count, data.seq)
+
+          updateTimestampIndex(count, data.seq, data)
 
           if (updateIndexValue(op.data, index, data.value, count))
             syncNewValue(bipf.decode(data.value, 0))

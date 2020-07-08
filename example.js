@@ -14,20 +14,6 @@ var db = require('./index')(raf, "./indexes")
 db.onReady(() => {
   // seems the cache needs to be warmed up to get fast results
 
-  db.query({
-    type: 'AND',
-    data: [
-      { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
-      { type: 'EQUAL', data: { seek: db.seekRoot, value: undefined, indexType: "root" } }
-      ]
-  }, 10, (err, results) => {
-    /*
-    results.forEach(x => {
-      console.log(util.inspect(x, false, null, true))
-    })
-    */
-  })
-
   console.time("get all posts from user")
 
   db.query({
@@ -50,29 +36,42 @@ db.onReady(() => {
     }, 10, (err, results) => {
       console.timeEnd("get last 10 posts from user")
 
-      var hops = {}
-      const query = { type: 'EQUAL', data: { seek: db.seekType, value: bContactValue, indexType: "type" } }
-      const isFeed = require('ssb-ref').isFeed
+      console.time("get top 50 posts")
 
-      console.time("contacts")
+      db.query({
+        type: 'EQUAL',
+        data: {
+          seek: db.seekType,
+          value: bPostValue,
+          indexType: "type"
+        }
+      }, 50, (err, results) => {
+        console.timeEnd("get top 50 posts")
 
-      db.query(query, 0, (err, results) => {
-        results.forEach(data => {
-          var from = data.value.author
-          var to = data.value.content.contact
-          var value =
-              data.value.content.blocking || data.value.content.flagged ? -1 :
-              data.value.content.following === true ? 1
-              : -2
+        var hops = {}
+        const query = { type: 'EQUAL', data: { seek: db.seekType, value: bContactValue, indexType: "type" } }
+        const isFeed = require('ssb-ref').isFeed
 
-          if(isFeed(from) && isFeed(to)) {
-            hops[from] = hops[from] || {}
-            hops[from][to] = value
-          }
+        console.time("contacts")
+
+        db.query(query, 0, (err, results) => {
+          results.forEach(data => {
+            var from = data.value.author
+            var to = data.value.content.contact
+            var value =
+                data.value.content.blocking || data.value.content.flagged ? -1 :
+                data.value.content.following === true ? 1
+                : -2
+
+            if(isFeed(from) && isFeed(to)) {
+              hops[from] = hops[from] || {}
+              hops[from][to] = value
+            }
+          })
+
+          console.timeEnd("contacts")
+          //console.log(hops)
         })
-
-        console.timeEnd("contacts")
-        //console.log(hops)
       })
     })
   })
