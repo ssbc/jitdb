@@ -160,14 +160,6 @@ module.exports = function (db, indexesPath) {
   const bType = Buffer.from('type')
   const bRoot = Buffer.from('root')
 
-  function sortData(data, queue) {
-    var p = 0 // note you pass in p!
-    p = bipf.seekKey(data.value, p, bValue)
-    var seekKey = bipf.seekKey(data.value, p, bTimestamp)
-
-    queue.add(data.seq, data.value, seekKey)
-  }
-
   function getTop(bitset, limit, cb) {
     var queue = require('./bounded-priority-queue')(limit)
 
@@ -214,39 +206,39 @@ module.exports = function (db, indexesPath) {
     )
   }
 
-  function updateOffsetIndex(count, seq) {
-    if (count > indexes['offset'].count) {
+  function updateOffsetIndex(offset, seq) {
+    if (offset > indexes['offset'].count - 1) {
       indexes['offset'].seq = seq
-      indexes['offset'].data[count] = seq
-      indexes['offset'].count = count
+      indexes['offset'].data[offset] = seq
+      indexes['offset'].count = offset + 1
       return true
     }
   }
 
-  function updateTimestampIndex(count, seq, data) {
-    if (count > indexes['timestamp'].count) {
+  function updateTimestampIndex(offset, seq, data) {
+    if (offset > indexes['timestamp'].count - 1) {
       indexes['timestamp'].seq = seq
 
       var p = 0 // note you pass in p!
       p = bipf.seekKey(data.value, p, bValue)
       var seekKey = bipf.seekKey(data.value, p, bTimestamp)
 
-      indexes['timestamp'].data[count] = bipf.decode(data.value, seekKey)
-      indexes['timestamp'].count = count
+      indexes['timestamp'].data[offset] = bipf.decode(data.value, seekKey)
+      indexes['timestamp'].count = offset + 1
       return true
     }
   }
 
-  function updateIndexValue(opData, index, buffer, count) {
+  function updateIndexValue(opData, index, buffer, offset) {
     var seekKey = opData.seek(buffer)
     if (opData.value === undefined) {
       if (seekKey === -1) {
-        index.data.add(count)
+        index.data.add(offset)
         return true
       }
     }
     else if (~seekKey && bipf.compareString(buffer, seekKey, opData.value) === 0) {
-      index.data.add(count)
+      index.data.add(offset)
       return true
     }
 
@@ -256,10 +248,10 @@ module.exports = function (db, indexesPath) {
   function updateIndex(op, cb) {
     var index = indexes[op.data.indexName]
 
-    // find count for index seq
-    for (var count = 0; count < indexes['offset'].data.length; ++count)
-      if (indexes['offset'].data[count] === index.seq) {
-        count++
+    // find the next possible offset
+    for (var offset = 0; offset < indexes['offset'].data.length; ++offset)
+      if (indexes['offset'].data[offset] === index.seq) {
+        offset++
         break
       }
 
@@ -270,17 +262,18 @@ module.exports = function (db, indexesPath) {
     db.stream({ gt: index.seq }).pipe({
       paused: false,
       write: function (data) {
-        if (updateOffsetIndex(count, data.seq))
+        if (updateOffsetIndex(offset, data.seq))
           updatedOffsetIndex = true
 
-        if (updateTimestampIndex(count, data.seq, data))
+        if (updateTimestampIndex(offset, data.seq, data))
           updatedTimestampIndex = true
 
-        updateIndexValue(op.data, index, data.value, count)
+        updateIndexValue(op.data, index, data.value, offset)
 
-        count++
+        offset++
       },
       end: () => {
+        var count = offset // incremented at end
         console.log(`time: ${Date.now()-start}ms, total items: ${count}`)
 
         if (updatedOffsetIndex)
@@ -307,7 +300,7 @@ module.exports = function (db, indexesPath) {
       }
     })
 
-    var count = 0
+    var offset = 0
 
     var updatedOffsetIndex = false
     var updatedTimestampIndex = false
@@ -319,19 +312,20 @@ module.exports = function (db, indexesPath) {
         var seq = data.seq
         var buffer = data.value
 
-        if (updateOffsetIndex(count, seq))
+        if (updateOffsetIndex(offset, seq))
           updatedOffsetIndex = true
 
-        if (updateTimestampIndex(count, data.seq, data))
+        if (updateTimestampIndex(offset, data.seq, data))
           updatedTimestampIndex = true
 
         missingIndexes.forEach(m => {
-          updateIndexValue(m, newIndexes[m.indexName], buffer, count)
+          updateIndexValue(m, newIndexes[m.indexName], buffer, offset)
         })
 
-        count++
+        offset++
       },
       end: () => {
+        var count = offset // incremented at end
         console.log(`time: ${Date.now()-start}ms, total items: ${count}`)
 
         if (updatedOffsetIndex)
@@ -451,7 +445,7 @@ module.exports = function (db, indexesPath) {
       op.data.indexName = op.data.indexType + "_" + name
 
       var index = indexes[op.data.indexName]
-      var count = 0
+      var offset = 0
       var seq = 0
 
       if (!index) {
@@ -461,10 +455,10 @@ module.exports = function (db, indexesPath) {
         }
       } else {
         seq = index.seq
-        // find count for index seq
-        for (; count < indexes['offset'].data.length; ++count)
-          if (indexes['offset'].data[count] === index.seq) {
-            count++
+        // find the next possible offset
+        for (; offset < indexes['offset'].data.length; ++offset)
+          if (indexes['offset'].data[offset] === index.seq) {
+            offset++
             break
           }
       }
@@ -476,15 +470,10 @@ module.exports = function (db, indexesPath) {
       db.stream(opts).pipe({
         paused: false,
         write: function (data) {
-          updateOffsetIndex(count, data.seq)
-
-          updateTimestampIndex(count, data.seq, data)
-
-          if (updateIndexValue(op.data, index, data.value, count))
+          if (updateIndexValue(op.data, index, data.value, offset))
             syncNewValue(bipf.decode(data.value, 0))
 
-          index.seq = data.seq
-          count++
+          offset++
         }
       })
     },
