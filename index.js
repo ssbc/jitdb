@@ -41,7 +41,7 @@ module.exports = function (db, indexesPath) {
     saveTypedArray(name, seq, index.count, index.words)
   }
 
-  function loadIndex(file, cb) {
+  function loadIndex(file, Type, cb) {
     const f = RAF(file)
     f.stat((err, stat) => {
       f.read(0, 8, (err, seqCountBuffer) => {
@@ -53,28 +53,8 @@ module.exports = function (db, indexesPath) {
           else cb(null, {
             seq,
             count,
-            data: new Uint32Array(buf.buffer, buf.offset,
-                                  buf.byteLength / 4)
-          })
-        })
-      })
-    })
-  }
-
-  function loadFloatIndex(file, cb) {
-    const f = RAF(file)
-    f.stat((err, stat) => {
-      f.read(0, 8, (err, seqCountBuffer) => {
-        if (err) return cb(err)
-        const seq = seqCountBuffer.readInt32LE(0)
-        const count = seqCountBuffer.readInt32LE(4)
-        f.read(8, stat.size - 8, (err, buf) => {
-          if (err) return cb(err)
-          else cb(null, {
-            seq,
-            count,
-            data: new Float32Array(buf.buffer, buf.offset,
-                                   buf.byteLength / 4)
+            data: new Type(buf.buffer, buf.offset,
+                           buf.byteLength / 4)
           })
         })
       })
@@ -105,13 +85,13 @@ module.exports = function (db, indexesPath) {
         push.asyncMap((file, cb) => {
           const indexName = file.replace(/\.[^/.]+$/, "")
           if (file === 'offset.index') {
-            loadIndex(path.join(indexesPath, file), (err, data) => {
+            loadIndex(path.join(indexesPath, file), Uint32Array, (err, data) => {
               indexes[indexName] = data
               cb()
             })
           }
           else if (file === 'timestamp.index') {
-            loadFloatIndex(path.join(indexesPath, file), (err, data) => {
+            loadIndex(path.join(indexesPath, file), Float32Array, (err, data) => {
               indexes[indexName] = data
               cb()
             })
@@ -122,7 +102,7 @@ module.exports = function (db, indexesPath) {
               data: new TypedFastBitSet()
             }
 
-            loadIndex(path.join(indexesPath, file), (err, i) => {
+            loadIndex(path.join(indexesPath, file), Uint32Array, (err, i) => {
               indexes[indexName].seq = i.seq
               indexes[indexName].data.words = i.data
               indexes[indexName].data.count = i.count
