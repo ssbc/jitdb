@@ -161,8 +161,6 @@ module.exports = function (db, indexesPath) {
   const bRoot = Buffer.from('root')
 
   function getTop(bitset, limit, cb) {
-    var queue = require('./bounded-priority-queue')(limit)
-
     console.log("results", bitset.size())
     console.time("get values and sort top " + limit)
 
