@@ -511,6 +511,17 @@ module.exports = function (db, indexesPath) {
         if (~p)
           return bipf.seekKey(buffer, p, bRoot)
       }
+    },
+
+    seekPrivate: function(buffer) {
+      var p = 0 // note you pass in p!
+      p = bipf.seekKey(buffer, p, bValue)
+
+      if (~p) {
+        p = bipf.seekKey(buffer, p, Buffer.from('meta'))
+        if (~p)
+          return bipf.seekKey(buffer, p, Buffer.from('private'))
+      }
     }
   }
 }
