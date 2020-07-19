@@ -5,7 +5,6 @@ const push = require('push-stream')
 const sanitize = require("sanitize-filename")
 const debounce = require('lodash.debounce')
 const AtomicFile = require('atomic-file/buffer')
-const IdbKvStore = require('idb-kv-store')
 
 module.exports = function (db, indexesPath) {
   function saveTypedArray(name, seq, count, arr, cb) {
@@ -52,6 +51,7 @@ module.exports = function (db, indexesPath) {
   var indexes = {}
 
   function listIndexesIDB(indexesPath, cb) {
+    const IdbKvStore = require('idb-kv-store')
     const store = new IdbKvStore(indexesPath)
     store.keys(cb)
   }
