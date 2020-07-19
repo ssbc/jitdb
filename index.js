@@ -227,20 +227,22 @@ module.exports = function (db, indexesPath) {
     }
   }
 
-  function updateIndexValue(opData, index, buffer, offset) {
+  function checkValue(opData, index, buffer) {
     var seekKey = opData.seek(buffer)
-    if (opData.value === undefined) {
-      if (seekKey === -1) {
-        index.data.add(offset)
-        return true
-      }
-    }
-    else if (~seekKey && bipf.compareString(buffer, seekKey, opData.value) === 0) {
-      index.data.add(offset)
+    if (opData.value === undefined)
+      return seekKey === -1
+    else if (~seekKey && bipf.compareString(buffer, seekKey, opData.value) === 0)
       return true
-    }
+    else
+      return false
+  }
 
-    return false
+  function updateIndexValue(opData, index, buffer, offset) {
+    const status = checkValue(opData, index, buffer)
+    if (status)
+      index.data.add(offset)
+
+    return status
   }
 
   function updateIndex(op, cb) {
@@ -344,6 +346,11 @@ module.exports = function (db, indexesPath) {
     })
   }
 
+  function setIndexName(op) {
+    const name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
+    op.data.indexName = op.data.indexType + "_" + name
+  }
+
   return {
     // operation:
     //
@@ -359,8 +366,7 @@ module.exports = function (db, indexesPath) {
       function handleOperations(ops) {
         ops.forEach(op => {
           if (op.type === 'EQUAL') {
-            var name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
-            op.data.indexName = op.data.indexType + "_" + name
+            setIndexName(op)
             if (!indexes[op.data.indexName])
               missingIndexes.push(op.data)
           } else if (op.type === 'AND' || op.type === 'OR')
@@ -438,40 +444,19 @@ module.exports = function (db, indexesPath) {
         sendNewValues()
       }
 
-      // FIXME: refactor
-      var name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
-      op.data.indexName = op.data.indexType + "_" + name
-
-      var index = indexes[op.data.indexName]
-      var offset = 0
-      var seq = 0
-
-      if (!index) {
-        index = indexes[op.data.indexName] = {
-          seq: 0,
-          data: new TypedFastBitSet()
-        }
-      } else {
-        seq = index.seq
-        // find the next possible offset
-        for (; offset < indexes['offset'].data.length; ++offset)
-          if (indexes['offset'].data[offset] === index.seq) {
-            offset++
-            break
-          }
-      }
+      setIndexName(op)
 
       var opts = { live: true }
-      if (seq != 0)
-        opts.gt = seq
+
+      var index = indexes[op.data.indexName]
+      if (index)
+        opts.gt = index.seq
 
       db.stream(opts).pipe({
         paused: false,
         write: function (data) {
-          if (updateIndexValue(op.data, index, data.value, offset))
+          if (checkValue(op.data, index, data.value))
             syncNewValue(bipf.decode(data.value, 0))
-
-          offset++
         }
       })
     },
