@@ -197,6 +197,8 @@ module.exports = function (db, indexesPath) {
       p = bipf.seekKey(data.value, p, bValue)
       var seekKey = bipf.seekKey(data.value, p, bTimestamp)
 
+      // FIXME: maybe min of the two timestamps:
+      // https://github.com/ssbc/ssb-backlinks/blob/7a731d03acebcbb84b5fee5f0dcc4f6fef3b8035/emit-links.js#L55
       indexes['timestamp'].data[offset] = bipf.decode(data.value, seekKey)
       indexes['timestamp'].count = offset + 1
       return true
