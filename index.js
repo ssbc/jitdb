@@ -1,38 +1,28 @@
 const bipf = require('bipf')
 const TypedFastBitSet = require('typedfastbitset')
-const RAF = require('polyraf')
 const path = require('path')
 const push = require('push-stream')
 const sanitize = require("sanitize-filename")
 const debounce = require('lodash.debounce')
+const AtomicFile = require('atomic-file/buffer')
+const IdbKvStore = require('idb-kv-store')
 
 module.exports = function (db, indexesPath) {
-  // FIXME: use atomic-file instead?
-  function overwrite(filename, seq, count, dataBuffer, cb) {
+  function saveTypedArray(name, seq, count, arr, cb) {
+    const filename = path.join(indexesPath, name + ".index")
+    if (!cb)
+      cb = () => {}
+
     console.log("writing index to", filename)
 
-    var b = Buffer.alloc(8)
+    const dataBuffer = Buffer.from(arr.buffer)
+    var b = Buffer.alloc(8+dataBuffer.length)
     b.writeInt32LE(seq, 0)
     b.writeInt32LE(count, 4)
+    dataBuffer.copy(b, 8)
 
-    var file = RAF(filename)
-    if (file.deleteable) {
-      file.destroy(() => {
-        file = RAF(filename)
-        file.write(0, b, () => {
-          file.write(8, dataBuffer, cb)
-        })
-      })
-    } else {
-      file.write(0, b, () => {
-        file.write(8, dataBuffer, cb)
-      })
-    }
-  }
-
-  function saveTypedArray(name, seq, count, arr, cb) {
-    overwrite(path.join(indexesPath, name + ".index"),
-              seq, count, Buffer.from(arr.buffer), cb)
+    var f = AtomicFile(filename)
+    f.set(b, cb)
   }
 
   // FIXME: terminology of what is an index
@@ -41,41 +31,29 @@ module.exports = function (db, indexesPath) {
     saveTypedArray(name, seq, index.count, index.words)
   }
 
-  function loadIndex(file, Type, cb) {
-    const f = RAF(file)
-    f.stat((err, stat) => {
-      f.read(0, 8, (err, seqCountBuffer) => {
-        if (err) return cb(err)
-        const seq = seqCountBuffer.readInt32LE(0)
-        const count = seqCountBuffer.readInt32LE(4)
-        f.read(8, stat.size - 8, (err, buf) => {
-          if (err) return cb(err)
-          else cb(null, {
-            seq,
-            count,
-            data: new Type(buf.buffer, buf.offset,
-                           buf.byteLength / 4)
-          })
-        })
+  function loadIndex(filename, Type, cb) {
+    var f = AtomicFile(filename)
+    f.get((err, data) => {
+      if (err) return cb(err)
+
+      const seq = data.readInt32LE(0)
+      const count = data.readInt32LE(4)
+      const buf = data.slice(8)
+
+      cb(null, {
+        seq,
+        count,
+        data: new Type(buf.buffer, buf.offset,
+                       buf.byteLength / 4)
       })
     })
   }
 
   var indexes = {}
 
-  function listDirChrome(fs, path, files, cb)
-  {
-    fs.root.getDirectory(path, {}, function(dirEntry) {
-      var dirReader = dirEntry.createReader()
-      dirReader.readEntries(function(entries) {
-        for (var i = 0; i < entries.length; i++) {
-          var entry = entries[i]
-          if (entry.isFile)
-            files.push(entry.name)
-        }
-        cb(null, files)
-      })
-    })
+  function listIndexesIDB(indexesPath, cb) {
+    const store = new IdbKvStore(indexesPath)
+    store.keys(cb)
   }
 
   function loadIndexes(cb) {
@@ -116,9 +94,7 @@ module.exports = function (db, indexesPath) {
     }
 
     if (typeof window !== 'undefined') { // browser
-      window.webkitRequestFileSystem(window.PERSISTENT, 0, function (fs) {
-        listDirChrome(fs, indexesPath, [], parseIndexes)
-      })
+      listIndexesIDB(indexesPath, parseIndexes)
     } else {
       const fs = require('fs')
       const mkdirp = require('mkdirp')
