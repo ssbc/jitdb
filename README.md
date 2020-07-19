@@ -28,6 +28,66 @@ While this is mainly aimed as a query engine, it is possible to base
 other indexes types on top of this, such as a reduce index on contact
 messages.
 
+## API
+
+### query(operation, limit, cb)
+
+Query the database. If one or more indexes doesn't exist or are
+outdated, the indexes will be updated before the query is run. If
+`limit` is specified, the top results based on timestamp will be
+returned in cb.
+
+Operation can be of the following types:
+
+| type  | data |
+| ----- | ---- |
+| EQUAL | { seek, value, indexType } |
+| AND   | [operation, operation] |
+| OR    | [operation, operation] |
+
+Example
+
+```
+{
+  type: 'AND',
+  data: [
+    { type: 'EQUAL', data: { seek: db.seekType, value: Buffer.from('post'), indexType: "type" } },
+    { type: 'EQUAL', data: { seek: db.seekAuthor, value: Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'), indexType: "author" } }
+  ]
+}
+```
+
+### getSeq(operation)
+
+Get the latest seq of an index
+
+### liveQuerySingleIndex(operation, cb)
+
+Operation must be a single index, such as the contact index. With this
+results matching the index will be returned in callback as they are
+added to the database. The index is *not* updated when using this method.
+
+### onReady(cb)
+
+Will call when all existing indexes have been loaded.
+
+### seekAuthor(buffer)
+
+A helper seek function for queries
+
+### seekType(buffer)
+
+A helper seek function for queries
+
+### seekRoot(buffer)
+
+A helper seek function for queries
+
+### seekPrivate(buffer)
+
+A helper seek function for queries
+
+
 [flumelog-aligned-offset]: https://github.com/flumedb/flumelog-aligned-offset
 [bipf]: https://github.com/dominictarr/bipf/
 

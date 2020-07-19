@@ -330,14 +330,6 @@ module.exports = function (db, indexesPath) {
   }
 
   return {
-    // operation:
-    //
-    // type  | data
-    // ------------
-    // EQUAL | { seek, value, indexType }
-    // AND   | [operation, operation]
-    // OR    | [operation, operation]
-
     query: function(operation, limit, cb) {
       var missingIndexes = []
 
