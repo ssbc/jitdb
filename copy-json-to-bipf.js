@@ -1,6 +1,6 @@
 var pull = require('pull-stream')
 var FlumeLog = require('flumelog-offset')
-var FlumeLogRaf = require('../')
+var FlumeLogAligned = require('flumelog-aligned-offset')
 var binary = require('bipf')
 var json = require('flumecodec/json')
 
@@ -11,15 +11,13 @@ var block = 64*1024
 if(process.argv[2] === process.argv[3]) throw new Error('input must !== output')
 
 var log = FlumeLog(process.argv[2], {blockSize: block, codec: json})
+var log2 = FlumeLogAligned (process.argv[3], {block: block})
 
-var log2 = FlumeLogRaf (process.argv[3], {block: block})
-var a = [], length = 0
 pull(
   log.stream({seqs:false, codec: json}),
   pull.map(function (data) {
     var len = binary.encodingLength(data)
     var b = Buffer.alloc(len)
-    length += b.length + 4
     binary.encode(data, b, 0)
     return b
   }),
