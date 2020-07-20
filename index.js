@@ -113,14 +113,14 @@ module.exports = function (db, indexesPath) {
       indexes['offset'] = {
         seq: 0,
         count: 0,
-        data: new Uint32Array(1000 * 1000) // FIXME: fixed size
+        data: new Uint32Array(16 * 1000)
       }
     }
     if (!indexes['timestamp']) {
       indexes['timestamp'] = {
         seq: 0,
         count: 0,
-        data: new Float64Array(1000 * 1000) // FIXME: fixed size
+        data: new Float64Array(16 * 1000)
       }
     }
 
@@ -181,8 +181,18 @@ module.exports = function (db, indexesPath) {
     )
   }
 
+  function growIndex(index) {
+    console.log("growing index")
+    let newArray = new Uint32Array(index.data.length * 2)
+    newArray.set(index.data)
+    index.data = newArray
+  }
+
   function updateOffsetIndex(offset, seq) {
     if (offset > indexes['offset'].count - 1) {
+      if (offset > indexes['offset'].data.length)
+        growIndex(indexes['offset'])
+
       indexes['offset'].seq = seq
       indexes['offset'].data[offset] = seq
       indexes['offset'].count = offset + 1
@@ -192,6 +202,9 @@ module.exports = function (db, indexesPath) {
 
   function updateTimestampIndex(offset, seq, buffer) {
     if (offset > indexes['timestamp'].count - 1) {
+      if (offset > indexes['timestamp'].data.length)
+        growIndex(indexes['timestamp'])
+
       indexes['timestamp'].seq = seq
 
       var p = 0 // note you pass in p!

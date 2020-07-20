@@ -3,6 +3,7 @@ const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
 const { prepareAndRunTest, addMsg } = require('./common')()
+const push = require('push-stream')
 
 const dir = '/tmp/jitdb-add'
 require('rimraf').sync(dir)
@@ -182,23 +183,9 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
     }
   }
 
-  const contactQuery = {
-    type: 'EQUAL',
-    data: {
-      seek: db.seekType,
-      value: Buffer.from('contact'),
-      indexType: "type"
-    }
-  }
-
-  console.log(state.queue)
-
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    console.log(msg)
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      console.log(msg)
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        console.log(msg)
         db.query(typeQuery, 1, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
@@ -207,4 +194,38 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
       })
     })
   })
+})
+
+prepareAndRunTest('grow', dir, (t, db, raf) => {
+  let msg = { type: 'post', text: 'Testing' }
+
+  let state = validate.initial()
+  for (var i = 0; i < 32 * 1000; ++i) {
+    msg.text = "Testing " + i
+    state = validate.appendNew(state, null, keys, msg, Date.now())
+  }
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: db.seekType,
+      value: Buffer.from('post'),
+      indexType: "type"
+    }
+  }
+
+  push(
+    push.values(state.queue),
+    push.asyncMap((q, cb) => {
+      addMsg(q.value, raf, cb)
+    }),
+    push.collect((err, results) => {
+      console.log("done inserting", results.length)
+      db.query(typeQuery, 1, (err, results) => {
+        t.equal(results.length, 1)
+        t.equal(results[0].value.content.text, 'Testing 31999')
+        t.end()
+      })
+    })
+  )
 })
