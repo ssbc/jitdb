@@ -43,7 +43,8 @@ module.exports = function (db, indexesPath) {
         seq,
         count,
         data: new Type(buf.buffer, buf.offset,
-                       buf.byteLength / 4)
+                       buf.byteLength /
+                       (Type === Float64Array ? 8 : 4))
       })
     })
   }
