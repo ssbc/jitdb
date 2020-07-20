@@ -1,4 +1,3 @@
-const util = require('util')
 const FlumeLog = require('flumelog-aligned-offset')
 const Obv = require('obv')
 
