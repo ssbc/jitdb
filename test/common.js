@@ -31,7 +31,7 @@ module.exports = function () {
       raf.since = Obv()
       raf.onWrite = raf.since.set
 
-      let db = require('../index')(raf, path.join(dir, "indexes"))
+      let db = require('../index')(raf, path.join(dir, "indexes" + name))
       db.onReady(() => {
         test(name, (t) => cb(t, db, raf))
       })

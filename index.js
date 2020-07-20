@@ -69,7 +69,7 @@ module.exports = function (db, indexesPath) {
             })
           }
           else if (file === 'timestamp.index') {
-            loadIndex(path.join(indexesPath, file), Float32Array, (err, data) => {
+            loadIndex(path.join(indexesPath, file), Float64Array, (err, data) => {
               indexes[indexName] = data
               cb()
             })
@@ -119,7 +119,7 @@ module.exports = function (db, indexesPath) {
       indexes['timestamp'] = {
         seq: 0,
         count: 0,
-        data: new Float32Array(1000 * 1000) // FIXME: fixed size
+        data: new Float64Array(1000 * 1000) // FIXME: fixed size
       }
     }
 
@@ -189,17 +189,17 @@ module.exports = function (db, indexesPath) {
     }
   }
 
-  function updateTimestampIndex(offset, seq, data) {
+  function updateTimestampIndex(offset, seq, buffer) {
     if (offset > indexes['timestamp'].count - 1) {
       indexes['timestamp'].seq = seq
 
       var p = 0 // note you pass in p!
-      p = bipf.seekKey(data.value, p, bValue)
-      var seekKey = bipf.seekKey(data.value, p, bTimestamp)
+      p = bipf.seekKey(buffer, p, bValue)
+      p = bipf.seekKey(buffer, p, bTimestamp)
 
       // FIXME: maybe min of the two timestamps:
       // https://github.com/ssbc/ssb-backlinks/blob/7a731d03acebcbb84b5fee5f0dcc4f6fef3b8035/emit-links.js#L55
-      indexes['timestamp'].data[offset] = bipf.decode(data.value, seekKey)
+      indexes['timestamp'].data[offset] = bipf.decode(buffer, p)
       indexes['timestamp'].count = offset + 1
       return true
     }
@@ -243,7 +243,7 @@ module.exports = function (db, indexesPath) {
         if (updateOffsetIndex(offset, data.seq))
           updatedOffsetIndex = true
 
-        if (updateTimestampIndex(offset, data.seq, data))
+        if (updateTimestampIndex(offset, data.seq, data.value))
           updatedTimestampIndex = true
 
         updateIndexValue(op.data, index, data.value, offset)
@@ -293,7 +293,7 @@ module.exports = function (db, indexesPath) {
         if (updateOffsetIndex(offset, seq))
           updatedOffsetIndex = true
 
-        if (updateTimestampIndex(offset, data.seq, data))
+        if (updateTimestampIndex(offset, data.seq, buffer))
           updatedTimestampIndex = true
 
         missingIndexes.forEach(m => {
