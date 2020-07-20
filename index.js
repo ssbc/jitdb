@@ -181,9 +181,9 @@ module.exports = function (db, indexesPath) {
     )
   }
 
-  function growIndex(index) {
+  function growIndex(index, Type) {
     console.log("growing index")
-    let newArray = new Uint32Array(index.data.length * 2)
+    let newArray = new Type(index.data.length * 2)
     newArray.set(index.data)
     index.data = newArray
   }
@@ -191,7 +191,7 @@ module.exports = function (db, indexesPath) {
   function updateOffsetIndex(offset, seq) {
     if (offset > indexes['offset'].count - 1) {
       if (offset > indexes['offset'].data.length)
-        growIndex(indexes['offset'])
+        growIndex(indexes['offset'], Uint32Array)
 
       indexes['offset'].seq = seq
       indexes['offset'].data[offset] = seq
@@ -203,7 +203,7 @@ module.exports = function (db, indexesPath) {
   function updateTimestampIndex(offset, seq, buffer) {
     if (offset > indexes['timestamp'].count - 1) {
       if (offset > indexes['timestamp'].data.length)
-        growIndex(indexes['timestamp'])
+        growIndex(indexes['timestamp'], Float64Array)
 
       indexes['timestamp'].seq = seq
 
