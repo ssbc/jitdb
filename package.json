@@ -25,6 +25,7 @@
     "pull-stream": "^3.6.14",
     "rimraf": "^3.0.2",
     "ssb-keys": "^7.2.2",
+    "ssb-ref": "^2.14.0",
     "ssb-validate": "^4.1.1",
     "tape": "^5.0.1"
   },
