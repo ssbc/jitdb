@@ -24,10 +24,10 @@ module.exports = function (db, indexesPath) {
     f.set(b, cb)
   }
 
-  // FIXME: terminology of what is an index
-  function saveIndex(name, seq, index, cb) {
+  function saveIndex(name, seq, data, cb) {
     console.log("saving index:" + name)
-    saveTypedArray(name, seq, index.count, index.words)
+    data.trim()
+    saveTypedArray(name, seq, data.count, data.words, cb)
   }
 
   function loadIndex(filename, Type, cb) {
@@ -276,7 +276,7 @@ module.exports = function (db, indexesPath) {
 
         index.seq = indexes['offset'].seq
         if (index.data.size() > 10) // FIXME: configurable, maybe percentage?
-          saveIndex(op.data.indexName, indexes['offset'].seq, index.data)
+          saveIndex(op.data.indexName, index.seq, index.data)
 
         cb()
       }
@@ -330,7 +330,7 @@ module.exports = function (db, indexesPath) {
           indexes[indexName] = newIndexes[indexName]
           indexes[indexName].seq = indexes['offset'].seq
           if (indexes[indexName].data.size() > 10) // FIXME: configurable, maybe percentage?
-            saveIndex(indexName, indexes['offset'].seq, newIndexes[indexName].data)
+            saveIndex(indexName, indexes[indexName].seq, indexes[indexName].data)
         }
 
         cb()
@@ -491,6 +491,10 @@ module.exports = function (db, indexesPath) {
         if (~p)
           return bipf.seekKey(buffer, p, Buffer.from('private'))
       }
-    }
+    },
+
+    // testing
+    saveIndex,
+    loadIndex
   }
 }
