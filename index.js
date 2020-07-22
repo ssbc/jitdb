@@ -5,6 +5,7 @@ const push = require('push-stream')
 const sanitize = require("sanitize-filename")
 const debounce = require('lodash.debounce')
 const AtomicFile = require('atomic-file/buffer')
+const toBuffer = require('typedarray-to-buffer')
 
 module.exports = function (db, indexesPath) {
   function saveTypedArray(name, seq, count, arr, cb) {
@@ -14,8 +15,8 @@ module.exports = function (db, indexesPath) {
 
     console.log("writing index to", filename)
 
-    const dataBuffer = Buffer.from(arr.buffer)
-    var b = Buffer.alloc(8+dataBuffer.length)
+    const dataBuffer = toBuffer(arr)
+    var b = Buffer.alloc(8 + dataBuffer.length)
     b.writeInt32LE(seq, 0)
     b.writeInt32LE(count, 4)
     dataBuffer.copy(b, 8)
@@ -153,8 +154,8 @@ module.exports = function (db, indexesPath) {
     push(
       push.values(sorted),
       push.take(limit),
-      push.asyncMap((sorted, cb) => {
-        var seq = indexes['offset'].data[sorted.val]
+      push.asyncMap((s, cb) => {
+        var seq = indexes['offset'].data[s.val]
         db.get(seq, cb)
       }),
       push.collect((err, results) => {
@@ -495,6 +496,7 @@ module.exports = function (db, indexesPath) {
 
     // testing
     saveIndex,
+    saveTypedArray,
     loadIndex
   }
 }

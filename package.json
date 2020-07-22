@@ -16,6 +16,7 @@
     "mkdirp": "^1.0.4",
     "push-stream": "^11.0.0",
     "sanitize-filename": "^1.6.3",
+    "typedarray-to-buffer": "^3.1.5",
     "typedfastbitset": "^0.1.5"
   },
   "devDependencies": {
