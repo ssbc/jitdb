@@ -136,6 +136,7 @@ module.exports = function (db, indexesPath) {
   const bAuthor = Buffer.from('author')
   const bContent = Buffer.from('content')
   const bType = Buffer.from('type')
+  const bChannel = Buffer.from('channel')
   const bRoot = Buffer.from('root')
 
   function getTop(bitset, limit, cb) {
@@ -491,6 +492,18 @@ module.exports = function (db, indexesPath) {
         p = bipf.seekKey(buffer, p, Buffer.from('meta'))
         if (~p)
           return bipf.seekKey(buffer, p, Buffer.from('private'))
+      }
+    },
+
+
+    seekChannel: function(buffer) {
+      var p = 0 // note you pass in p!
+      p = bipf.seekKey(buffer, p, bValue)
+
+      if (~p) {
+        p = bipf.seekKey(buffer, p, bContent)
+        if (~p)
+          return bipf.seekKey(buffer, p, bChannel)
       }
     },
 
