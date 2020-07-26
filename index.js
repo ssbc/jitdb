@@ -183,6 +183,26 @@ module.exports = function (db, indexesPath) {
     )
   }
 
+  function getLargerThanSeq(bitset, dbSeq, cb) {
+    var start = Date.now()
+    return push(
+      push.values(bitset.array()),
+      push.filter(val => {
+        return indexes['offset'].data[val] > dbSeq
+      }),
+      push.asyncMap((val, cb) => {
+        var seq = indexes['offset'].data[val]
+        db.get(seq, (err, value) => {
+          cb(null, bipf.decode(value, 0))
+        })
+      }),
+      push.collect((err, results) => {
+        console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
+        cb(err, results)
+      })
+    )
+  }
+
   function growIndex(index, Type) {
     console.log("growing index")
     let newArray = new Type(index.data.length * 2)
@@ -345,72 +365,78 @@ module.exports = function (db, indexesPath) {
     op.data.indexName = op.data.indexType + "_" + name
   }
 
+  function indexSync(operation, cb) {
+    var missingIndexes = []
+
+    function handleOperations(ops) {
+      ops.forEach(op => {
+        if (op.type === 'EQUAL') {
+          setIndexName(op)
+          if (!indexes[op.data.indexName])
+            missingIndexes.push(op.data)
+        } else if (op.type === 'AND' || op.type === 'OR')
+          handleOperations(op.data)
+        else
+          console.log("Unknown operator type:" + op.type)
+      })
+    }
+
+    handleOperations([operation])
+
+    if (missingIndexes.length > 0)
+      console.log("missing indexes:", missingIndexes)
+
+    function ensureIndexSync(op, cb) {
+      if (db.since.value > indexes[op.data.indexName].seq)
+        updateIndex(op, cb)
+      else
+        cb()
+    }
+
+    function getBitsetForOperation(op, cb) {
+      if (op.type === 'EQUAL') {
+        ensureIndexSync(op, () => {
+          cb(indexes[op.data.indexName].data)
+        })
+      }
+      else if (op.type === 'AND')
+      {
+        getBitsetForOperation(op.data[0], (op1) => {
+          getBitsetForOperation(op.data[1], (op2) => {
+            cb(op1.new_intersection(op2))
+          })
+        })
+      }
+      else if (op.type === 'OR')
+      {
+        getBitsetForOperation(op.data[0], (op1) => {
+          getBitsetForOperation(op.data[1], (op2) => {
+            cb(op1.new_union(op2))
+          })
+        })
+      }
+    }
+
+    if (missingIndexes.length > 0)
+      createIndexes(missingIndexes, () => getBitsetForOperation(operation, cb))
+    else
+      getBitsetForOperation(operation, cb)
+  }
+
   return {
     query: function(operation, limit, cb) {
-      var missingIndexes = []
-
-      function handleOperations(ops) {
-        ops.forEach(op => {
-          if (op.type === 'EQUAL') {
-            setIndexName(op)
-            if (!indexes[op.data.indexName])
-              missingIndexes.push(op.data)
-          } else if (op.type === 'AND' || op.type === 'OR')
-            handleOperations(op.data)
-          else
-            console.log("Unknown operator type:" + op.type)
-        })
-      }
-
-      handleOperations([operation])
-
-      if (missingIndexes.length > 0)
-        console.log("missing indexes:", missingIndexes)
-
-      function ensureIndexSync(op, cb) {
-        if (db.since.value > indexes[op.data.indexName].seq)
-          updateIndex(op, cb)
+      indexSync(operation, data => {
+        if (limit)
+          getTop(data, limit, cb)
         else
-          cb()
-      }
+          getAll(data, cb)
+      })
+    },
 
-      function getIndexForOperation(op, cb) {
-        if (op.type === 'EQUAL') {
-          ensureIndexSync(op, () => {
-            cb(indexes[op.data.indexName].data)
-          })
-        }
-        else if (op.type === 'AND')
-        {
-          getIndexForOperation(op.data[0], (op1) => {
-            getIndexForOperation(op.data[1], (op2) => {
-              cb(op1.new_intersection(op2))
-            })
-          })
-        }
-        else if (op.type === 'OR')
-        {
-          getIndexForOperation(op.data[0], (op1) => {
-            getIndexForOperation(op.data[1], (op2) => {
-              cb(op1.new_union(op2))
-            })
-          })
-        }
-      }
-
-      function onIndexesReady() {
-        getIndexForOperation(operation, data => {
-          if (limit)
-            getTop(data, limit, cb)
-          else
-            getAll(data, cb)
-        })
-      }
-
-      if (missingIndexes.length > 0)
-        createIndexes(missingIndexes, onIndexesReady)
-      else
-        onIndexesReady()
+    querySeq: function(operation, seq, cb) {
+      indexSync(operation, data => {
+        getLargerThanSeq(data, seq, cb)
+      })
     },
 
     getSeq(op) {
