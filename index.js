@@ -139,7 +139,8 @@ module.exports = function (db, indexesPath) {
   const bChannel = Buffer.from('channel')
   const bRoot = Buffer.from('root')
 
-  function getTop(bitset, limit, cb) {
+  function getTop(bitset, offset, limit, cb) {
+    offset = offset || 0
     console.log("results", bitset.size())
     console.time("get values and sort top " + limit)
 
@@ -153,8 +154,7 @@ module.exports = function (db, indexesPath) {
     var sorted = timestamped.sort((a, b) => b.timestamp - a.timestamp)
 
     push(
-      push.values(sorted),
-      push.take(limit),
+      push.values(sorted.slice(offset, offset + limit)),
       push.asyncMap((s, cb) => {
         var seq = indexes['offset'].data[s.val]
         db.get(seq, cb)
@@ -424,12 +424,12 @@ module.exports = function (db, indexesPath) {
   }
 
   return {
-    query: function(operation, limit, cb) {
+    query: function(operation, offset, limit, cb) {
       indexSync(operation, data => {
         if (limit)
-          getTop(data, limit, cb)
+          getTop(data, offset, limit, cb)
         else
-          getAll(data, cb)
+          getAll(data, offset) // offset = cb
       })
     },
 

@@ -62,7 +62,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     // create index
-    db.query(typeQuery, 0, (err, results) => {
+    db.query(typeQuery, (err, results) => {
       t.equal(results.length, 1)
 
       db.liveQuerySingleIndex(typeQuery, (err, results) => {
@@ -70,7 +70,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
         t.equal(results[0].id, state.queue[1].value.id)
 
         // rerun on updated index
-        db.query(typeQuery, 0, (err, results) => {
+        db.query(typeQuery, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })

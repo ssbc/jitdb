@@ -28,11 +28,11 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     addMsg(state.queue[1].value, raf, (err, msg2) => {
-      db.query(typeQuery, 10, (err, results) => {
+      db.query(typeQuery, 0, 10, (err, results) => {
         t.equal(results.length, 2)
 
         // rerun on created index
-        db.query(typeQuery, 10, (err, results) => {
+        db.query(typeQuery, 0, 10, (err, results) => {
           t.equal(results.length, 2)
 
           const authorQuery = {
@@ -43,19 +43,19 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
               indexType: "author"
             }
           }
-          db.query(authorQuery, 10, (err, results) => {
+          db.query(authorQuery, 0, 10, (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].id, msg1.id)
 
             // rerun on created index
-            db.query(authorQuery, 10, (err, results) => {
+            db.query(authorQuery, 0, 10, (err, results) => {
               t.equal(results.length, 1)
               t.equal(results[0].id, msg1.id)
 
               db.query({
                 type: 'AND',
                 data: [authorQuery, typeQuery]
-              }, 10, (err, results) => {
+              }, 0, 10, (err, results) => {
                 t.equal(results.length, 1)
                 t.equal(results[0].id, msg1.id)
 
@@ -74,7 +74,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                     type: 'OR',
                     data: [authorQuery, authorQuery2]
                   }]
-                }, 10, (err, results) => {
+                }, 0, 10, (err, results) => {
                   t.equal(results.length, 2)
                   t.end()
                 })
@@ -103,11 +103,11 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.query(typeQuery, 0, (err, results) => {
+    db.query(typeQuery, (err, results) => {
       t.equal(results.length, 1)
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
-        db.query(typeQuery, 0, (err, results) => {
+        db.query(typeQuery, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })
@@ -147,12 +147,12 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.query(typeQuery, 0, (err, results) => {
+        db.query(typeQuery, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
 
-          db.query(contactQuery, 0, (err, results) => {
+          db.query(contactQuery, (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.type, 'contact')
 
@@ -186,9 +186,41 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.query(typeQuery, 1, (err, results) => {
+        db.query(typeQuery, 0, 1, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
+          t.end()
+        })
+      })
+    })
+  })
+})
+
+prepareAndRunTest('Offset', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing!' }
+  const msg2 = { type: 'contact', text: 'Testing!' }
+  const msg3 = { type: 'post', text: 'Testing 2!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now()+1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now()+2)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: db.seekType,
+      value: Buffer.from('post'),
+      indexType: "type"
+    }
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.query(typeQuery, 1, 1, (err, results) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing!')
           t.end()
         })
       })
@@ -221,7 +253,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
     }),
     push.collect((err, results) => {
       console.log("done inserting", results.length)
-      db.query(typeQuery, 1, (err, results) => {
+      db.query(typeQuery, 0, 1, (err, results) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing 31999')
         t.end()

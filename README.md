@@ -30,12 +30,12 @@ messages.
 
 ## API
 
-### query(operation, limit, cb)
+### query(operation, offset, limit, cb)
 
 Query the database. If one or more indexes doesn't exist or are
 outdated, the indexes will be updated before the query is run. If
-`limit` is specified, the top results based on timestamp will be
-returned in cb.
+`limit` and `offset` is specified, they will be used to return of view
+of the top results based on timestamp.
 
 Operation can be of the following types:
 
