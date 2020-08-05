@@ -297,8 +297,7 @@ module.exports = function (db, indexesPath) {
           saveTypedArray('timestamp', indexes['timestamp'].seq, count, indexes['timestamp'].data)
 
         index.seq = indexes['offset'].seq
-        if (index.data.size() > 10) // FIXME: configurable, maybe percentage?
-          saveIndex(op.data.indexName, index.seq, index.data)
+        saveIndex(op.data.indexName, index.seq, index.data)
 
         cb()
       }
@@ -351,8 +350,7 @@ module.exports = function (db, indexesPath) {
         for (var indexName in newIndexes) {
           indexes[indexName] = newIndexes[indexName]
           indexes[indexName].seq = indexes['offset'].seq
-          if (indexes[indexName].data.size() > 10) // FIXME: configurable, maybe percentage?
-            saveIndex(indexName, indexes[indexName].seq, indexes[indexName].data)
+          saveIndex(indexName, indexes[indexName].seq, indexes[indexName].data)
         }
 
         cb()
