@@ -21,7 +21,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }
@@ -39,7 +39,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
             type: 'EQUAL',
             data: {
               seek: db.seekAuthor,
-              value: Buffer.from(keys.id),
+              value: keys.id,
               indexType: "author"
             }
           }
@@ -63,7 +63,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                   type: 'EQUAL',
                   data: {
                     seek: db.seekAuthor,
-                    value: Buffer.from(keys2.id),
+                    value: keys2.id,
                     indexType: "author"
                   }
                 }
@@ -97,7 +97,7 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }
@@ -130,7 +130,7 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }
@@ -139,7 +139,7 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('contact'),
+      value: 'contact',
       indexType: "type"
     }
   }
@@ -178,7 +178,7 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }
@@ -210,7 +210,7 @@ prepareAndRunTest('Offset', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }
@@ -223,6 +223,58 @@ prepareAndRunTest('Offset', dir, (t, db, raf) => {
           t.equal(results[0].value.content.text, 'Testing!')
           t.end()
         })
+      })
+    })
+  })
+})
+
+prepareAndRunTest('Buffer', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: db.seekType,
+      value: Buffer.from('post'),
+      indexType: "type"
+    }
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    db.query(typeQuery, 0, 1, (err, results) => {
+      t.equal(results.length, 1)
+      t.equal(results[0].value.content.text, 'Testing!')
+      t.end()
+    })
+  })
+})
+
+prepareAndRunTest('Undefined', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing root', root: '1' }
+  const msg2 = { type: 'post', text: 'Testing no root' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now())
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: db.seekRoot,
+      value: undefined,
+      indexType: "root"
+    }
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      db.query(typeQuery, 0, 1, (err, results) => {
+        t.equal(results.length, 1)
+        t.equal(results[0].value.content.text, 'Testing no root')
+        t.end()
       })
     })
   })
@@ -241,7 +293,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }

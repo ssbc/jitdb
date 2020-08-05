@@ -20,7 +20,7 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }
@@ -55,7 +55,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }

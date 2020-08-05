@@ -51,8 +51,8 @@ Example
 {
   type: 'AND',
   data: [
-    { type: 'EQUAL', data: { seek: db.seekType, value: Buffer.from('post'), indexType: "type" } },
-    { type: 'EQUAL', data: { seek: db.seekAuthor, value: Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'), indexType: "author" } }
+    { type: 'EQUAL', data: { seek: db.seekType, value: 'post', indexType: "type" } },
+    { type: 'EQUAL', data: { seek: db.seekAuthor, value: '@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519', indexType: "author" } }
   ]
 }
 ```

@@ -20,7 +20,7 @@ prepareAndRunTest('Basic', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: db.seekType,
-      value: Buffer.from('post'),
+      value: 'post',
       indexType: "type"
     }
   }

@@ -360,9 +360,11 @@ module.exports = function (db, indexesPath) {
     })
   }
 
-  function setIndexName(op) {
+  function setupIndex(op) {
     const name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
     op.data.indexName = op.data.indexType + "_" + name
+    if (op.data.value !== undefined)
+      op.data.value = Buffer.isBuffer(op.data.value) ? op.data.value : Buffer.from(op.data.value)
   }
 
   function indexSync(operation, cb) {
@@ -371,7 +373,7 @@ module.exports = function (db, indexesPath) {
     function handleOperations(ops) {
       ops.forEach(op => {
         if (op.type === 'EQUAL') {
-          setIndexName(op)
+          setupIndex(op)
           if (!indexes[op.data.indexName])
             missingIndexes.push(op.data)
         } else if (op.type === 'AND' || op.type === 'OR')
@@ -456,7 +458,7 @@ module.exports = function (db, indexesPath) {
         sendNewValues()
       }
 
-      setIndexName(op)
+      setupIndex(op)
 
       var opts = { live: true }
 
