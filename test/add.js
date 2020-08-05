@@ -10,6 +10,7 @@ require('rimraf').sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 var keys2 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret2'))
+var keys3 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret3'))
 
 prepareAndRunTest('Base', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
@@ -312,4 +313,52 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
       })
     })
   )
+})
+
+prepareAndRunTest('indexAll', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing 1' }
+  const msgContact = { type: 'contact' }
+  const msg2 = { type: 'post', text: 'Testing 2' }
+  const msg3 = { type: 'post', text: 'Testing 3' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg, Date.now())
+  state = validate.appendNew(state, null, keys, msgContact, Date.now())
+  state = validate.appendNew(state, null, keys2, msg2, Date.now())
+  state = validate.appendNew(state, null, keys3, msg3, Date.now())
+
+  const authorQuery = {
+    type: 'AND',
+    data: [
+      { type: 'EQUAL',
+        data: {
+          seek: db.seekType,
+          value: 'post',
+          indexType: "type"
+        }
+      },
+      { type: 'EQUAL',
+        data: {
+          seek: db.seekAuthor,
+          value: keys.id,
+          indexType: "author",
+          indexAll: true
+        }
+      }
+    ]
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        addMsg(state.queue[3].value, raf, (err, msg) => {
+          db.query(authorQuery, (err, results) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, 'Testing 1')
+            t.equal(Object.keys(db.indexes).length, 3+2+1)
+            t.end()
+          })
+        })
+      })
+    })
+  })
 })

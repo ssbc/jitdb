@@ -242,7 +242,7 @@ module.exports = function (db, indexesPath) {
   }
 
   function checkValue(opData, index, buffer) {
-    var seekKey = opData.seek(buffer)
+    const seekKey = opData.seek(buffer)
     if (opData.value === undefined)
       return seekKey === -1
     else if (~seekKey && bipf.compareString(buffer, seekKey, opData.value) === 0)
@@ -257,6 +257,21 @@ module.exports = function (db, indexesPath) {
       index.data.add(offset)
 
     return status
+  }
+
+  function updateAllIndexValue(opData, newIndexes, buffer, offset) {
+    const seekKey = opData.seek(buffer)
+    const value = sanitize(bipf.decode(buffer, seekKey))
+    const indexName = opData.indexType + "_" + value
+
+    if (!newIndexes[indexName]) {
+      newIndexes[indexName] = {
+        seq: 0,
+        data: new TypedFastBitSet()
+      }
+    }
+
+    newIndexes[indexName].data.add(offset)
   }
 
   function updateIndex(op, cb) {
@@ -332,7 +347,10 @@ module.exports = function (db, indexesPath) {
           updatedTimestampIndex = true
 
         missingIndexes.forEach(m => {
-          updateIndexValue(m, newIndexes[m.indexName], buffer, offset)
+          if (m.indexAll)
+            updateAllIndexValue(m, newIndexes, buffer, offset)
+          else
+            updateIndexValue(m, newIndexes[m.indexName], buffer, offset)
         })
 
         offset++
@@ -521,7 +539,6 @@ module.exports = function (db, indexesPath) {
       }
     },
 
-
     seekChannel: function(buffer) {
       var p = 0 // note you pass in p!
       p = bipf.seekKey(buffer, p, bValue)
@@ -536,6 +553,7 @@ module.exports = function (db, indexesPath) {
     // testing
     saveIndex,
     saveTypedArray,
-    loadIndex
+    loadIndex,
+    indexes
   }
 }
