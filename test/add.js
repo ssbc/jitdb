@@ -362,3 +362,52 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
     })
   })
 })
+
+prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing 1' }
+  const msgContact = { type: 'contact' }
+  const msg2 = { type: 'post', text: 'Testing 2' }
+  const msgAbout = { type: 'about' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg, Date.now())
+  state = validate.appendNew(state, null, keys, msgContact, Date.now())
+  state = validate.appendNew(state, null, keys2, msg2, Date.now())
+  state = validate.appendNew(state, null, keys3, msgAbout, Date.now())
+
+  function typeQuery(value) {
+    return {
+      type: 'EQUAL',
+      data: {
+        seek: db.seekType,
+        value,
+        indexType: "type",
+        indexAll: true
+      }
+    }
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      db.query(typeQuery('post'), (err, results) => {
+        t.equal(results.length, 1)
+        t.equal(results[0].value.content.text, 'Testing 1')
+
+        addMsg(state.queue[2].value, raf, (err, msg) => {
+          addMsg(state.queue[3].value, raf, (err, msg) => {
+            db.query(typeQuery('about'), (err, results) => {
+              t.equal(results.length, 1)
+
+              db.query(typeQuery('post'), (err, results) => {
+                t.equal(results.length, 2)
+                t.deepEqual(db.indexes['type_post'].data.array(), [0, 2])
+                t.deepEqual(db.indexes['type_contact'].data.array(), [1])
+                t.deepEqual(db.indexes['type_about'].data.array(), [3])
+                t.end()
+              })
+            })
+          })
+        })
+      })
+    })
+  })
+})
