@@ -139,6 +139,16 @@ module.exports = function (db, indexesPath) {
   const bChannel = Buffer.from('channel')
   const bRoot = Buffer.from('root')
 
+  function getValue(val, cb) {
+    var seq = indexes['offset'].data[val]
+    db.get(seq, (err, res) => {
+      if (err && err.code === 'flumelog:deleted')
+        cb()
+      else
+        cb(err, bipf.decode(res, 0))
+    })
+  }
+
   function getTop(bitset, offset, limit, cb) {
     offset = offset || 0
     console.log("results", bitset.size())
@@ -155,13 +165,11 @@ module.exports = function (db, indexesPath) {
 
     push(
       push.values(sorted.slice(offset, offset + limit)),
-      push.asyncMap((s, cb) => {
-        var seq = indexes['offset'].data[s.val]
-        db.get(seq, cb)
-      }),
+      push.asyncMap((s, cb) => getValue(s.val, cb)),
+      push.filter(x => x),
       push.collect((err, results) => {
         console.timeEnd("get values and sort top " + limit)
-        cb(null, results.map(x => bipf.decode(x, 0)))
+        cb(null, results)
       })
     )
   }
@@ -170,12 +178,8 @@ module.exports = function (db, indexesPath) {
     var start = Date.now()
     return push(
       push.values(bitset.array()),
-      push.asyncMap((val, cb) => {
-        var seq = indexes['offset'].data[val]
-        db.get(seq, (err, value) => {
-          cb(null, bipf.decode(value, 0))
-        })
-      }),
+      push.asyncMap(getValue),
+      push.filter(x => x),
       push.collect((err, results) => {
         console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
         cb(err, results)
@@ -190,12 +194,8 @@ module.exports = function (db, indexesPath) {
       push.filter(val => {
         return indexes['offset'].data[val] > dbSeq
       }),
-      push.asyncMap((val, cb) => {
-        var seq = indexes['offset'].data[val]
-        db.get(seq, (err, value) => {
-          cb(null, bipf.decode(value, 0))
-        })
-      }),
+      push.asyncMap(getValue),
+      push.filter(x => x),
       push.collect((err, results) => {
         console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
         cb(err, results)

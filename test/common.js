@@ -19,9 +19,9 @@ module.exports = function () {
       }
       var b = Buffer.alloc(bipf.encodingLength(data))
       bipf.encode(data, b, 0)
-      raf.append(b, false, function (err) {
+      raf.append(b, false, function (err, seq) {
         if (err) cb(err)
-        else cb(null, data)
+        else cb(null, data, seq)
       })
     },
 
