@@ -54,7 +54,7 @@ module.exports = function (db, indexesPath) {
 
   function listIndexesIDB(indexesPath, cb) {
     const IdbKvStore = require('idb-kv-store')
-    const store = new IdbKvStore(indexesPath)
+    const store = new IdbKvStore(indexesPath, { disableBroadcast: true })
     store.keys(cb)
   }
 
