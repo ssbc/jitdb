@@ -166,7 +166,7 @@ module.exports = function (db, indexesPath) {
     push(
       push.values(sorted.slice(offset, offset + limit)),
       push.asyncMap((s, cb) => getValue(s.val, cb)),
-      push.filter(x => x),
+      push.filter(x => x), // deleted messages
       push.collect((err, results) => {
         console.timeEnd("get values and sort top " + limit)
         cb(null, results)
@@ -179,7 +179,7 @@ module.exports = function (db, indexesPath) {
     return push(
       push.values(bitset.array()),
       push.asyncMap(getValue),
-      push.filter(x => x),
+      push.filter(x => x), // deleted messages
       push.collect((err, results) => {
         console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
         cb(err, results)
@@ -195,7 +195,7 @@ module.exports = function (db, indexesPath) {
         return indexes['offset'].data[val] > dbSeq
       }),
       push.asyncMap(getValue),
-      push.filter(x => x),
+      push.filter(x => x), // deleted messages
       push.collect((err, results) => {
         console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
         cb(err, results)

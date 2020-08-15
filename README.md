@@ -71,6 +71,11 @@ Example
 }
 ```
 
+I considered adding an option to return raw buffers in order to do
+some after processing that you wouldn't create and index for, but the
+overhead of decoding the buffers is small enough that I don't think it
+makes sense.
+
 ### querySeq(operation, seq, cb)
 
 Behave similar to query except it takes a database seq and returns all
