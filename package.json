@@ -1,7 +1,7 @@
 {
   "name": "jitdb",
   "description": "A database on top of a flumelog with automatic index generation and maintenance",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "homepage": "https://github.com/arj03/jitdb",
   "repository": {
     "type": "git",
