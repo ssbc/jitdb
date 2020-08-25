@@ -3,8 +3,6 @@
 A database on top of a [flumelog-aligned-offset] with automatic index
 generation and maintenance.
 
-Current status: Work In Progress
-
 The motivation for this database is that it should be:
  - fast
  - easy to understand
