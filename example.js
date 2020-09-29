@@ -1,13 +1,12 @@
-const FlumeLog = require('flumelog-aligned-offset')
+const FlumeLog = require('async-flumelog')
+//const FlumeLog = require('flumelog-offset')
 const Obv = require('obv')
 
 const bAuthorValue = Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519')
 const bPostValue = Buffer.from('post')
 const bContactValue = Buffer.from('contact')
 
-var raf = FlumeLog(process.argv[2], {block: 64*1024})
-raf.since = Obv()
-raf.onWrite = raf.since.set
+var raf = FlumeLog(process.argv[2], {blockSize: 64*1024})
 
 var db = require('./index')(raf, "./indexes")
 db.onReady(() => {
@@ -21,7 +20,7 @@ db.onReady(() => {
       { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
       { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } }
     ]
-  }, 0, (err, results) => {
+  }, (err, results) => {
     console.timeEnd("get all posts from user")
 
     console.time("get last 10 posts from user")
@@ -32,7 +31,7 @@ db.onReady(() => {
         { type: 'EQUAL', data: { seek: db.seekType, value: bPostValue, indexType: "type" } },
         { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } }
       ]
-    }, 10, (err, results) => {
+    }, 0, 10, (err, results) => {
       console.timeEnd("get last 10 posts from user")
 
       console.time("get top 50 posts")
@@ -44,7 +43,7 @@ db.onReady(() => {
           value: bPostValue,
           indexType: "type"
         }
-      }, 50, (err, results) => {
+      }, 0, 50, (err, results) => {
         console.timeEnd("get top 50 posts")
 
         var hops = {}
@@ -53,7 +52,7 @@ db.onReady(() => {
 
         console.time("contacts")
 
-        db.query(query, 0, (err, results) => {
+        db.query(query, (err, results) => {
           results.forEach(data => {
             var from = data.value.author
             var to = data.value.content.contact
@@ -81,7 +80,7 @@ db.onReady(() => {
   db.query({
     type: 'EQUAL',
     data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" }
-  }, 0, (err, results) => {
+  }, (err, results) => {
     console.timeEnd("get all")
   })
 

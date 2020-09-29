@@ -1,4 +1,4 @@
-const FlumeLog = require('flumelog-aligned-offset')
+const FlumeLog = require('async-flumelog')
 const Obv = require('obv')
 const bipf = require('bipf')
 const hash = require('ssb-keys/util').hash
@@ -19,19 +19,18 @@ module.exports = function () {
       }
       var b = Buffer.alloc(bipf.encodingLength(data))
       bipf.encode(data, b, 0)
-      raf.append(b, false, function (err, seq) {
+      raf.append(b, function (err, seq) {
         if (err) cb(err)
-        else cb(null, data, seq)
+        // instead of cluttering the tests with onDrain, we just
+        // simulate sync adds here
+        else raf.onDrain(() => cb(null, data, seq))
       })
     },
 
     prepareAndRunTest: function(name, dir, cb)
     {
-      let raf = FlumeLog(path.join(dir, name), {block: 64*1024})
-      raf.since = Obv()
-      raf.onWrite = raf.since.set
-
-      let db = require('../index')(raf, path.join(dir, "indexes" + name))
+      let raf = FlumeLog(path.join(dir, name), { blockSize: 64*1024 })
+      let db = require('../')(raf, path.join(dir, "indexes" + name))
       db.onReady(() => {
         test(name, (t) => cb(t, db, raf))
       })

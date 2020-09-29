@@ -1,0 +1,39 @@
+async-flumelog (bipf):
+
+time: 8958ms, total items: 1414275
+get all: 83ms, total items: 1565
+get all posts from user: 9.066s
+results 1565
+get values and sort top 10: 3.411ms
+get last 10 posts from user: 7.033ms
+results 254016
+get values and sort top 50: 241.279ms
+get top 50 posts: 244.419ms
+time: 4517ms, total items: 1414275
+get all: 5233ms, total items: 301486
+contacts: 10.570s
+
+real	0m20,115s
+user	0m22,734s
+sys	0m1,773s
+
+flumelog-offset (bipf):
+
+time: 11285ms, total items: 1414454
+get all: 69ms, total items: 1565
+get all posts from user: 11.378s
+results 1565
+get values and sort top 10: 3.526ms
+get last 10 posts from user: 6.671ms
+results 254047
+get values and sort top 50: 267.493ms
+get top 50 posts: 270.632ms
+done 1414454
+time: 7081ms, total items: 1414454
+saving index:type_contact
+get all: 4368ms, total items: 301532
+contacts: 12.262s
+
+real	0m24,142s
+user	0m27,071s
+sys	0m2,083s
