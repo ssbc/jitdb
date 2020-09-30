@@ -1,7 +1,7 @@
 # JITDB
 
-A database on top of a [flumelog-aligned-offset] with automatic index
-generation and maintenance.
+A database on top of a flumelog [flumedb] (the recommended being
+[async-flumelog]) with automatic index generation and maintenance.
 
 The motivation for this database is that it should be:
  - fast
@@ -111,6 +111,7 @@ A helper seek function for queries
 A helper seek function for queries
 
 
-[flumelog-aligned-offset]: https://github.com/flumedb/flumelog-aligned-offset
+[flumedb]: https://github.com/flumedb/
+[async-flumelog]: https://github.com/flumedb/async-flumelog
 [bipf]: https://github.com/dominictarr/bipf/
 
