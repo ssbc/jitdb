@@ -1,6 +1,6 @@
 # JITDB
 
-A database on top of a flumelog [flumedb] (the recommended being
+A database on top of a [flumelog] (the recommended being
 [async-flumelog]) with automatic index generation and maintenance.
 
 The motivation for this database is that it should be:
@@ -111,7 +111,7 @@ A helper seek function for queries
 A helper seek function for queries
 
 
-[flumedb]: https://github.com/flumedb/
+[flumelog]: https://github.com/flumedb/
 [async-flumelog]: https://github.com/flumedb/async-flumelog
 [bipf]: https://github.com/dominictarr/bipf/
 
