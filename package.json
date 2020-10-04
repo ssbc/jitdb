@@ -19,7 +19,7 @@
     "typedfastbitset": "^0.1.5"
   },
   "devDependencies": {
-    "async-flumelog": "^1.0.3",
+    "async-flumelog": "^1.0.6",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
     "obv": "0.0.1",

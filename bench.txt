@@ -1,21 +1,21 @@
 async-flumelog (bipf):
 
-time: 8958ms, total items: 1414275
-get all: 83ms, total items: 1565
-get all posts from user: 9.066s
+time: 8965ms, total items: 1414275
+get all: 67ms, total items: 1565
+get all posts from user: 9.059s
 results 1565
-get values and sort top 10: 3.411ms
-get last 10 posts from user: 7.033ms
+get values and sort top 10: 3.495ms
+get last 10 posts from user: 7.235ms
 results 254016
-get values and sort top 50: 241.279ms
-get top 50 posts: 244.419ms
-time: 4517ms, total items: 1414275
-get all: 5233ms, total items: 301486
-contacts: 10.570s
+get values and sort top 50: 236.186ms
+get top 50 posts: 239.369ms
+time: 4323ms, total items: 1414275
+get all: 3866ms, total items: 301486
+contacts: 8.999s
 
-real	0m20,115s
-user	0m22,734s
-sys	0m1,773s
+real	0m18,531s
+user	0m21,008s
+sys	0m1,724s
 
 flumelog-offset (bipf):
 
