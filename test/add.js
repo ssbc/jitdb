@@ -35,49 +35,55 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
         // rerun on created index
         db.query(typeQuery, 0, 10, (err, results) => {
           t.equal(results.length, 2)
+          t.equal(results[0].value.author, keys2.id)
 
-          const authorQuery = {
-            type: 'EQUAL',
-            data: {
-              seek: db.seekAuthor,
-              value: keys.id,
-              indexType: "author"
+          db.query(typeQuery, 0, 10, true, (err, results) => {
+            t.equal(results.length, 2)
+            t.equal(results[0].value.author, keys.id)
+
+            const authorQuery = {
+              type: 'EQUAL',
+              data: {
+                seek: db.seekAuthor,
+                value: keys.id,
+                indexType: "author"
+              }
             }
-          }
-          db.query(authorQuery, 0, 10, (err, results) => {
-            t.equal(results.length, 1)
-            t.equal(results[0].id, msg1.id)
-
-            // rerun on created index
             db.query(authorQuery, 0, 10, (err, results) => {
               t.equal(results.length, 1)
               t.equal(results[0].id, msg1.id)
 
-              db.query({
-                type: 'AND',
-                data: [authorQuery, typeQuery]
-              }, 0, 10, (err, results) => {
+              // rerun on created index
+              db.query(authorQuery, 0, 10, (err, results) => {
                 t.equal(results.length, 1)
                 t.equal(results[0].id, msg1.id)
 
-                const authorQuery2 = {
-                  type: 'EQUAL',
-                  data: {
-                    seek: db.seekAuthor,
-                    value: keys2.id,
-                    indexType: "author"
-                  }
-                }
-                
                 db.query({
                   type: 'AND',
-                  data: [typeQuery, {
-                    type: 'OR',
-                    data: [authorQuery, authorQuery2]
-                  }]
+                  data: [authorQuery, typeQuery]
                 }, 0, 10, (err, results) => {
-                  t.equal(results.length, 2)
-                  t.end()
+                  t.equal(results.length, 1)
+                  t.equal(results[0].id, msg1.id)
+
+                  const authorQuery2 = {
+                    type: 'EQUAL',
+                    data: {
+                      seek: db.seekAuthor,
+                      value: keys2.id,
+                      indexType: "author"
+                    }
+                  }
+
+                  db.query({
+                    type: 'AND',
+                    data: [typeQuery, {
+                      type: 'OR',
+                      data: [authorQuery, authorQuery2]
+                    }]
+                  }, 0, 10, (err, results) => {
+                    t.equal(results.length, 2)
+                    t.end()
+                  })
                 })
               })
             })

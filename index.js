@@ -149,8 +149,12 @@ module.exports = function (db, indexesPath) {
     })
   }
 
-  function getTop(bitset, offset, limit, cb) {
+  function getTop(bitset, offset, limit, reverse, cb) {
     offset = offset || 0
+    if (typeof reverse === 'function') {
+      cb = reverse
+      reverse = false
+    }
     console.log("results", bitset.size())
     console.time("get values and sort top " + limit)
 
@@ -161,7 +165,12 @@ module.exports = function (db, indexesPath) {
       }
     }
     var timestamped = bitset.array().map(s)
-    var sorted = timestamped.sort((a, b) => b.timestamp - a.timestamp)
+    var sorted = timestamped.sort((a, b) => {
+      if (reverse)
+        return a.timestamp - b.timestamp
+      else
+        return b.timestamp - a.timestamp
+    })
 
     push(
       push.values(sorted.slice(offset, offset + limit)),
@@ -442,10 +451,10 @@ module.exports = function (db, indexesPath) {
   }
 
   return {
-    query: function(operation, offset, limit, cb) {
+    query: function(operation, offset, limit, reverse, cb) {
       indexSync(operation, data => {
         if (limit)
-          getTop(data, offset, limit, cb)
+          getTop(data, offset, limit, reverse, cb)
         else
           getAll(data, offset) // offset = cb
       })
