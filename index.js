@@ -59,6 +59,18 @@ module.exports = function (db, indexesPath) {
     store.keys(cb)
   }
 
+  function loadLazyIndex(indexName, cb) {
+    debug("lazy loading", indexName)
+    let index = indexes[indexName]
+    loadIndex(index.filepath, Uint32Array, (err, i) => {
+      index.seq = i.seq
+      index.data.words = i.data
+      index.data.count = i.count
+      index.lazy = false
+      cb()
+    })
+  }
+
   function loadIndexes(cb) {
     function parseIndexes(err, files) {
       push(
@@ -80,15 +92,12 @@ module.exports = function (db, indexesPath) {
           else if (file.endsWith(".index")) {
             indexes[indexName] = {
               seq: 0,
-              data: new TypedFastBitSet()
+              data: new TypedFastBitSet(),
+              lazy: true,
+              filepath: path.join(indexesPath, file)
             }
 
-            loadIndex(path.join(indexesPath, file), Uint32Array, (err, i) => {
-              indexes[indexName].seq = i.seq
-              indexes[indexName].data.words = i.data
-              indexes[indexName].data.count = i.count
-              cb()
-            })
+            cb()
           } else
             cb()
         }),
@@ -386,6 +395,14 @@ module.exports = function (db, indexesPath) {
     })
   }
 
+  function loadLazyIndexes(indexNames, cb) {
+    push(
+      push.values(indexNames),
+      push.asyncMap(loadLazyIndex),
+      push.collect(cb)
+    )
+  }
+
   function setupIndex(op) {
     const name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
     op.data.indexName = op.data.indexType + "_" + name
@@ -395,6 +412,7 @@ module.exports = function (db, indexesPath) {
 
   function indexSync(operation, cb) {
     var missingIndexes = []
+    var lazyIndexes = []
 
     function handleOperations(ops) {
       ops.forEach(op => {
@@ -402,6 +420,8 @@ module.exports = function (db, indexesPath) {
           setupIndex(op)
           if (!indexes[op.data.indexName])
             missingIndexes.push(op.data)
+          else if (indexes[op.data.indexName].lazy)
+            lazyIndexes.push(op.data.indexName)
         } else if (op.type === 'AND' || op.type === 'OR')
           handleOperations(op.data)
         else
@@ -445,10 +465,21 @@ module.exports = function (db, indexesPath) {
       }
     }
 
-    if (missingIndexes.length > 0)
-      createIndexes(missingIndexes, () => getBitsetForOperation(operation, cb))
-    else
+    function step3() {
       getBitsetForOperation(operation, cb)
+    }
+
+    function step2() {
+      if (missingIndexes.length > 0)
+        createIndexes(missingIndexes, step3)
+      else
+        step3()
+    }
+
+    if (lazyIndexes.length > 0)
+      loadLazyIndexes(lazyIndexes, step2)
+    else
+      step2()
   }
 
   return {
