@@ -8,8 +8,8 @@ The motivation for this database is that it should be:
  - easy to understand
  - run in the browser and in node
 
-Flumelog-aligned-offset takes care of persistance of the main log. It
-is expected to use [bipf] to encode data. On top of this, JITDB lazily
+Async flumelog takes care of persistance of the main log. It is
+expected to use [bipf] to encode data. On top of this, JITDB lazily
 creates and maintains indexes based on the way the data is queried.
 Meaning if you search for messages of type `post` an author `x` two
 indexes will be created the first time. One for type and one for
