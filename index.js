@@ -6,6 +6,7 @@ const sanitize = require("sanitize-filename")
 const debounce = require('lodash.debounce')
 const AtomicFile = require('atomic-file/buffer')
 const toBuffer = require('typedarray-to-buffer')
+const debug = require('debug')("jitdb")
 
 module.exports = function (db, indexesPath) {
   function saveTypedArray(name, seq, count, arr, cb) {
@@ -13,7 +14,7 @@ module.exports = function (db, indexesPath) {
     if (!cb)
       cb = () => {}
 
-    console.log("writing index to", filename)
+    debug("writing index to", filename)
 
     const dataBuffer = toBuffer(arr)
     var b = Buffer.alloc(8 + dataBuffer.length)
@@ -26,7 +27,7 @@ module.exports = function (db, indexesPath) {
   }
 
   function saveIndex(name, seq, data, cb) {
-    console.log("saving index:" + name)
+    debug("saving index:" + name)
     data.trim()
     saveTypedArray(name, seq, data.count, data.words, cb)
   }
@@ -108,7 +109,7 @@ module.exports = function (db, indexesPath) {
   var isReady = false
   var waiting = []
   loadIndexes(() => {
-    console.log("loaded indexes", Object.keys(indexes))
+    debug("loaded indexes", Object.keys(indexes))
 
     if (!indexes['offset']) {
       indexes['offset'] = {
@@ -155,7 +156,7 @@ module.exports = function (db, indexesPath) {
       cb = reverse
       reverse = false
     }
-    console.log("results", bitset.size())
+    debug("results", bitset.size())
     console.time("get values and sort top " + limit)
 
     function s(x) {
@@ -190,7 +191,7 @@ module.exports = function (db, indexesPath) {
       push.asyncMap(getValue),
       push.filter(x => x), // deleted messages
       push.collect((err, results) => {
-        console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
+        debug(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
         cb(err, results)
       })
     )
@@ -206,14 +207,14 @@ module.exports = function (db, indexesPath) {
       push.asyncMap(getValue),
       push.filter(x => x), // deleted messages
       push.collect((err, results) => {
-        console.log(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
+        debug(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
         cb(err, results)
       })
     )
   }
 
   function growIndex(index, Type) {
-    console.log("growing index")
+    debug("growing index")
     let newArray = new Type(index.data.length * 2)
     newArray.set(index.data)
     index.data = newArray
@@ -312,7 +313,7 @@ module.exports = function (db, indexesPath) {
       },
       end: () => {
         var count = offset // incremented at end
-        console.log(`time: ${Date.now()-start}ms, total items: ${count}`)
+        debug(`time: ${Date.now()-start}ms, total items: ${count}`)
 
         if (updatedOffsetIndex)
           saveTypedArray('offset', indexes['offset'].seq, count, indexes['offset'].data)
@@ -366,7 +367,7 @@ module.exports = function (db, indexesPath) {
       },
       end: () => {
         var count = offset // incremented at end
-        console.log(`time: ${Date.now()-start}ms, total items: ${count}`)
+        debug(`time: ${Date.now()-start}ms, total items: ${count}`)
 
         if (updatedOffsetIndex)
           saveTypedArray('offset', indexes['offset'].seq, count, indexes['offset'].data)
@@ -404,14 +405,14 @@ module.exports = function (db, indexesPath) {
         } else if (op.type === 'AND' || op.type === 'OR')
           handleOperations(op.data)
         else
-          console.log("Unknown operator type:" + op.type)
+          debug("Unknown operator type:" + op.type)
       })
     }
 
     handleOperations([operation])
 
     if (missingIndexes.length > 0)
-      console.log("missing indexes:", missingIndexes)
+      debug("missing indexes:", missingIndexes)
 
     function ensureIndexSync(op, cb) {
       if (db.since.value > indexes[op.data.indexName].seq)
