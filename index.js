@@ -482,19 +482,29 @@ module.exports = function (db, indexesPath) {
       step2()
   }
 
+  function onReady(cb) {
+    if (isReady)
+      cb()
+    else waiting.push(cb)
+  }
+
   return {
     query: function(operation, offset, limit, reverse, cb) {
-      indexSync(operation, data => {
-        if (limit)
-          getTop(data, offset, limit, reverse, cb)
-        else
-          getAll(data, offset) // offset = cb
+      onReady(() => {
+        indexSync(operation, data => {
+          if (limit)
+            getTop(data, offset, limit, reverse, cb)
+          else
+            getAll(data, offset) // offset = cb
+        })
       })
     },
 
     querySeq: function(operation, seq, cb) {
-      indexSync(operation, data => {
-        getLargerThanSeq(data, seq, cb)
+      onReady(() => {
+        indexSync(operation, data => {
+          getLargerThanSeq(data, seq, cb)
+        })
       })
     },
 
@@ -532,11 +542,7 @@ module.exports = function (db, indexesPath) {
       })
     },
 
-    onReady: function(cb) {
-      if (isReady)
-        cb()
-      else waiting.push(cb)
-    },
+    onReady,
 
     // helpers
     seekAuthor: function(buffer) {
