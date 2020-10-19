@@ -1,5 +1,4 @@
 const FlumeLog = require('async-flumelog')
-//const FlumeLog = require('flumelog-offset')
 const Obv = require('obv')
 
 const bAuthorValue = Buffer.from('@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519')
@@ -46,29 +45,47 @@ db.onReady(() => {
       }, 0, 50, (err, results) => {
         console.timeEnd("get top 50 posts")
 
-        var hops = {}
-        const query = { type: 'EQUAL', data: { seek: db.seekType, value: bContactValue, indexType: "type" } }
-        const isFeed = require('ssb-ref').isFeed
+        console.time("author + sequence")
 
-        console.time("contacts")
+        db.query({
+          type: 'AND',
+          data: [
+            { type: 'GT', data: { indexName: 'sequence', value: 7000 } },
+            { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } }
+          ]
+        }, (err, results) => {
+          console.timeEnd("author + sequence")
 
-        db.query(query, (err, results) => {
-          results.forEach(data => {
-            var from = data.value.author
-            var to = data.value.content.contact
-            var value =
-                data.value.content.blocking || data.value.content.flagged ? -1 :
-                data.value.content.following === true ? 1
-                : -2
+          var hops = {}
+          const query = {
+            type: 'AND',
+            data: [
+              { type: 'EQUAL', data: { seek: db.seekAuthor, value: bAuthorValue, indexType: "author" } },
+              { type: 'EQUAL', data: { seek: db.seekType, value: bContactValue, indexType: "type" } }
+            ]
+          }
+          const isFeed = require('ssb-ref').isFeed
 
-            if(isFeed(from) && isFeed(to)) {
-              hops[from] = hops[from] || {}
-              hops[from][to] = value
-            }
+          console.time("contacts for author")
+
+          db.query(query, (err, results) => {
+            results.forEach(data => {
+              var from = data.value.author
+              var to = data.value.content.contact
+              var value =
+                  data.value.content.blocking || data.value.content.flagged ? -1 :
+                  data.value.content.following === true ? 1
+                  : -2
+
+              if(isFeed(from) && isFeed(to)) {
+                hops[from] = hops[from] || {}
+                hops[from][to] = value
+              }
+            })
+
+            console.timeEnd("contacts for author")
+            //console.log(hops)
           })
-
-          console.timeEnd("contacts")
-          //console.log(hops)
         })
       })
     })

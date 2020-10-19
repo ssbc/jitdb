@@ -89,6 +89,13 @@ module.exports = function (db, indexesPath) {
               cb()
             })
           }
+          else if (file === 'sequence.index') {
+            loadIndex(path.join(indexesPath, file), Uint32Array, (err, data) => {
+              indexes[indexName] = data
+
+              cb()
+            })
+          }
           else if (file.endsWith(".index")) {
             indexes[indexName] = {
               seq: 0,
@@ -134,6 +141,13 @@ module.exports = function (db, indexesPath) {
         data: new Float64Array(16 * 1000)
       }
     }
+    if (!indexes['sequence']) {
+      indexes['sequence'] = {
+        seq: 0,
+        count: 0,
+        data: new Uint32Array(16 * 1000)
+      }
+    }
 
     isReady = true
     for (var i = 0; i < waiting.length; ++i)
@@ -142,6 +156,7 @@ module.exports = function (db, indexesPath) {
   })
 
   const bTimestamp = Buffer.from('timestamp')
+  const bSequence = Buffer.from('sequence')
   const bValue = Buffer.from('value')
   const bAuthor = Buffer.from('author')
   const bContent = Buffer.from('content')
@@ -260,6 +275,23 @@ module.exports = function (db, indexesPath) {
     }
   }
 
+  function updateSequenceIndex(offset, seq, buffer) {
+    if (offset > indexes['sequence'].count - 1) {
+      if (offset > indexes['sequence'].data.length)
+        growIndex(indexes['sequence'], Uint32Array)
+
+      indexes['sequence'].seq = seq
+
+      var p = 0 // note you pass in p!
+      p = bipf.seekKey(buffer, p, bValue)
+      p = bipf.seekKey(buffer, p, bSequence)
+
+      indexes['sequence'].data[offset] = bipf.decode(buffer, p)
+      indexes['sequence'].count = offset + 1
+      return true
+    }
+  }
+
   function checkValue(opData, index, buffer) {
     const seekKey = opData.seek(buffer)
     if (opData.value === undefined)
@@ -305,6 +337,7 @@ module.exports = function (db, indexesPath) {
 
     var updatedOffsetIndex = false
     var updatedTimestampIndex = false
+    var updatedSequenceIndex = false
     const start = Date.now()
 
     db.stream({ gt: index.seq }).pipe({
@@ -316,7 +349,11 @@ module.exports = function (db, indexesPath) {
         if (updateTimestampIndex(offset, data.seq, data.value))
           updatedTimestampIndex = true
 
-        updateIndexValue(op.data, index, data.value, offset)
+        if (updateSequenceIndex(offset, data.seq, data.value))
+          updatedSequenceIndex = true
+
+        if (op.data.indexName != 'sequence' && op.data.indexName != 'timestamp')
+          updateIndexValue(op.data, index, data.value, offset)
 
         offset++
       },
@@ -330,8 +367,12 @@ module.exports = function (db, indexesPath) {
         if (updatedTimestampIndex)
           saveTypedArray('timestamp', indexes['timestamp'].seq, count, indexes['timestamp'].data)
 
+        if (updatedSequenceIndex)
+          saveTypedArray('sequence', indexes['sequence'].seq, count, indexes['sequence'].data)
+
         index.seq = indexes['offset'].seq
-        saveIndex(op.data.indexName, index.seq, index.data)
+        if (op.data.indexName != 'sequence' && op.data.indexName != 'timestamp')
+          saveIndex(op.data.indexName, index.seq, index.data)
 
         cb()
       }
@@ -351,6 +392,7 @@ module.exports = function (db, indexesPath) {
 
     var updatedOffsetIndex = false
     var updatedTimestampIndex = false
+    var updatedSequenceIndex = false
     const start = Date.now()
     
     db.stream({}).pipe({
@@ -364,6 +406,9 @@ module.exports = function (db, indexesPath) {
 
         if (updateTimestampIndex(offset, data.seq, buffer))
           updatedTimestampIndex = true
+
+        if (updateSequenceIndex(offset, data.seq, data.value))
+          updatedSequenceIndex = true
 
         missingIndexes.forEach(m => {
           if (m.indexAll)
@@ -383,6 +428,9 @@ module.exports = function (db, indexesPath) {
 
         if (updatedTimestampIndex)
           saveTypedArray('timestamp', indexes['timestamp'].seq, count, indexes['timestamp'].data)
+
+        if (updatedSequenceIndex)
+          saveTypedArray('sequence', indexes['sequence'].seq, count, indexes['sequence'].data)
 
         for (var indexName in newIndexes) {
           indexes[indexName] = newIndexes[indexName]
@@ -405,7 +453,8 @@ module.exports = function (db, indexesPath) {
 
   function setupIndex(op) {
     const name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
-    op.data.indexName = op.data.indexType + "_" + name
+    if (!op.data.indexName)
+      op.data.indexName = op.data.indexType + "_" + name
     if (op.data.value !== undefined)
       op.data.value = Buffer.isBuffer(op.data.value) ? op.data.value : Buffer.from(op.data.value)
   }
@@ -441,11 +490,37 @@ module.exports = function (db, indexesPath) {
         cb()
     }
 
+    function filterIndex(op, filterCheck, cb) {
+      ensureIndexSync(op, () => {
+        if (op.data.indexName == 'sequence') {
+          let t = new TypedFastBitSet()
+          indexes['sequence'].data.forEach((d, index) => { if (filterCheck(d, op)) t.add(index) })
+          cb(t)
+        } else if (op.data.indexName == 'timestamp') {
+          let t = new TypedFastBitSet()
+          indexes['timestamp'].data.forEach((d, index) => { if (filterCheck(d, op)) t.add(index) })
+          cb(t)
+        }
+      })
+    }
+
     function getBitsetForOperation(op, cb) {
       if (op.type === 'EQUAL') {
         ensureIndexSync(op, () => {
           cb(indexes[op.data.indexName].data)
         })
+      }
+      else if (op.type === 'GT') {
+        filterIndex(op, (d, op) => d > op.data.value, cb)
+      }
+      else if (op.type === 'GTE') {
+        filterIndex(op, (d, op) => d >= op.data.value, cb)
+      }
+      else if (op.type === 'LT') {
+        filterIndex(op, (d, op) => d < op.data.value, cb)
+      }
+      else if (op.type === 'LTE') {
+        filterIndex(op, (d, op) => d <= op.data.value, cb)
       }
       else if (op.type === 'AND')
       {

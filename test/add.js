@@ -287,6 +287,81 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1' }
+  const msg2 = { type: 'post', text: '2' }
+  const msg3 = { type: 'post', text: '3' }
+  const msg4 = { type: 'post', text: '4' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now())
+  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg4, Date.now())
+
+  const filterQuery = {
+    type: 'AND',
+    data: [
+      { type: 'GT',
+        data: {
+          indexName: 'sequence',
+          value: 1,
+        }
+      },
+      { type: 'EQUAL',
+        data: {
+          seek: db.seekAuthor,
+          value: keys.id,
+          indexType: "author",
+          indexAll: true
+        }
+      }
+    ]
+  }
+
+  addMsg(state.queue[0].value, raf, (err, dbMsg1) => {
+    addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
+      addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
+        addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
+          db.query(filterQuery, (err, results) => {
+            t.equal(results.length, 3)
+            t.equal(results[0].value.content.text, '2')
+
+            filterQuery.data[0].type = 'GTE'
+            db.query(filterQuery, (err, results) => {
+              t.equal(results.length, 4)
+              t.equal(results[0].value.content.text, '1')
+
+              filterQuery.data[0].type = 'LT'
+              filterQuery.data[0].data.value = 3
+              db.query(filterQuery, (err, results) => {
+                t.equal(results.length, 2)
+                t.equal(results[0].value.content.text, '1')
+
+                filterQuery.data[0].type = 'LTE'
+                db.query(filterQuery, (err, results) => {
+                  t.equal(results.length, 3)
+                  t.equal(results[0].value.content.text, '1')
+
+                  filterQuery.data[0].type = 'GT'
+                  filterQuery.data[0].data.indexName = 'timestamp'
+                  filterQuery.data[0].data.value = dbMsg1.value.timestamp
+                  db.query(filterQuery, (err, results) => {
+                    t.equal(results.length, 3)
+                    t.equal(results[0].value.content.text, '2')
+
+                    t.end()
+                  })
+                })
+              })
+            })
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('grow', dir, (t, db, raf) => {
   let msg = { type: 'post', text: 'Testing' }
 
@@ -360,7 +435,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
           db.query(authorQuery, (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
-            t.equal(Object.keys(db.indexes).length, 3+2+1)
+            t.equal(Object.keys(db.indexes).length, 3+2+1+1)
             t.end()
           })
         })

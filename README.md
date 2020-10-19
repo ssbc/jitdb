@@ -38,11 +38,12 @@ with `limit` and `offset` and is also optional.
 
 Operation can be of the following types:
 
-| type  | data |
-| ----- | ---- |
-| EQUAL | { seek, value, indexType, indexAll } |
-| AND   | [operation, operation] |
-| OR    | [operation, operation] |
+| type          | data |
+| ------------- | ---- |
+| EQUAL         | { seek, value, indexType, indexAll } |
+| GT,GTE,LT,LTE | { indexName, value } |
+| AND           | [operation, operation] |
+| OR            | [operation, operation] |
 
 `seek` is a function that takes a buffer from the database as input
 and returns an index in the buffer from where a value can be compared
@@ -57,6 +58,9 @@ than a few. One example is author or feeds in SSB, a typical database
 of 1 million records will have roughly 700 authors. The biggest cost
 in creating the indexes is traversing the database, so creating all
 indexes in one go instead of several hundreds is a lot faster.
+
+For `GT` and the other 3 filters, `indexName` can be either `sequence` or
+`timestamp`.
 
 Example
 
