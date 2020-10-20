@@ -59,8 +59,8 @@ of 1 million records will have roughly 700 authors. The biggest cost
 in creating the indexes is traversing the database, so creating all
 indexes in one go instead of several hundreds is a lot faster.
 
-For `GT` and the other 3 filters, `indexName` can be either `sequence` or
-`timestamp`.
+For `GT`, 'GTE', 'LT' and 'LTE', `indexName` can be either `sequence`
+or `timestamp`.
 
 Example
 
