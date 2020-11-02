@@ -42,6 +42,7 @@ Operation can be of the following types:
 | ------------- | ---- |
 | EQUAL         | { seek, value, indexType, indexAll } |
 | GT,GTE,LT,LTE | { indexName, value } |
+| DATA          | { seqs } |
 | AND           | [operation, operation] |
 | OR            | [operation, operation] |
 
@@ -61,6 +62,10 @@ indexes in one go instead of several hundreds is a lot faster.
 
 For `GT`, 'GTE', 'LT' and 'LTE', `indexName` can be either `sequence`
 or `timestamp`.
+
+`DATA` allows one to use seq positions into the log file as query
+operators. This is useful for interfacing with data indexed by
+something else than JITDB.
 
 Example
 

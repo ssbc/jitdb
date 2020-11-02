@@ -248,3 +248,42 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Data', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing root', root: '1' }
+  const msg2 = { type: 'about', name: 'Test' }
+  const msg3 = { type: 'post', text: 'Testing no root' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now())
+  state = validate.appendNew(state, null, keys, msg3, Date.now())
+
+  const dataQuery = {
+    type: 'AND',
+    data: [
+      { type: 'EQUAL',
+        data: {
+          seek: db.seekType,
+          value: 'post',
+          indexType: "type"
+        }
+      },
+      {
+        type: 'DATA',
+        seqs: [363, 765]
+      }
+    ]
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.query(dataQuery, 0, 1, (err, results) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing no root')
+          t.end()
+        })
+      })
+    })
+  })
+})

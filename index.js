@@ -6,6 +6,7 @@ const sanitize = require("sanitize-filename")
 const debounce = require('lodash.debounce')
 const AtomicFile = require('atomic-file/buffer')
 const toBuffer = require('typedarray-to-buffer')
+const bsb = require('binary-search-bounds')
 const debug = require('debug')("jitdb")
 
 module.exports = function (db, indexesPath) {
@@ -471,8 +472,11 @@ module.exports = function (db, indexesPath) {
             missingIndexes.push(op.data)
           else if (indexes[op.data.indexName].lazy)
             lazyIndexes.push(op.data.indexName)
-        } else if (op.type === 'AND' || op.type === 'OR')
+        }
+        else if (op.type === 'AND' || op.type === 'OR')
           handleOperations(op.data)
+        else if (op.type === 'DATA')
+          ;
         else
           debug("Unknown operator type:" + op.type)
       })
@@ -521,6 +525,20 @@ module.exports = function (db, indexesPath) {
       }
       else if (op.type === 'LTE') {
         filterIndex(op, (d, op) => d <= op.data.value, cb)
+      }
+      else if (op.type === 'DATA') {
+        var offsets = []
+        op.seqs.sort((x,y) => x-y)
+        for (var o = 0; o < indexes['offset'].data.length; ++o)
+        {
+          if (bsb.eq(op.seqs, indexes['offset'].data[o]) != -1)
+            offsets.push(o)
+
+          if (offsets.length == op.seqs.length)
+            break
+        }
+
+        cb(new TypedFastBitSet(offsets))
       }
       else if (op.type === 'AND')
       {
