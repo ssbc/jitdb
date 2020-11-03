@@ -528,15 +528,18 @@ module.exports = function (db, indexesPath) {
       }
       else if (op.type === 'DATA') {
         var offsets = []
-        op.seqs.sort((x,y) => x-y)
-        for (var o = 0; o < indexes['offset'].data.length; ++o)
-        {
-          if (bsb.eq(op.seqs, indexes['offset'].data[o]) != -1)
-            offsets.push(o)
+        if (!op.data && op.seqs) {
+          op.seqs.sort((x,y) => x-y)
+          for (var o = 0; o < indexes['offset'].data.length; ++o)
+          {
+            if (bsb.eq(op.seqs, indexes['offset'].data[o]) != -1)
+              offsets.push(o)
 
-          if (offsets.length == op.seqs.length)
-            break
-        }
+            if (offsets.length == op.seqs.length)
+              break
+          }
+        } else
+          offsets = op.offsets
 
         cb(new TypedFastBitSet(offsets))
       }
