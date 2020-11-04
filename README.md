@@ -60,7 +60,7 @@ of 1 million records will have roughly 700 authors. The biggest cost
 in creating the indexes is traversing the database, so creating all
 indexes in one go instead of several hundreds is a lot faster.
 
-For `GT`, 'GTE', 'LT' and 'LTE', `indexName` can be either `sequence`
+For `GT`, `GTE`, `LT` and `LTE`, `indexName` can be either `sequence`
 or `timestamp`.
 
 `DATA` allows one to use offset or seq positions into the log file as
