@@ -204,7 +204,7 @@ module.exports = function (db, indexesPath) {
       push.filter(x => x), // deleted messages
       push.collect((err, results) => {
         console.timeEnd("get values and sort top " + limit)
-        cb(null, results)
+        cb(null, { data: results, total: timestamped.length })
       })
     )
   }
@@ -559,6 +559,8 @@ module.exports = function (db, indexesPath) {
           })
         })
       }
+      else
+        console.error("Unknown type", op)
     }
 
     function step3() {
@@ -584,14 +586,33 @@ module.exports = function (db, indexesPath) {
     else waiting.push(cb)
   }
 
-  return {
+  return Object.assign({
+    // DEPRECATED
     query: function(operation, offset, limit, reverse, cb) {
       onReady(() => {
         indexSync(operation, data => {
           if (limit)
-            getTop(data, offset, limit, reverse, cb)
+            getTop(data, offset, limit, reverse, (err, data) => {
+              cb(data.results)
+            })
           else
             getAll(data, offset) // offset = cb
+        })
+      })
+    },
+
+    paginate: function(operation, offset, limit, reverse, cb) {
+      onReady(() => {
+        indexSync(operation, data => {
+          getTop(data, offset, limit, reverse, cb)
+        })
+      })
+    },
+
+    all: function(operation, cb) {
+      onReady(() => {
+        indexSync(operation, data => {
+          getAll(data, offset)
         })
       })
     },
@@ -640,63 +661,10 @@ module.exports = function (db, indexesPath) {
 
     onReady,
 
-    // helpers
-    seekAuthor: function(buffer) {
-      var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, bValue)
-
-      if (~p)
-        return bipf.seekKey(buffer, p, bAuthor)
-    },
-
-    seekType: function(buffer) {
-      var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, bValue)
-
-      if (~p) {
-        p = bipf.seekKey(buffer, p, bContent)
-        if (~p)
-          return bipf.seekKey(buffer, p, bType)
-      }
-    },
-
-    seekRoot: function(buffer) {
-      var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, bValue)
-
-      if (~p) {
-        p = bipf.seekKey(buffer, p, bContent)
-        if (~p)
-          return bipf.seekKey(buffer, p, bRoot)
-      }
-    },
-
-    seekPrivate: function(buffer) {
-      var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, bValue)
-
-      if (~p) {
-        p = bipf.seekKey(buffer, p, Buffer.from('meta'))
-        if (~p)
-          return bipf.seekKey(buffer, p, Buffer.from('private'))
-      }
-    },
-
-    seekChannel: function(buffer) {
-      var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, bValue)
-
-      if (~p) {
-        p = bipf.seekKey(buffer, p, bContent)
-        if (~p)
-          return bipf.seekKey(buffer, p, bChannel)
-      }
-    },
-
     // testing
     saveIndex,
     saveTypedArray,
     loadIndex,
     indexes
-  }
+  }, require("./helpers"))
 }
