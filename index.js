@@ -612,7 +612,7 @@ module.exports = function (db, indexesPath) {
     all: function(operation, cb) {
       onReady(() => {
         indexSync(operation, data => {
-          getAll(data, offset)
+          getAll(data, cb)
         })
       })
     },

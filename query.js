@@ -1,41 +1,41 @@
 const helpers = require("./helpers")
 
-Paginator = function(query, offset, limit, total) {
-  function getData(paginator, cb) {
-    query.paginate(paginator.offset, paginator.limit, (err, result) => {
-      if (err) return cb(err)
-      else cb(null, result)
-    })
-  }
-  
-  let self = {
-    query,
-    offset,
-    limit,
-    total,
-    next: function(cb) {
-      if (self.offset >= self.total)
-        cb(null, [])
-      else {
-        getData(self, (err, data) => {
-          self.offset += self.limit
-          cb(err, data)
-        })
-      }
-    },
-    prev: function(cb) {
-      self.offset -= self.limit
-      if (self.offset <= 0)
-        cb(null, [])
-      else
-        getData(self, cb)
+module.exports.query = function(jitdb, operation) {
+  Paginator = function(query, offset, limit, total) {
+    function getData(paginator, cb) {
+      query.paginate(paginator.offset, paginator.limit, (err, result) => {
+        if (err) return cb(err)
+        else cb(null, result)
+      })
     }
+    
+    let self = {
+      query,
+      offset,
+      limit,
+      total,
+      next: function(cb) {
+        if (self.offset >= self.total)
+          cb(null, [])
+        else {
+          getData(self, (err, data) => {
+            self.offset += self.limit
+            cb(err, data)
+          })
+        }
+      },
+      prev: function(cb) {
+        self.offset -= self.limit
+        if (self.offset <= 0)
+          cb(null, [])
+        else
+          getData(self, cb)
+      }
+    }
+
+    return self
   }
 
-  return self
-}
-
-module.exports = function(jitdb, operation) {
   let self = {
     op: operation,
     reverse: false,
@@ -81,89 +81,91 @@ module.exports = function(jitdb, operation) {
   return self
 }
 
-module.exports.AND = function(ops) {
-  if (Array.isArray(ops))
-  {
-    let op = ops[0]
-    
-    ops.slice(1).forEach(r => {
-      op = {
-        type: 'AND',
-        data: [op, r]
+module.exports.filter = {
+  AND: function(ops) {
+    if (Array.isArray(ops))
+    {
+      let op = ops[0]
+      
+      ops.slice(1).forEach(r => {
+        op = {
+          type: 'AND',
+          data: [op, r]
+        }
+      })
+
+      return op
+    }
+  },
+
+  OR: function(ops) {
+    if (Array.isArray(ops))
+    {
+      let op = ops[0]
+      
+      ops.slice(1).forEach(r => {
+        op = {
+          type: 'OR',
+          data: [op, r]
+        }
+      })
+
+      return op
+    }
+  },
+
+  type: function(value) {
+    return {
+      type: 'EQUAL',
+      data: {
+        seek: helpers.seekType,
+        value,
+        indexType: "type"
       }
-    })
+    }
+  },
 
-    return op
-  }
-}
-
-module.exports.OR = function(ops) {
-  if (Array.isArray(ops))
-  {
-    let op = ops[0]
-    
-    ops.slice(1).forEach(r => {
-      op = {
-        type: 'OR',
-        data: [op, r]
+  author: function(value) {
+    return {
+      type: 'EQUAL',
+      data: {
+        seek: helpers.seekAuthor,
+        value,
+        indexType: "author"
       }
-    })
-
-    return op
-  }
-}
-
-module.exports.type = function(value) {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekType,
-      value,
-      indexType: "type"
     }
-  }
-}
+  },
 
-module.exports.author = function(value) {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekAuthor,
-      value,
-      indexType: "author"
+  channel: function(value) {
+    return {
+      type: 'EQUAL',
+      data: {
+        seek: helpers.seekChannel,
+        value,
+        indexType: "channel"
+      }
     }
-  }
-}
+  },
 
-module.exports.channel = function(value) {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekChannel,
-      value,
-      indexType: "channel"
+  isRoot: function() {
+    return {
+      type: 'EQUAL',
+      data: {
+        seek: helpers.seekRoot,
+        value: undefined,
+        indexType: "root"
+      }
     }
-  }
-}
+  },
 
-module.exports.isRoot = function() {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekRoot,
-      value: undefined,
-      indexType: "root"
-    }
-  }
-}
-
-module.exports.isPrivate = function() {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekPrivate,
-      value: "true",
-      indexType: "private"
+  isPrivate: function() {
+    return {
+      type: 'EQUAL',
+      data: {
+        seek: helpers.seekPrivate,
+        value: "true",
+        indexType: "private"
+      }
     }
   }
 }
