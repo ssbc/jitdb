@@ -1,4 +1,4 @@
-const helpers = require("./helpers")
+const helpers = require('./helpers');
 
 function query(...cbs) {
   let res = cbs[0];
@@ -8,10 +8,8 @@ function query(...cbs) {
 
 function fromDB(db) {
   return {
-    meta: {
-      db
-    }
-  }
+    meta: {db},
+  };
 }
 
 function type(value) {
@@ -20,9 +18,9 @@ function type(value) {
     data: {
       seek: helpers.seekType,
       value,
-      indexType: "type"
-    }
-  }
+      indexType: 'type',
+    },
+  };
 }
 
 function author(value) {
@@ -31,9 +29,9 @@ function author(value) {
     data: {
       seek: helpers.seekAuthor,
       value,
-      indexType: "author"
-    }
-  }
+      indexType: 'author',
+    },
+  };
 }
 
 function channel(value) {
@@ -42,9 +40,9 @@ function channel(value) {
     data: {
       seek: helpers.seekChannel,
       value,
-      indexType: "channel"
-    }
-  }
+      indexType: 'channel',
+    },
+  };
 }
 
 function isRoot() {
@@ -53,9 +51,9 @@ function isRoot() {
     data: {
       seek: helpers.seekRoot,
       value: undefined,
-      indexType: "root"
-    }
-  }
+      indexType: 'root',
+    },
+  };
 }
 
 function isPrivate() {
@@ -63,138 +61,156 @@ function isPrivate() {
     type: 'EQUAL',
     data: {
       seek: helpers.seekPrivate,
-      value: "true",
-      indexType: "private"
-    }
-  }
+      value: 'true',
+      indexType: 'private',
+    },
+  };
 }
 
 function debug() {
   return (ops) => {
-    console.log("debug", JSON.stringify(ops, (key, val) => {
-      if (key === 'db') return undefined
-      else return val
-    }, 2))
-    return ops
-  }
+    console.log(
+      'debug',
+      JSON.stringify(
+        ops,
+        (key, val) => {
+          if (key === 'db') return undefined;
+          else return val;
+        },
+        2,
+      ),
+    );
+    return ops;
+  };
 }
 
 function moveMeta(orig, dest) {
   if (orig.meta) {
-    dest.meta = orig.meta
-    delete orig.meta
+    dest.meta = orig.meta;
+    delete orig.meta;
   }
 }
 
 function updateMeta(orig, key, value) {
-  const res = Object.assign({}, orig)
-  res.meta[key] = value
-  return res
+  const res = Object.assign({}, orig);
+  res.meta[key] = value;
+  return res;
 }
 
 function extractMeta(orig) {
-  const meta = orig.meta
-  delete orig.meta
-  return meta
+  const meta = orig.meta;
+  delete orig.meta;
+  return meta;
 }
 
 function and(...rhs) {
   return (ops) => {
-    const res = ops.type ?
-          {
-            type: 'AND',
-            data: [ops, ...rhs]
-          } : rhs.length > 1 ?
-          {
-            type: 'AND',
-            data: rhs
-          } :
-          rhs[0]
-    moveMeta(ops, res)
-    return res
-  }
+    const res = ops.type
+      ? {
+          type: 'AND',
+          data: [ops, ...rhs],
+        }
+      : rhs.length > 1
+      ? {
+          type: 'AND',
+          data: rhs,
+        }
+      : rhs[0];
+    moveMeta(ops, res);
+    return res;
+  };
 }
 
 function or(...rhs) {
   return (ops) => {
-    const res = ops.type ?
-          {
-            type: 'AND',
-            data: [ops, rhs.length > 1 ? {
-              type: 'OR',
-              data: rhs
-            } : rhs[0]]
-          } : rhs
-    moveMeta(ops, res)
-    return res
-  }
+    const res = ops.type
+      ? {
+          type: 'AND',
+          data: [
+            ops,
+            rhs.length > 1
+              ? {
+                  type: 'OR',
+                  data: rhs,
+                }
+              : rhs[0],
+          ],
+        }
+      : rhs;
+    moveMeta(ops, res);
+    return res;
+  };
 }
 
 function ascending() {
-  return ops => updateMeta(ops, 'reverse', true)
+  return (ops) => updateMeta(ops, 'reverse', true);
 }
 
 function startFrom(offset) {
-  return ops => updateMeta(ops, 'offset', offset)
+  return (ops) => updateMeta(ops, 'offset', offset);
 }
 
 function paginate(pageSize) {
-  return ops => updateMeta(ops, 'pageSize', pageSize)
+  return (ops) => updateMeta(ops, 'pageSize', pageSize);
 }
 
 function toCallback(cb) {
   return (ops) => {
-    const meta = extractMeta(ops)
+    const meta = extractMeta(ops);
     if (meta.pageSize)
-      meta.db.paginate(ops, meta.offset || 0, meta.pageSize, meta.reverse, cb)
-    else
-      // FIXME: use `meta.offset || 0` here
-      meta.db.all(ops, cb)
-  }
+      meta.db.paginate(ops, meta.offset || 0, meta.pageSize, meta.reverse, cb);
+    // FIXME: use `meta.offset || 0` here
+    else meta.db.all(ops, cb);
+  };
 }
 
 function toPromise() {
   return (ops) => {
-    const meta = extractMeta(ops)
+    const meta = extractMeta(ops);
     return new Promise((resolve, reject) => {
       const cb = (err, data) => {
-        if (err) reject(err)
-        else resolve(data)
-      }
+        if (err) reject(err);
+        else resolve(data);
+      };
       if (meta.pageSize)
-        meta.db.paginate(ops, meta.offset || 0, meta.pageSize, meta.reverse, cb)
-      else
-        // FIXME: use `meta.offset || 0` here
-        meta.db.all(ops, cb)
-    })
-  }
+        meta.db.paginate(
+          ops,
+          meta.offset || 0,
+          meta.pageSize,
+          meta.reverse,
+          cb,
+        );
+      // FIXME: use `meta.offset || 0` here
+      else meta.db.all(ops, cb);
+    });
+  };
 }
 
 function toPullStream() {
   return (ops) => {
-    const meta = extractMeta(ops)
-    let offset = meta.offset || 0
-    let total = Infinity
-    const limit = meta.pageSize || 1
-    return function readable (end, cb) {
-      if(end) return cb(end)
-      if (offset >= total) return cb(true)
+    const meta = extractMeta(ops);
+    let offset = meta.offset || 0;
+    let total = Infinity;
+    const limit = meta.pageSize || 1;
+    return function readable(end, cb) {
+      if (end) return cb(end);
+      if (offset >= total) return cb(true);
       meta.db.paginate(ops, offset, limit, meta.reverse, (err, result) => {
-        if (err) return cb(err)
+        if (err) return cb(err);
         else {
-          total = result.total
-          offset += limit
-          cb(null, !meta.pageSize ? result.data[0] : result.data)
+          total = result.total;
+          offset += limit;
+          cb(null, !meta.pageSize ? result.data[0] : result.data);
         }
-      })
-    }
-  }
+      });
+    };
+  };
 }
 
 // `async function*` supported in Node 10+ and browsers (except IE11)
 function toAsyncIter() {
   return async function* (ops) {
-    const meta = extractMeta(ops)
+    const meta = extractMeta(ops);
     let offset = meta.offset || 0;
     let total = Infinity;
     const limit = meta.pageSize || 1;
@@ -234,5 +250,5 @@ module.exports = {
   author,
   channel,
   isRoot,
-  isPrivate
-}
+  isPrivate,
+};
