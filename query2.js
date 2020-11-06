@@ -39,7 +39,7 @@ function author(value) {
 function debug() {
   return (ops) => {
     console.log("debug", JSON.stringify(ops, (key, val) => {
-      if (key == 'meta') return undefined
+      if (key === 'db') return undefined
       else return val
     }, 2))
     return ops
@@ -115,6 +115,28 @@ function toCallback(cb) {
   }
 }
 
+function toPullStream() {
+  return (ops) => {
+    const meta = ops.meta
+    delete ops.meta
+    let offset = 0
+    let total = Infinity
+    const limit = meta.pageSize || 1
+    return function readable (end, cb) {
+      if(end) return cb(end)
+      if (offset >= total) return cb(true)
+      meta.db.paginate(ops, offset, limit, meta.reverse, (err, result) => {
+        if (err) return cb(err)
+        else {
+          total = result.total
+          offset += limit
+          cb(null, !meta.pageSize ? result.data[0] : result.data)
+        }
+      })
+    }
+  }
+}
+
 module.exports = {
   fromDB,
   query,
@@ -125,9 +147,10 @@ module.exports = {
   ascending,
   paginate,
   toCallback,
-  
+  toPullStream,
+
   debug,
-  
+
   type,
   author
 }
