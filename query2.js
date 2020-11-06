@@ -36,6 +36,39 @@ function author(value) {
   }
 }
 
+function channel(value) {
+  return {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekChannel,
+      value,
+      indexType: "channel"
+    }
+  }
+}
+
+function isRoot() {
+  return {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekRoot,
+      value: undefined,
+      indexType: "root"
+    }
+  }
+}
+
+function isPrivate() {
+  return {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekPrivate,
+      value: "true",
+      indexType: "private"
+    }
+  }
+}
+
 function debug() {
   return (ops) => {
     console.log("debug", JSON.stringify(ops, (key, val) => {
@@ -194,5 +227,8 @@ module.exports = {
   debug,
 
   type,
-  author
+  author,
+  channel,
+  isRoot,
+  isPrivate
 }
