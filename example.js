@@ -11,7 +11,7 @@ const author = '@+UMKhpbzXAII+2/7ZlsgkJwIsxdfeFi36Z5Rk1gCfY0=.ed25519'
 var raf = FlumeLog(process.argv[2], {blockSize: 64*1024})
 
 var db = require('./index')(raf, "./indexes")
-db.onReady(() => {
+db.onReady(async () => {
   // seems the cache needs to be warmed up to get fast results
 
   const mix = '@ye+QM09iPcDJD6YvQYjoQc7sLF/IFhmNbEqgdzQo3lQ=.ed25519'
@@ -37,8 +37,21 @@ db.onReady(() => {
     })
   )
 
+  if (true) {
+    const results = await t.query(
+      t.fromDB(db),
+      // t.debug(),
+      t.and(t.type('post')),
+      // t.debug(),
+      t.or(t.author(mix), t.author(mixy), t.author(arj)),
+      // t.debug(),
+      t.toPromise(),
+    );
+    console.log(results);
+  }
+
   let i = 0;
-  pull(
+  if (false) pull(
     t.query(
       t.fromDB(db),
       // t.debug(),

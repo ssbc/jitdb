@@ -115,6 +115,23 @@ function toCallback(cb) {
   }
 }
 
+function toPromise() {
+  return (ops) => {
+    const meta = ops.meta
+    delete ops.meta
+    return new Promise((resolve, reject) => {
+      const cb = (err, data) => {
+        if (err) reject(err)
+        else resolve(data)
+      }
+      if (meta.pageSize)
+        meta.db.paginate(ops, 0, meta.pageSize, meta.reverse, cb)
+      else
+        meta.db.all(ops, cb)
+    })
+  }
+}
+
 function toPullStream() {
   return (ops) => {
     const meta = ops.meta
@@ -148,6 +165,7 @@ module.exports = {
   paginate,
   toCallback,
   toPullStream,
+  toPromise,
 
   debug,
 
