@@ -78,6 +78,8 @@ db.onReady(async () => {
       // t.debug(),
       t.or(t.author(mix), t.author(mixy), t.author(arj)),
       // t.debug(),
+      t.startFrom(6),
+      // t.debug(),
       t.paginate(3),
       // t.debug(),
       t.toAsyncIter(),

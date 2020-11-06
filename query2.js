@@ -129,6 +129,14 @@ function ascending() {
   }
 }
 
+function startFrom(offset) {
+  return ops => {
+    const res = Object.assign({}, ops)
+    res.meta.offset = offset
+    return res
+  }
+}
+
 function paginate(pageSize) {
   return ops => {
     const res = Object.assign({}, ops)
@@ -142,8 +150,9 @@ function toCallback(cb) {
     const meta = ops.meta
     delete ops.meta
     if (meta.pageSize)
-      meta.db.paginate(ops, 0, meta.pageSize, meta.reverse, cb)
+      meta.db.paginate(ops, meta.offset || 0, meta.pageSize, meta.reverse, cb)
     else
+      // FIXME: use `meta.offset || 0` here
       meta.db.all(ops, cb)
   }
 }
@@ -158,8 +167,9 @@ function toPromise() {
         else resolve(data)
       }
       if (meta.pageSize)
-        meta.db.paginate(ops, 0, meta.pageSize, meta.reverse, cb)
+        meta.db.paginate(ops, meta.offset || 0, meta.pageSize, meta.reverse, cb)
       else
+        // FIXME: use `meta.offset || 0` here
         meta.db.all(ops, cb)
     })
   }
@@ -169,7 +179,7 @@ function toPullStream() {
   return (ops) => {
     const meta = ops.meta
     delete ops.meta
-    let offset = 0
+    let offset = meta.offset || 0
     let total = Infinity
     const limit = meta.pageSize || 1
     return function readable (end, cb) {
@@ -192,7 +202,7 @@ function toAsyncIter() {
   return async function* (ops) {
     const meta = ops.meta;
     delete ops.meta;
-    let offset = 0;
+    let offset = meta.offset || 0;
     let total = Infinity;
     const limit = meta.pageSize || 1;
     while (offset < total) {
@@ -218,6 +228,7 @@ module.exports = {
   or,
 
   ascending,
+  startFrom,
   paginate,
   toCallback,
   toPullStream,
