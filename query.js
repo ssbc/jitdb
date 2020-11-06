@@ -40,10 +40,11 @@ module.exports.query = function(jitdb, operation) {
     op: operation,
     reverse: false,
     // FIXME: support query instead of op
-    AND: function(rhs) {
+    and: function(rhs) {
       if (Array.isArray(rhs))
-        rhs = module.exports.AND(rhs)
+        rhs = module.exports.and(rhs)
 
+      // FIXME return copy instead of modifying
       self.op = {
         type: 'AND',
         data: [self.op, rhs]
@@ -51,9 +52,9 @@ module.exports.query = function(jitdb, operation) {
 
       return self
     },
-    OR: function(rhs) {
+    or: function(rhs) {
       if (Array.isArray(rhs))
-        rhs = module.exports.OR(rhs)
+        rhs = module.exports.or(rhs)
 
       self.op = {
         type: 'OR',
@@ -82,7 +83,7 @@ module.exports.query = function(jitdb, operation) {
 }
 
 module.exports.filter = {
-  AND: function(ops) {
+  and: function(ops) {
     if (Array.isArray(ops))
     {
       let op = ops[0]
@@ -98,7 +99,7 @@ module.exports.filter = {
     }
   },
 
-  OR: function(ops) {
+  or: function(ops) {
     if (Array.isArray(ops))
     {
       let op = ops[0]
