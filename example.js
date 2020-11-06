@@ -37,7 +37,7 @@ db.onReady(async () => {
     })
   )
 
-  if (true) {
+  if (false) {
     const results = await t.query(
       t.fromDB(db),
       // t.debug(),
@@ -50,7 +50,7 @@ db.onReady(async () => {
     console.log(results);
   }
 
-  let i = 0;
+  var i = 0;
   if (false) pull(
     t.query(
       t.fromDB(db),
@@ -68,6 +68,25 @@ db.onReady(async () => {
       console.log((msgs))
     })
   )
+
+  var i = 0;
+  if (true) {
+    const results = t.query(
+      t.fromDB(db),
+      // t.debug(),
+      t.and(t.type('blog')),
+      // t.debug(),
+      t.or(t.author(mix), t.author(mixy), t.author(arj)),
+      // t.debug(),
+      t.paginate(3),
+      // t.debug(),
+      t.toAsyncIter(),
+    )
+    for await (let msgs of results) {
+      console.log('page #' + (i++))
+      console.log(msgs)
+    }
+  }
 
   return
 

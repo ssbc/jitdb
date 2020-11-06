@@ -154,6 +154,29 @@ function toPullStream() {
   }
 }
 
+// `async function*` supported in Node 10+ and browsers (except IE11)
+function toAsyncIter() {
+  return async function* (ops) {
+    const meta = ops.meta;
+    delete ops.meta;
+    let offset = 0;
+    let total = Infinity;
+    const limit = meta.pageSize || 1;
+    while (offset < total) {
+      yield await new Promise((resolve, reject) => {
+        meta.db.paginate(ops, offset, limit, meta.reverse, (err, result) => {
+          if (err) return reject(err);
+          else {
+            total = result.total;
+            offset += limit;
+            resolve(!meta.pageSize ? result.data[0] : result.data);
+          }
+        });
+      });
+    }
+  };
+}
+
 module.exports = {
   fromDB,
   query,
@@ -166,6 +189,7 @@ module.exports = {
   toCallback,
   toPullStream,
   toPromise,
+  toAsyncIter,
 
   debug,
 
