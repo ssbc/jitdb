@@ -103,6 +103,7 @@ function extractMeta(orig) {
   return meta;
 }
 
+// FIXME: might or might not be correct logic, we need to unit tests all cases
 function and(...rhs) {
   return (ops) => {
     const res = ops.type
@@ -121,22 +122,20 @@ function and(...rhs) {
   };
 }
 
+// FIXME: might or might not be correct logic, we need to unit tests all cases
 function or(...rhs) {
   return (ops) => {
     const res = ops.type
       ? {
-          type: 'AND',
-          data: [
-            ops,
-            rhs.length > 1
-              ? {
-                  type: 'OR',
-                  data: rhs,
-                }
-              : rhs[0],
-          ],
+          type: 'OR',
+          data: [ops, ...rhs],
         }
-      : rhs;
+      : rhs.length > 1
+      ? {
+          type: 'OR',
+          data: rhs,
+        }
+      : rhs[0];
     moveMeta(ops, res);
     return res;
   };
