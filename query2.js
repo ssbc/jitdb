@@ -100,19 +100,20 @@ function extractMeta(orig) {
 
 // FIXME: might or might not be correct logic, we need to unit tests all cases
 function and(...args) {
-  const rhs = args.map(arg => typeof arg === 'function' ? arg() : arg)
+  const rhs = args.map((arg) => (typeof arg === 'function' ? arg() : arg));
   return (ops) => {
-    const res = ops && ops.type
-      ? {
-          type: 'AND',
-          data: [ops, ...rhs],
-        }
-      : rhs.length > 1
-      ? {
-          type: 'AND',
-          data: rhs,
-        }
-      : rhs[0];
+    const res =
+      ops && ops.type
+        ? {
+            type: 'AND',
+            data: [ops, ...rhs],
+          }
+        : rhs.length > 1
+        ? {
+            type: 'AND',
+            data: rhs,
+          }
+        : rhs[0];
     if (ops) copyMeta(ops, res);
     return res;
   };
@@ -120,19 +121,20 @@ function and(...args) {
 
 // FIXME: might or might not be correct logic, we need to unit tests all cases
 function or(...args) {
-  const rhs = args.map(arg => typeof arg === 'function' ? arg() : arg)
+  const rhs = args.map((arg) => (typeof arg === 'function' ? arg() : arg));
   return (ops) => {
-    const res = ops && ops.type
-      ? {
-          type: 'OR',
-          data: [ops, ...rhs],
-        }
-      : rhs.length > 1
-      ? {
-          type: 'OR',
-          data: rhs,
-        }
-      : rhs[0];
+    const res =
+      ops && ops.type
+        ? {
+            type: 'OR',
+            data: [ops, ...rhs],
+          }
+        : rhs.length > 1
+        ? {
+            type: 'OR',
+            data: rhs,
+          }
+        : rhs[0];
     if (ops) copyMeta(ops, res);
     return res;
   };
