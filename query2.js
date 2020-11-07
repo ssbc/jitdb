@@ -84,10 +84,9 @@ function debug() {
   };
 }
 
-function moveMeta(orig, dest) {
+function copyMeta(orig, dest) {
   if (orig.meta) {
     dest.meta = orig.meta;
-    delete orig.meta;
   }
 }
 
@@ -99,7 +98,6 @@ function updateMeta(orig, key, value) {
 
 function extractMeta(orig) {
   const meta = orig.meta;
-  delete orig.meta;
   return meta;
 }
 
@@ -118,7 +116,7 @@ function and(...args) {
           data: rhs,
         }
       : rhs[0];
-    if (ops) moveMeta(ops, res);
+    if (ops) copyMeta(ops, res);
     return res;
   };
 }
@@ -138,7 +136,7 @@ function or(...args) {
           data: rhs,
         }
       : rhs[0];
-    if (ops) moveMeta(ops, res);
+    if (ops) copyMeta(ops, res);
     return res;
   };
 }

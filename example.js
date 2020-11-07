@@ -70,7 +70,7 @@ db.onReady(async () => {
   )
 
   var i = 0;
-  if (true) {
+  if (false) {
     const results = t.query(
       t.fromDB(db),
       // t.debug(),
@@ -88,6 +88,34 @@ db.onReady(async () => {
       console.log('page #' + (i++))
       console.log(msgs)
     }
+  }
+
+  var i = 0;
+  if (true) {
+    const posts = t.query(
+      t.fromDB(db),
+      t.and(t.type('post')),
+    )
+
+    const postsMix = t.query(
+      posts,
+      // t.debug(),
+      t.and(t.or(t.author(mix), t.author(mixy))),
+      // t.debug(),
+      t.toPromise(),
+    )
+
+    const postsArj = t.query(
+      posts,
+      // t.debug(),
+      t.and(t.author(arj)),
+      // t.debug(),
+      t.toPromise(),
+    )
+
+    const [resMix, resArj] = await Promise.all([postsMix, postsArj])
+    console.log('mix posts: ' + resMix.length)
+    console.log('arj posts: ' + resArj.length)
   }
 
   return
