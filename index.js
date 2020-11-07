@@ -508,6 +508,19 @@ module.exports = function (db, indexesPath) {
       })
     }
 
+    function nestLargeArray(ops, type) {
+      let op = ops[0]
+
+      ops.slice(1).forEach(r => {
+        op = {
+          type,
+          data: [op, r]
+        }
+      })
+
+      return op
+    }
+
     function getBitsetForOperation(op, cb) {
       if (op.type === 'EQUAL') {
         ensureIndexSync(op, () => {
@@ -545,6 +558,9 @@ module.exports = function (db, indexesPath) {
       }
       else if (op.type === 'AND')
       {
+        if (op.data.length > 2)
+          op = nestLargeArray(op.data, 'AND')
+
         getBitsetForOperation(op.data[0], (op1) => {
           getBitsetForOperation(op.data[1], (op2) => {
             cb(op1.new_intersection(op2))
@@ -553,6 +569,9 @@ module.exports = function (db, indexesPath) {
       }
       else if (op.type === 'OR')
       {
+        if (op.data.length > 2)
+          op = nestLargeArray(op.data, 'OR')
+
         getBitsetForOperation(op.data[0], (op1) => {
           getBitsetForOperation(op.data[1], (op2) => {
             cb(op1.new_union(op2))

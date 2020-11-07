@@ -19,14 +19,13 @@ db.onReady(async () => {
   const arj = '@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'
 
   // FIXME: add offset to all
-  // FIXME: support multiple with AND/OR
 
   if (false) t.query(
     t.fromDB(db),
     // t.debug(),
     t.and(t.type('post')),
     // t.debug(),
-    t.or(t.author(mix), t.author(mixy), t.author(arj)),
+    t.and(t.or(t.author(mix), t.author(mixy), t.author(arj))),
     // t.debug(),
     t.paginate(100),
     // t.debug(),
