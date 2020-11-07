@@ -69,16 +69,13 @@ function isPrivate() {
 
 function debug() {
   return (ops) => {
+    const meta = JSON.stringify(ops.meta, (key, val) =>
+      key === 'db' ? void 0 : val,
+    );
     console.log(
       'debug',
-      JSON.stringify(
-        ops,
-        (key, val) => {
-          if (key === 'db') return undefined;
-          else return val;
-        },
-        2,
-      ),
+      JSON.stringify(ops, (key, val) => (key === 'meta' ? void 0 : val), 2),
+      meta === '{}' ? '' : 'meta: ' + meta,
     );
     return ops;
   };
