@@ -76,7 +76,7 @@ db.onReady(async () => {
       // t.debug(),
       t.and(t.type('blog')),
       // t.debug(),
-      t.or(t.author(mix), t.author(mixy), t.author(arj)),
+      t.and(t.or(t.author(mix), t.author(mixy), t.author(arj))),
       // t.debug(),
       t.startFrom(6),
       // t.debug(),

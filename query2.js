@@ -104,9 +104,10 @@ function extractMeta(orig) {
 }
 
 // FIXME: might or might not be correct logic, we need to unit tests all cases
-function and(...rhs) {
+function and(...args) {
+  const rhs = args.map(arg => typeof arg === 'function' ? arg() : arg)
   return (ops) => {
-    const res = ops.type
+    const res = ops && ops.type
       ? {
           type: 'AND',
           data: [ops, ...rhs],
@@ -117,15 +118,16 @@ function and(...rhs) {
           data: rhs,
         }
       : rhs[0];
-    moveMeta(ops, res);
+    if (ops) moveMeta(ops, res);
     return res;
   };
 }
 
 // FIXME: might or might not be correct logic, we need to unit tests all cases
-function or(...rhs) {
+function or(...args) {
+  const rhs = args.map(arg => typeof arg === 'function' ? arg() : arg)
   return (ops) => {
-    const res = ops.type
+    const res = ops && ops.type
       ? {
           type: 'OR',
           data: [ops, ...rhs],
@@ -136,7 +138,7 @@ function or(...rhs) {
           data: rhs,
         }
       : rhs[0];
-    moveMeta(ops, res);
+    if (ops) moveMeta(ops, res);
     return res;
   };
 }
