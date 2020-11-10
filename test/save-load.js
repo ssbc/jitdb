@@ -2,9 +2,12 @@ const test = require('tape')
 const path = require('path')
 const TypedFastBitSet = require('typedfastbitset')
 const { prepareAndRunTest, addMsg } = require('./common')()
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const dir = '/tmp/jitdb-save-load'
-require('rimraf').sync(dir)
+rimraf.sync(dir)
+mkdirp.sync(dir)
 
 prepareAndRunTest('SaveLoad', dir, (t, db, raf) => {
   var data = new TypedFastBitSet()

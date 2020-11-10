@@ -4,9 +4,12 @@ const ssbKeys = require('ssb-keys')
 const path = require('path')
 const { prepareAndRunTest, addMsg } = require('./common')()
 const push = require('push-stream')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const dir = '/tmp/jitdb-add'
-require('rimraf').sync(dir)
+rimraf.sync(dir)
+mkdirp.sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 var keys2 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret2'))
@@ -17,7 +20,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
   state = validate.appendNew(state, null, keys2, msg, Date.now())
-  
+
   const typeQuery = {
     type: 'EQUAL',
     data: {

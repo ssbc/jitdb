@@ -1,9 +1,9 @@
 const FlumeLog = require('async-flumelog')
-const Obv = require('obv')
 const bipf = require('bipf')
 const hash = require('ssb-keys/util').hash
 const path = require('path')
 const test = require('tape')
+const fs = require('fs')
 
 module.exports = function () {
   function getId(msg) {
@@ -29,6 +29,7 @@ module.exports = function () {
 
     prepareAndRunTest: function(name, dir, cb)
     {
+      fs.closeSync(fs.openSync(path.join(dir, name), 'w')) // touch
       let raf = FlumeLog(path.join(dir, name), { blockSize: 64*1024 })
       let db = require('../')(raf, path.join(dir, "indexes" + name))
       db.onReady(() => {
