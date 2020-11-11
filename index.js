@@ -502,6 +502,7 @@ module.exports = function (db, indexesPath) {
           cb(t)
         } else if (op.data.indexName == 'timestamp') {
           let t = new TypedFastBitSet()
+          console.log(indexes['timestamp'].data)
           indexes['timestamp'].data.forEach((d, index) => { if (filterCheck(d, op)) t.add(index) })
           cb(t)
         }

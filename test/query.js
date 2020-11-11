@@ -237,6 +237,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
                   filterQuery.data[0].data.value = dbMsg1.value.timestamp
                   db.all(filterQuery, (err, results) => {
                     t.equal(results.length, 3)
+                    console.log(results.map(x => x.value))
                     t.equal(results[0].value.content.text, '2')
 
                     t.end()
