@@ -19,7 +19,7 @@ const {
   toPromise,
   toPullStream,
   toAsyncIter,
-} = require('../query2');
+} = require('../operators');
 
 const dir = '/tmp/jitdb-query-api';
 rimraf.sync(dir);

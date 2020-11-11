@@ -395,7 +395,7 @@ module.exports = function (db, indexesPath) {
     var updatedTimestampIndex = false
     var updatedSequenceIndex = false
     const start = Date.now()
-    
+
     db.stream({}).pipe({
       paused: false,
       write: function (data) {
@@ -607,6 +607,7 @@ module.exports = function (db, indexesPath) {
 
   return Object.assign({
     // DEPRECATED
+    // FIXME: remove this?
     query: function(operation, offset, limit, reverse, cb) {
       onReady(() => {
         indexSync(operation, data => {

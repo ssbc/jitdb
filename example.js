@@ -1,10 +1,7 @@
 const FlumeLog = require('async-flumelog')
 const pull = require('pull-stream')
 const Obv = require('obv')
-
-//const { query, filter } = require('./query')
-
-const t = require("./query2")
+const t = require("./operators")
 
 const author = '@+UMKhpbzXAII+2/7ZlsgkJwIsxdfeFi36Z5Rk1gCfY0=.ed25519'
 
