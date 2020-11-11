@@ -91,7 +91,7 @@ operation.
 
 ### querySeq(operation, seq, cb)
 
-Behave similar to query except it takes a database seq and returns all
+Executes the `operation` but takes a database seq and returns all
 results added after the seq. This can be useful to keep an external
 data structure in sync with the result of a query.
 
@@ -108,23 +108,6 @@ added to the database. The index is *not* updated when using this method.
 ### onReady(cb)
 
 Will call when all existing indexes have been loaded.
-
-### seekAuthor(buffer)
-
-A helper seek function for queries
-
-### seekType(buffer)
-
-A helper seek function for queries
-
-### seekRoot(buffer)
-
-A helper seek function for queries
-
-### seekPrivate(buffer)
-
-A helper seek function for queries
-
 
 [flumelog]: https://github.com/flumedb/
 [async-flumelog]: https://github.com/flumedb/async-flumelog
