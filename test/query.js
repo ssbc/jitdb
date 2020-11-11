@@ -209,38 +209,40 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, dbMsg1) => {
-    addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
-      addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
-        addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
-          db.all(filterQuery, (err, results) => {
-            t.equal(results.length, 3)
-            t.equal(results[0].value.content.text, '2')
-
-            filterQuery.data[0].type = 'GTE'
+    setTimeout(() => { // make sure the first msg timestamp before the rest
+      addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
+        addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
+          addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
             db.all(filterQuery, (err, results) => {
-              t.equal(results.length, 4)
-              t.equal(results[0].value.content.text, '1')
+              t.equal(results.length, 3)
+              t.equal(results[0].value.content.text, '2')
 
-              filterQuery.data[0].type = 'LT'
-              filterQuery.data[0].data.value = 3
+              filterQuery.data[0].type = 'GTE'
               db.all(filterQuery, (err, results) => {
-                t.equal(results.length, 2)
+                t.equal(results.length, 4)
                 t.equal(results[0].value.content.text, '1')
 
-                filterQuery.data[0].type = 'LTE'
+                filterQuery.data[0].type = 'LT'
+                filterQuery.data[0].data.value = 3
                 db.all(filterQuery, (err, results) => {
-                  t.equal(results.length, 3)
+                  t.equal(results.length, 2)
                   t.equal(results[0].value.content.text, '1')
 
-                  filterQuery.data[0].type = 'GT'
-                  filterQuery.data[0].data.indexName = 'timestamp'
-                  filterQuery.data[0].data.value = dbMsg1.value.timestamp
+                  filterQuery.data[0].type = 'LTE'
                   db.all(filterQuery, (err, results) => {
                     t.equal(results.length, 3)
-                    console.log(results.map(x => x.value))
-                    t.equal(results[0].value.content.text, '2')
+                    t.equal(results[0].value.content.text, '1')
 
-                    t.end()
+                    filterQuery.data[0].type = 'GT'
+                    filterQuery.data[0].data.indexName = 'timestamp'
+                    filterQuery.data[0].data.value = dbMsg1.value.timestamp
+                    db.all(filterQuery, (err, results) => {
+                      t.equal(results.length, 3)
+                      console.log(results.map(x => x.value))
+                      t.equal(results[0].value.content.text, '2')
+
+                      t.end()
+                    })
                   })
                 })
               })
@@ -248,7 +250,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
           })
         })
       })
-    })
+    }, 1000)
   })
 })
 
