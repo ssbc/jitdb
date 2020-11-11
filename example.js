@@ -1,12 +1,11 @@
 const FlumeLog = require('async-flumelog')
 const pull = require('pull-stream')
-const Obv = require('obv')
+const JITDB = require('./index')
 const {query, fromDB, and, or, type, debug, author, paginate, toCallback, toPromise, toPullStream, toAsyncIter} = require("./operators")
-
 
 var raf = FlumeLog(process.argv[2], {blockSize: 64*1024})
 
-var db = require('./index')(raf, "./indexes")
+var db = JITDB(raf, "./indexes")
 db.onReady(async () => {
   // seems the cache needs to be warmed up to get fast results
 
