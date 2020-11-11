@@ -98,7 +98,6 @@ function extractMeta(orig) {
   return meta;
 }
 
-// FIXME: might or might not be correct logic, we need to unit tests all cases
 function and(...args) {
   const rhs = args.map((arg) => (typeof arg === 'function' ? arg() : arg));
   return (ops) => {
@@ -119,7 +118,6 @@ function and(...args) {
   };
 }
 
-// FIXME: might or might not be correct logic, we need to unit tests all cases
 function or(...args) {
   const rhs = args.map((arg) => (typeof arg === 'function' ? arg() : arg));
   return (ops) => {
