@@ -336,6 +336,8 @@ module.exports = function (db, indexesPath) {
     var updatedSequenceIndex = false
     const start = Date.now()
 
+    const indexNeedsUpdate = op.data.indexName != 'sequence' && op.data.indexName != 'timestamp' && op.data.indexName != 'offset'
+
     db.stream({ gt: index.seq }).pipe({
       paused: false,
       write: function (data) {
@@ -348,7 +350,7 @@ module.exports = function (db, indexesPath) {
         if (updateSequenceIndex(offset, data.seq, data.value))
           updatedSequenceIndex = true
 
-        if (op.data.indexName != 'sequence' && op.data.indexName != 'timestamp')
+        if (indexNeedsUpdate)
           updateIndexValue(op.data, index, data.value, offset)
 
         offset++
@@ -367,7 +369,7 @@ module.exports = function (db, indexesPath) {
           saveTypedArray('sequence', indexes['sequence'].seq, count, indexes['sequence'].data)
 
         index.seq = indexes['offset'].seq
-        if (op.data.indexName != 'sequence' && op.data.indexName != 'timestamp')
+        if (indexNeedsUpdate)
           saveIndex(op.data.indexName, index.seq, index.data)
 
         cb()
@@ -516,6 +518,13 @@ module.exports = function (db, indexesPath) {
       return op
     }
 
+    function ensureOffsetIndexSync(cb) {
+      if (db.since.value > indexes['offset'].seq)
+        updateIndex({ data: { indexName: 'offset' } }, cb)
+      else
+        cb()
+    }
+    
     function getBitsetForOperation(op, cb) {
       if (op.type === 'EQUAL') {
         ensureIndexSync(op, () => {
@@ -535,21 +544,23 @@ module.exports = function (db, indexesPath) {
         filterIndex(op, (d, op) => d <= op.data.value, cb)
       }
       else if (op.type === 'DATA') {
-        var offsets = []
-        if (!op.data && op.seqs) {
-          op.seqs.sort((x,y) => x-y)
-          for (var o = 0; o < indexes['offset'].data.length; ++o)
-          {
-            if (bsb.eq(op.seqs, indexes['offset'].data[o]) != -1)
-              offsets.push(o)
+        ensureOffsetIndexSync(() => {
+          var offsets = []
+          if (!op.data && op.seqs) {
+            op.seqs.sort((x,y) => x-y)
+            for (var o = 0; o < indexes['offset'].data.length; ++o)
+            {
+              if (bsb.eq(op.seqs, indexes['offset'].data[o]) != -1)
+                offsets.push(o)
 
-            if (offsets.length == op.seqs.length)
-              break
-          }
-        } else
-          offsets = op.offsets
+              if (offsets.length == op.seqs.length)
+                break
+            }
+          } else
+            offsets = op.offsets
 
-        cb(new TypedFastBitSet(offsets))
+          cb(new TypedFastBitSet(offsets))
+        })
       }
       else if (op.type === 'AND')
       {
