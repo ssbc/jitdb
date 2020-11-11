@@ -1,9 +1,8 @@
 const FlumeLog = require('async-flumelog')
 const pull = require('pull-stream')
 const Obv = require('obv')
-const t = require("./operators")
+const {query, fromDB, and, or, type, debug, author, paginate, toCallback, toPromise, toPullStream, toAsyncIter} = require("./operators")
 
-const author = '@+UMKhpbzXAII+2/7ZlsgkJwIsxdfeFi36Z5Rk1gCfY0=.ed25519'
 
 var raf = FlumeLog(process.argv[2], {blockSize: 64*1024})
 
@@ -11,22 +10,23 @@ var db = require('./index')(raf, "./indexes")
 db.onReady(async () => {
   // seems the cache needs to be warmed up to get fast results
 
+  const staltzp = '@+UMKhpbzXAII+2/7ZlsgkJwIsxdfeFi36Z5Rk1gCfY0=.ed25519'
   const mix = '@ye+QM09iPcDJD6YvQYjoQc7sLF/IFhmNbEqgdzQo3lQ=.ed25519'
   const mixy = '@G98XybiXD/amO9S/UyBKnWTWZnSKYS3YVB/5osSRHvY=.ed25519'
   const arj = '@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'
 
   // FIXME: add offset to all
 
-  if (false) t.query(
-    t.fromDB(db),
-    // t.debug(),
-    t.and(t.type('post')),
-    // t.debug(),
-    t.and(t.or(t.author(mix), t.author(mixy), t.author(arj))),
-    // t.debug(),
-    t.paginate(100),
-    // t.debug(),
-    t.toCallback((err, results) => {
+  if (false) query(
+    fromDB(db),
+    // debug(),
+    and(type('post')),
+    // debug(),
+    and(or(author(mix), author(mixy), author(arj))),
+    // debug(),
+    paginate(100),
+    // debug(),
+    toCallback((err, results) => {
       // console.log(results.data)
       console.log(results.total)
       //console.log(results.map(x => x.value))
@@ -34,30 +34,30 @@ db.onReady(async () => {
   )
 
   if (false) {
-    const results = await t.query(
-      t.fromDB(db),
-      // t.debug(),
-      t.and(t.type('post')),
-      // t.debug(),
-      t.or(t.author(mix), t.author(mixy), t.author(arj)),
-      // t.debug(),
-      t.toPromise(),
+    const results = await query(
+      fromDB(db),
+      // debug(),
+      and(type('post')),
+      // debug(),
+      or(author(mix), author(mixy), author(arj)),
+      // debug(),
+      toPromise(),
     );
     console.log(results);
   }
 
   var i = 0;
   if (false) pull(
-    t.query(
-      t.fromDB(db),
-      // t.debug(),
-      t.and(t.type('blog')),
-      // t.debug(),
-      t.or(t.author(mix), t.author(mixy), t.author(arj)),
-      // t.debug(),
-      t.paginate(3),
-      // t.debug(),
-      t.toPullStream(),
+    query(
+      fromDB(db),
+      // debug(),
+      and(type('blog')),
+      // debug(),
+      or(author(mix), author(mixy), author(arj)),
+      // debug(),
+      paginate(3),
+      // debug(),
+      toPullStream(),
     ),
     pull.drain(msgs => {
       console.log('page #' + (i++))
@@ -67,18 +67,18 @@ db.onReady(async () => {
 
   var i = 0;
   if (false) {
-    const results = t.query(
-      t.fromDB(db),
-      // t.debug(),
-      t.and(t.type('blog')),
-      // t.debug(),
-      t.and(t.or(t.author(mix), t.author(mixy), t.author(arj))),
-      // t.debug(),
-      t.startFrom(6),
-      // t.debug(),
-      t.paginate(3),
-      // t.debug(),
-      t.toAsyncIter(),
+    const results = query(
+      fromDB(db),
+      // debug(),
+      and(type('blog')),
+      // debug(),
+      and(or(author(mix), author(mixy), author(arj))),
+      // debug(),
+      startFrom(6),
+      // debug(),
+      paginate(3),
+      // debug(),
+      toAsyncIter(),
     )
     for await (let msgs of results) {
       console.log('page #' + (i++))
@@ -88,64 +88,31 @@ db.onReady(async () => {
 
   var i = 0;
   if (true) {
-    const posts = t.query(
-      t.fromDB(db),
-      t.and(t.type('post')),
+    const posts = query(
+      fromDB(db),
+      and(type('post')),
     )
 
-    const postsMix = t.query(
+    const postsMix = query(
       posts,
-      // t.debug(),
-      t.and(t.or(t.author(mix), t.author(mixy))),
-      // t.debug(),
-      t.toPromise(),
+      // debug(),
+      and(or(author(mix), author(mixy))),
+      // debug(),
+      toPromise(),
     )
 
-    const postsArj = t.query(
+    const postsArj = query(
       posts,
-      // t.debug(),
-      t.and(t.author(arj)),
-      // t.debug(),
-      t.toPromise(),
+      // debug(),
+      and(author(arj)),
+      // debug(),
+      toPromise(),
     )
 
     const [resMix, resArj] = await Promise.all([postsMix, postsArj])
     console.log('mix posts: ' + resMix.length)
     console.log('arj posts: ' + resArj.length)
   }
-
-  return
-
-  //var q = query(db, filter.author('mixy'))
-  var q = query(db, filter.type('post'))
-  //q = q.AND(filter.author(mixy))
-  q = q.AND(filter.channel("solarpunk"))
-  q = q.AND(filter.OR([
-    filter.author(mix),
-    filter.author(mixy)
-  ]))
-
-  console.log(JSON.stringify(q.op, null, 2))
-
-  q.all((err, msgs) => {
-    console.log(msgs.length)
-  })
-
-  return
-
-  //console.log(JSON.stringify(q.op, null, 2))
-
-  q.paginate(0, 10, (err, msgs, paginator) => {
-    console.log(paginator)
-    console.log(msgs.length)
-    paginator.next((err, msgs) => {
-      console.log(msgs.length)
-      paginator.next((err, msgs) => {
-        console.log(msgs.length)
-        console.log(paginator)
-      })
-    })
-  })
 
   return
 
@@ -165,7 +132,7 @@ db.onReady(async () => {
     type: 'AND',
     data: [
       { type: 'EQUAL', data: { seek: db.seekType, value: 'vote', indexType: "type" } },
-      { type: 'EQUAL', data: { seek: db.seekAuthor, value: author, indexType: "author" } }
+      { type: 'EQUAL', data: { seek: db.seekAuthor, value: staltzp, indexType: "author" } }
     ]
   }, (err, results) => {
     results.forEach(x => {
@@ -180,7 +147,7 @@ db.onReady(async () => {
     type: 'AND',
     data: [
       { type: 'EQUAL', data: { seek: db.seekType, value: 'post', indexType: "type" } },
-      { type: 'EQUAL', data: { seek: db.seekAuthor, value: author, indexType: "author" } }
+      { type: 'EQUAL', data: { seek: db.seekAuthor, value: staltzp, indexType: "author" } }
     ]
   }, (err, results) => {
     console.timeEnd("get all posts from user")
@@ -191,7 +158,7 @@ db.onReady(async () => {
       type: 'AND',
       data: [
         { type: 'EQUAL', data: { seek: db.seekType, value: 'post', indexType: "type" } },
-        { type: 'EQUAL', data: { seek: db.seekAuthor, value: author, indexType: "author" } }
+        { type: 'EQUAL', data: { seek: db.seekAuthor, value: staltzp, indexType: "author" } }
       ]
     }, 0, 10, (err, results) => {
       console.timeEnd("get last 10 posts from user")
@@ -214,7 +181,7 @@ db.onReady(async () => {
           type: 'AND',
           data: [
             { type: 'GT', data: { indexName: 'sequence', value: 7000 } },
-            { type: 'EQUAL', data: { seek: db.seekAuthor, value: author, indexType: "author" } }
+            { type: 'EQUAL', data: { seek: db.seekAuthor, value: staltzp, indexType: "author" } }
           ]
         }, (err, results) => {
           console.timeEnd("author + sequence")
@@ -223,7 +190,7 @@ db.onReady(async () => {
           const query = {
             type: 'AND',
             data: [
-              { type: 'EQUAL', data: { seek: db.seekAuthor, value: author, indexType: "author" } },
+              { type: 'EQUAL', data: { seek: db.seekAuthor, value: staltzp, indexType: "author" } },
               { type: 'EQUAL', data: { seek: db.seekType, value: 'contact', indexType: "type" } }
             ]
           }
@@ -259,7 +226,7 @@ db.onReady(async () => {
   console.time("get all")
   db.query({
     type: 'EQUAL',
-    data: { seek: db.seekAuthor, value: author, indexType: "author" }
+    data: { seek: db.seekAuthor, value: staltzp, indexType: "author" }
   }, (err, results) => {
     console.timeEnd("get all")
   })
@@ -269,7 +236,7 @@ db.onReady(async () => {
     type: 'AND',
     data: [
     { type: 'EQUAL', data: { seek: seekType, value: 'post', indexName: "type_post" } },
-    { type: 'EQUAL', data: { seek: seekAuthor, value: author, indexName: "author_arj" } }
+    { type: 'EQUAL', data: { seek: seekAuthor, value: staltzp, indexName: "author_arj" } }
     ]
     }, true, (err, results) => {
     results.forEach(x => {
@@ -282,7 +249,7 @@ db.onReady(async () => {
     db.query({
     type: 'AND',
     data: [
-    { type: 'EQUAL', data: { seek: seekAuthor, value: author, indexName: "author_arj" } },
+    { type: 'EQUAL', data: { seek: seekAuthor, value: staltzp, indexName: "author_arj" } },
     {
     type: 'OR',
     data: [
