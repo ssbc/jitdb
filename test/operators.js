@@ -9,6 +9,8 @@ const {
   query,
   and,
   or,
+  equal,
+  slowEqual,
   type,
   author,
   fromDB,
@@ -36,6 +38,56 @@ prepareAndRunTest('operators API returns objects', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL');
 
   t.equal(queryTree.data.indexType, 'type');
+  t.deepEqual(queryTree.data.value, Buffer.from('post'));
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
+
+  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta');
+  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db');
+  t.equal(
+    typeof queryTree.meta.db.onReady,
+    'function',
+    'meta.db looks correct',
+  );
+
+  t.end();
+});
+
+prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(equal(db.seekType, 'post', 'type')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'EQUAL');
+
+  t.equal(queryTree.data.indexType, 'type');
+  t.deepEqual(queryTree.data.value, Buffer.from('post'));
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
+
+  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta');
+  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db');
+  t.equal(
+    typeof queryTree.meta.db.onReady,
+    'function',
+    'meta.db looks correct',
+  );
+
+  t.end();
+});
+
+prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(slowEqual('value.content.type', 'post')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'EQUAL');
+
+  t.equal(queryTree.data.indexType, 'value_content_type');
   t.deepEqual(queryTree.data.value, Buffer.from('post'));
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
 

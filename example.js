@@ -1,7 +1,7 @@
 const FlumeLog = require('async-flumelog')
 const pull = require('pull-stream')
 const JITDB = require('./index')
-const {query, fromDB, and, or, type, debug, author, paginate, toCallback, toPromise, toPullStream, toAsyncIter} = require("./operators")
+const {query, fromDB, and, or, slowEqual, type, debug, author, paginate, toCallback, toPromise, toPullStream, toAsyncIter} = require("./operators")
 
 var raf = FlumeLog(process.argv[2], {blockSize: 64*1024})
 
@@ -16,19 +16,17 @@ db.onReady(async () => {
 
   // FIXME: add offset to all
 
-  if (false) query(
+  if (true) query(
     fromDB(db),
     // debug(),
-    and(type('post')),
+    and(slowEqual('value.content.type', 'vote')),
     // debug(),
-    and(or(author(mix), author(mixy), author(arj))),
+    and(slowEqual('value.content.vote.expression', '⛵')),
     // debug(),
-    paginate(100),
+    and(slowEqual('value.author', staltzp)),
     // debug(),
     toCallback((err, results) => {
-      // console.log(results.data)
-      console.log(results.total)
-      //console.log(results.map(x => x.value))
+      console.log(results)
     })
   )
 
@@ -85,7 +83,7 @@ db.onReady(async () => {
     }
   }
 
-  if (true) {
+  if (false) {
     console.time("get all posts from users")
 
     const posts = query(
