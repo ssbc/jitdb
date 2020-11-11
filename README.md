@@ -28,7 +28,7 @@ messages.
 
 ## API
 
-### query(operation, offset, limit, reverse, cb)
+### paginate(operation, offset, limit, reverse, cb)
 
 Query the database. If one or more indexes doesn't exist or are
 outdated, the indexes will be updated before the query is run. If
@@ -84,6 +84,11 @@ I considered adding an option to return raw buffers in order to do
 some after processing that you wouldn't create and index for, but the
 overhead of decoding the buffers is small enough that I don't think it
 makes sense.
+
+### all(operation, cb)
+
+Just like paginate except this will return all results given the
+operation.
 
 ### querySeq(operation, seq, cb)
 

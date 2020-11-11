@@ -36,7 +36,7 @@ prepareAndRunTest('operators API returns objects', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL');
 
   t.equal(queryTree.data.indexType, 'type');
-  t.equal(queryTree.data.value, 'post');
+  t.deepEqual(queryTree.data.value, Buffer.from('post'));
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta');
@@ -64,21 +64,21 @@ prepareAndRunTest('operators API supports and or', dir, (t, db, raf) => {
 
   t.equal(queryTree.data[0].type, 'EQUAL');
   t.equal(queryTree.data[0].data.indexType, 'type');
-  t.equal(queryTree.data[0].data.value, 'post');
+  t.deepEqual(queryTree.data[0].data.value, Buffer.from('post'));
 
   t.equal(queryTree.data[1].type, 'OR');
   t.true(Array.isArray(queryTree.data[1].data), '.data[1].data is an array');
 
   t.equal(queryTree.data[1].data[0].type, 'EQUAL');
-  t.equal(queryTree.data[1].data[0].data.indexType, 'author');
-  t.equal(queryTree.data[1].data[0].data.value, alice.id);
+  t.deepEqual(queryTree.data[1].data[0].data.indexType, 'author');
+  t.deepEqual(queryTree.data[1].data[0].data.value, Buffer.from(alice.id));
   t.true(
     queryTree.data[1].data[0].data.seek.toString().includes('bipf.seekKey'),
   );
 
   t.equal(queryTree.data[1].data[1].type, 'EQUAL');
   t.equal(queryTree.data[1].data[1].data.indexType, 'author');
-  t.equal(queryTree.data[1].data[1].data.value, bob.id);
+  t.deepEqual(queryTree.data[1].data[1].data.value, Buffer.from(bob.id));
   t.true(
     queryTree.data[1].data[1].data.seek.toString().includes('bipf.seekKey'),
   );

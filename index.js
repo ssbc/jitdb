@@ -601,21 +601,6 @@ module.exports = function (db, indexesPath) {
   }
 
   return Object.assign({
-    // DEPRECATED
-    // FIXME: remove this?
-    query: function(operation, offset, limit, reverse, cb) {
-      onReady(() => {
-        indexSync(operation, data => {
-          if (limit)
-            getTop(data, offset, limit, reverse, (err, data) => {
-              cb(data.results)
-            })
-          else
-            getAll(data, offset) // offset = cb
-        })
-      })
-    },
-
     paginate: function(operation, offset, limit, reverse, cb) {
       onReady(() => {
         indexSync(operation, data => {

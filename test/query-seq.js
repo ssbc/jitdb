@@ -29,7 +29,7 @@ prepareAndRunTest('Basic', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.query(typeQuery, (err, results) => {
+    db.all(typeQuery, (err, results) => {
       t.equal(results.length, 1)
       t.equal(results[0].id, state.queue[0].value.id)
       const seq1 = db.getSeq(typeQuery)

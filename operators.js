@@ -12,13 +12,17 @@ function fromDB(db) {
   };
 }
 
+function toBuffer(value) {
+  return Buffer.isBuffer(value) ? value : Buffer.from(value)
+}
+
 // FIXME: move to somewhere opinionated, because it leans on msg conventions
 function type(value) {
   return {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value,
+      value: toBuffer(value),
       indexType: 'type',
     },
   };
@@ -29,7 +33,7 @@ function author(value) {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value,
+      value: toBuffer(value),
       indexType: 'author',
     },
   };
@@ -41,7 +45,7 @@ function channel(value) {
     type: 'EQUAL',
     data: {
       seek: helpers.seekChannel,
-      value,
+      value: toBuffer(value),
       indexType: 'channel',
     },
   };
@@ -65,7 +69,7 @@ function isPrivate() {
     type: 'EQUAL',
     data: {
       seek: helpers.seekPrivate,
-      value: 'true',
+      value: Buffer.from('true'),
       indexType: 'private',
     },
   };
