@@ -30,11 +30,10 @@ messages.
 
 ### paginate(operation, offset, limit, reverse, cb)
 
-Query the database. If one or more indexes doesn't exist or are
-outdated, the indexes will be updated before the query is run. If
-`limit` and `offset` is specified, they will be used to return of view
-of the top results based on timestamp. `reverse` can be used together
-with `limit` and `offset` and is also optional.
+Query the database returning paginated results. If one or more indexes
+doesn't exist or are outdated, the indexes will be updated before the
+query is run. The results are sorted based on timestamp with latest
+first.
 
 Operation can be of the following types:
 
