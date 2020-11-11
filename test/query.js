@@ -184,9 +184,9 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
-  state = validate.appendNew(state, null, keys, msg4, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now()+1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now()+2)
+  state = validate.appendNew(state, null, keys, msg4, Date.now()+3)
 
   const filterQuery = {
     type: 'AND',
