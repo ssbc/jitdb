@@ -16,6 +16,13 @@ function toBuffer(value) {
   return Buffer.isBuffer(value) ? value : Buffer.from(value)
 }
 
+function offsets(values) {
+  return {
+    type: 'DATA',
+    offsets: values
+  };
+}
+
 // FIXME: move to somewhere opinionated, because it leans on msg conventions
 function type(value) {
   return {
@@ -239,6 +246,8 @@ module.exports = {
 
   and,
   or,
+
+  offsets,
 
   ascending,
   startFrom,
