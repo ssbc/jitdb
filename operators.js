@@ -12,6 +12,7 @@ function fromDB(db) {
   };
 }
 
+// FIXME: move to somewhere opinionated, because it leans on msg conventions
 function type(value) {
   return {
     type: 'EQUAL',
@@ -34,6 +35,7 @@ function author(value) {
   };
 }
 
+// FIXME: move to somewhere opinionated, because it leans on msg conventions
 function channel(value) {
   return {
     type: 'EQUAL',
@@ -45,6 +47,7 @@ function channel(value) {
   };
 }
 
+// FIXME: move to somewhere opinionated, because it leans on msg conventions
 function isRoot() {
   return {
     type: 'EQUAL',
@@ -56,6 +59,7 @@ function isRoot() {
   };
 }
 
+// FIXME: move to somewhere opinionated, because it leans on msg conventions
 function isPrivate() {
   return {
     type: 'EQUAL',
