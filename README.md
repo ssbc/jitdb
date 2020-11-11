@@ -28,13 +28,208 @@ messages.
 
 ## API
 
-### query(operation, offset, limit, reverse, cb)
+### Setup
 
-Query the database. If one or more indexes doesn't exist or are
-outdated, the indexes will be updated before the query is run. If
-`limit` and `offset` is specified, they will be used to return of view
-of the top results based on timestamp. `reverse` can be used together
-with `limit` and `offset` and is also optional.
+Before using JITDB, you have to setup an instance of [async-flumelog] located at a certain path. Then you can instantiate JITDB, and it requires a **path to the directory where the indexes** will live.
+
+```js
+const FlumeLog = require('async-flumelog')
+const JITDB = require('jitdb')
+
+const raf = FlumeLog('/home/me/path/to/async-flumelog', {blockSize: 64*1024})
+const db = JITDB(raf, '/home/me/path/to/indexes')
+
+db.onReady(() => {
+  // The db is ready to be queried
+})
+```
+
+### Operators
+
+JITDB comes with a set of composable "operators" that allow you to query the database. You can load these operators from `require('jitdb/operators')`.
+
+```js
+const FlumeLog = require('async-flumelog')
+const JITDB = require('jitdb')
+const {query, fromDB, and, type, toCallback} = require('jitdb/operators')
+
+const raf = FlumeLog('/home/me/path/to/async-flumelog', {blockSize: 64*1024})
+const db = JITDB(raf, '/home/me/path/to/indexes')
+
+db.onReady(() => {
+  query(
+    fromDB(db),
+    and(type('post')),
+    toCallback((err, msgs) => {
+      console.log(msgs)
+    })
+  )
+})
+```
+
+The essential operators are `fromDB`, `query`, and `toCallback`.
+
+- **fromDB** specifies which JITDB instance we are interested in
+- **query** wraps all the operators, chaining them together
+- **toCallback** delivers the results of the query to a callback
+
+Then there are filtering operators that scope down the results to your desired set of messages: `and`, `or`, `type`, `author`.
+
+- **and** filters for messages that satisfy **all** of the arguments provided
+- **or** filters for messages that satisfy **at least one** of the arguments provided
+- **type** filters for messages that match a certain `msg.value.content.type`
+- **author** filters for messages authored by a certain feed id
+
+Some examples:
+
+**Get all messages of type `post`:**
+
+```js
+query(
+  fromDB(db),
+  and(type('post')),
+  toCallback((err, msgs) => {
+    console.log('There are ' + msgs.length + ' messages of type "post"')
+  })
+)
+```
+
+**Get all messages of type `contact` from Alice or Bob:**
+
+```js
+query(
+  fromDB(db),
+  and(type('contact')),
+  and(or(author(aliceId), author(bobId))),
+  toCallback((err, msgs) => {
+    console.log('There are ' + msgs.length + ' messages')
+  })
+)
+```
+
+#### Pagination
+
+If you use `toCallback`, it gives you all results in one go. If you want to get results in batches, you should use **`toPullStream`**, **`paginate`**, and optionally `startFrom` and `ascending`.
+
+- **toPullStream** creates a [pull-stream] source to stream the results
+- **paginate** configures the size of each page stream to the pull-stream source
+- **startFrom** configures the beginning offset from where to start streaming
+- **ascending** configures the pagination stream to order results from oldest to newest
+
+Example, **stream all messages of type `contact` from Alice or Bob in pages of size 10:**
+
+```js
+const pull = require('pull-stream')
+
+const source = query(
+  fromDB(db),
+  and(type('contact')),
+  and(or(author(aliceId), author(bobId))),
+  paginate(10),
+  toPullStream()
+)
+
+pull(
+  source,
+  pull.drain(msgs => {
+    console.log('next page')
+    console.log(msgs)
+  })
+)
+```
+
+**Stream all messages of type `contact` from Alice or Bob in pages of size 10, starting from the 15th message, sorted from oldest to newest:**
+
+```js
+const pull = require('pull-stream')
+
+const source = query(
+  fromDB(db),
+  and(type('contact')),
+  and(or(author(aliceId), author(bobId))),
+  paginate(10),
+  startFrom(15),
+  ascending(),
+  toPullStream()
+)
+
+pull(
+  source,
+  pull.drain(msgs => {
+    console.log('next page:')
+    console.log(msgs)
+  })
+)
+```
+
+#### async/await
+
+There are also operators that support getting the values using `await`. **`toPromise`** is like `toCallback`, delivering all results at once:
+
+```js
+const msgs = await query(
+  fromDB(db),
+  and(type('contact')),
+  and(or(author(aliceId), author(bobId))),
+  toPromise()
+)
+
+console.log('There are ' + msgs.length + ' messages')
+```
+
+With pagination, **`toAsyncIter`** is like **`toPullStream`**, streaming the results in batches:
+
+```js
+const results = query(
+  fromDB(db),
+  and(type('contact')),
+  and(or(author(aliceId), author(bobId))),
+  paginate(10),
+  startFrom(15),
+  ascending(),
+  toAsyncIter()
+)
+
+for await (let msgs of results) {
+  console.log('next page:')
+  console.log(msgs)
+}
+```
+
+#### All operators
+
+This is a list of all the operators supported so far:
+
+```js
+const {
+  fromDB,
+  query,
+  and,
+  or,
+  type,
+  author,
+  channel,
+  paginate,
+  startFrom,
+  ascending,
+  debug,
+  isRoot,
+  isPrivate,
+  toCallback,
+  toPullStream,
+  toPromise,
+  toAsyncIter
+} = require('jitdb/operators')
+```
+
+## Low-level API
+
+### paginate(operation, offset, limit, reverse, cb)
+
+Query the database returning paginated results. If one or more indexes
+doesn't exist or are outdated, the indexes will be updated before the
+query is run. The results are sorted based on timestamp with latest
+first.
 
 Operation can be of the following types:
 
@@ -85,9 +280,14 @@ some after processing that you wouldn't create and index for, but the
 overhead of decoding the buffers is small enough that I don't think it
 makes sense.
 
+### all(operation, cb)
+
+Just like paginate except this will return all results given the
+operation.
+
 ### querySeq(operation, seq, cb)
 
-Behave similar to query except it takes a database seq and returns all
+Executes the `operation` but takes a database seq and returns all
 results added after the seq. This can be useful to keep an external
 data structure in sync with the result of a query.
 
@@ -105,24 +305,8 @@ added to the database. The index is *not* updated when using this method.
 
 Will call when all existing indexes have been loaded.
 
-### seekAuthor(buffer)
-
-A helper seek function for queries
-
-### seekType(buffer)
-
-A helper seek function for queries
-
-### seekRoot(buffer)
-
-A helper seek function for queries
-
-### seekPrivate(buffer)
-
-A helper seek function for queries
-
-
 [flumelog]: https://github.com/flumedb/
 [async-flumelog]: https://github.com/flumedb/async-flumelog
 [bipf]: https://github.com/dominictarr/bipf/
+[pull-stream]: https://github.com/pull-stream/pull-stream
 

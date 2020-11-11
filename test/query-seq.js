@@ -3,9 +3,12 @@ const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
 const { prepareAndRunTest, addMsg } = require('./common')()
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const dir = '/tmp/jitdb-query-seq'
-require('rimraf').sync(dir)
+rimraf.sync(dir)
+mkdirp.sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 var keys2 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret2'))
@@ -26,14 +29,14 @@ prepareAndRunTest('Basic', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.query(typeQuery, (err, results) => {
+    db.all(typeQuery, (err, results) => {
       t.equal(results.length, 1)
       t.equal(results[0].id, state.queue[0].value.id)
       const seq1 = db.getSeq(typeQuery)
 
       db.querySeq(typeQuery, seq1, (err, results) => {
         t.equal(results.length, 0)
-        
+
         addMsg(state.queue[1].value, raf, (err, msg1) => {
           db.querySeq(typeQuery, seq1, (err, results) => {
             t.equal(results.length, 1)

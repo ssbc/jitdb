@@ -3,10 +3,12 @@ const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
 const { prepareAndRunTest, addMsg } = require('./common')()
-const push = require('push-stream')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const dir = '/tmp/jitdb-add'
-require('rimraf').sync(dir)
+rimraf.sync(dir)
+mkdirp.sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 
@@ -18,7 +20,7 @@ prepareAndRunTest('Delete', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg1, Date.now())
   state = validate.appendNew(state, null, keys, msg2, Date.now())
   state = validate.appendNew(state, null, keys, msg3, Date.now())
-  
+
   const typeQuery = {
     type: 'EQUAL',
     data: {
@@ -32,10 +34,10 @@ prepareAndRunTest('Delete', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, msg2, seq) => {
       addMsg(state.queue[2].value, raf, (err, msg3) => {
         raf.del(seq, () => {
-          db.query(typeQuery, 0, 10, (err, results) => {
-            t.deepEqual(results, [msg3, msg1])
-            
-            db.query(typeQuery, (err, results) => {
+          db.paginate(typeQuery, 0, 10, (err, results) => {
+            t.deepEqual(results.data, [msg3, msg1])
+
+            db.all(typeQuery, (err, results) => {
               t.deepEqual(results, [msg1, msg3])
               t.end()
             })

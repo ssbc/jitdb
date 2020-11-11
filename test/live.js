@@ -3,9 +3,12 @@ const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
 const { prepareAndRunTest, addMsg } = require('./common')()
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const dir = '/tmp/jitdb-live'
-require('rimraf').sync(dir)
+rimraf.sync(dir)
+mkdirp.sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 var keys2 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret2'))
@@ -39,7 +42,7 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
       t.end()
     }
   })
-  
+
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     console.log("waiting for live query")
   })
@@ -62,7 +65,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     // create index
-    db.query(typeQuery, (err, results) => {
+    db.all(typeQuery, (err, results) => {
       t.equal(results.length, 1)
 
       db.liveQuerySingleIndex(typeQuery, (err, results) => {
@@ -70,7 +73,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
         t.equal(results[0].id, state.queue[1].value.id)
 
         // rerun on updated index
-        db.query(typeQuery, (err, results) => {
+        db.all(typeQuery, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })

@@ -4,9 +4,12 @@ const ssbKeys = require('ssb-keys')
 const path = require('path')
 const { prepareAndRunTest, addMsg } = require('./common')()
 const push = require('push-stream')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const dir = '/tmp/jitdb-add'
-require('rimraf').sync(dir)
+rimraf.sync(dir)
+mkdirp.sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 var keys2 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret2'))
@@ -17,7 +20,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
   state = validate.appendNew(state, null, keys2, msg, Date.now())
-  
+
   const typeQuery = {
     type: 'EQUAL',
     data: {
@@ -29,17 +32,17 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     addMsg(state.queue[1].value, raf, (err, msg2) => {
-      db.query(typeQuery, 0, 10, (err, results) => {
-        t.equal(results.length, 2)
+      db.paginate(typeQuery, 0, 10, (err, results) => {
+        t.equal(results.data.length, 2)
 
         // rerun on created index
-        db.query(typeQuery, 0, 10, (err, results) => {
-          t.equal(results.length, 2)
-          t.equal(results[0].value.author, keys2.id)
+        db.paginate(typeQuery, 0, 10, (err, results) => {
+          t.equal(results.data.length, 2)
+          t.equal(results.data[0].value.author, keys2.id)
 
-          db.query(typeQuery, 0, 10, true, (err, results) => {
-            t.equal(results.length, 2)
-            t.equal(results[0].value.author, keys.id)
+          db.paginate(typeQuery, 0, 10, true, (err, results) => {
+            t.equal(results.data.length, 2)
+            t.equal(results.data[0].value.author, keys.id)
 
             const authorQuery = {
               type: 'EQUAL',
@@ -49,21 +52,21 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                 indexType: "author"
               }
             }
-            db.query(authorQuery, 0, 10, (err, results) => {
-              t.equal(results.length, 1)
-              t.equal(results[0].id, msg1.id)
+            db.paginate(authorQuery, 0, 10, (err, results) => {
+              t.equal(results.data.length, 1)
+              t.equal(results.data[0].id, msg1.id)
 
               // rerun on created index
-              db.query(authorQuery, 0, 10, (err, results) => {
-                t.equal(results.length, 1)
-                t.equal(results[0].id, msg1.id)
+              db.paginate(authorQuery, 0, 10, (err, results) => {
+                t.equal(results.data.length, 1)
+                t.equal(results.data[0].id, msg1.id)
 
-                db.query({
+                db.paginate({
                   type: 'AND',
                   data: [authorQuery, typeQuery]
                 }, 0, 10, (err, results) => {
-                  t.equal(results.length, 1)
-                  t.equal(results[0].id, msg1.id)
+                  t.equal(results.data.length, 1)
+                  t.equal(results.data[0].id, msg1.id)
 
                   const authorQuery2 = {
                     type: 'EQUAL',
@@ -74,14 +77,14 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                     }
                   }
 
-                  db.query({
+                  db.paginate({
                     type: 'AND',
                     data: [typeQuery, {
                       type: 'OR',
                       data: [authorQuery, authorQuery2]
                     }]
                   }, 0, 10, (err, results) => {
-                    t.equal(results.length, 2)
+                    t.equal(results.data.length, 2)
                     t.end()
                   })
                 })
@@ -110,11 +113,11 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.query(typeQuery, (err, results) => {
+    db.all(typeQuery, (err, results) => {
       t.equal(results.length, 1)
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
-        db.query(typeQuery, (err, results) => {
+        db.all(typeQuery, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })
@@ -148,9 +151,9 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
     }),
     push.collect((err, results) => {
       console.log("done inserting", results.length)
-      db.query(typeQuery, 0, 1, (err, results) => {
-        t.equal(results.length, 1)
-        t.equal(results[0].value.content.text, 'Testing 31999')
+      db.paginate(typeQuery, 0, 1, (err, results) => {
+        t.equal(results.data.length, 1)
+        t.equal(results.data[0].value.content.text, 'Testing 31999')
         t.end()
       })
     })
@@ -193,7 +196,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
         addMsg(state.queue[3].value, raf, (err, msg) => {
-          db.query(authorQuery, (err, results) => {
+          db.all(authorQuery, (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
             t.equal(Object.keys(db.indexes).length, 3+2+1+1)
@@ -230,16 +233,16 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.query(typeQuery('post'), (err, results) => {
+      db.all(typeQuery('post'), (err, results) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing 1')
 
         addMsg(state.queue[2].value, raf, (err, msg) => {
           addMsg(state.queue[3].value, raf, (err, msg) => {
-            db.query(typeQuery('about'), (err, results) => {
+            db.all(typeQuery('about'), (err, results) => {
               t.equal(results.length, 1)
 
-              db.query(typeQuery('post'), (err, results) => {
+              db.all(typeQuery('post'), (err, results) => {
                 t.equal(results.length, 2)
                 t.deepEqual(db.indexes['type_post'].data.array(), [0, 2])
                 t.deepEqual(db.indexes['type_contact'].data.array(), [1])
