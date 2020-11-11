@@ -159,11 +159,6 @@ module.exports = function (db, indexesPath) {
   const bTimestamp = Buffer.from('timestamp')
   const bSequence = Buffer.from('sequence')
   const bValue = Buffer.from('value')
-  const bAuthor = Buffer.from('author')
-  const bContent = Buffer.from('content')
-  const bType = Buffer.from('type')
-  const bChannel = Buffer.from('channel')
-  const bRoot = Buffer.from('root')
 
   function getValue(val, cb) {
     var seq = indexes['offset'].data[val]
