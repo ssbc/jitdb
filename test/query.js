@@ -251,6 +251,44 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('GTE Zero', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1' }
+  const msg2 = { type: 'post', text: '2' }
+  const msg3 = { type: 'post', text: '3' }
+  const msg4 = { type: 'post', text: '4' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now()+1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now()+2)
+  state = validate.appendNew(state, null, keys, msg4, Date.now()+3)
+
+  const filterQuery = {
+    type: 'GTE',
+    data: {
+      indexName: 'sequence',
+      value: 0,
+    }
+  }
+
+  addMsg(state.queue[0].value, raf, (err, dbMsg1) => {
+    addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
+      addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
+        addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
+          db.all(filterQuery, (err, results) => {
+            t.equal(results.length, 4)
+            t.equal(results[0].value.content.text, '1')
+            t.equal(results[1].value.content.text, '2')
+            t.equal(results[2].value.content.text, '3')
+            t.equal(results[3].value.content.text, '4')
+            t.end()
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing root', root: '1' }
   const msg2 = { type: 'about', name: 'Test' }
