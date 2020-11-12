@@ -109,12 +109,12 @@ query(
 
 #### Pagination
 
-If you use `toCallback`, it gives you all results in one go. If you want to get results in batches, you should use **`toPullStream`**, **`paginate`**, and optionally `startFrom` and `ascending`.
+If you use `toCallback`, it gives you all results in one go. If you want to get results in batches, you should use **`toPullStream`**, **`paginate`**, and optionally `startFrom` and `descending`.
 
 - **toPullStream** creates a [pull-stream] source to stream the results
 - **paginate** configures the size of each page stream to the pull-stream source
 - **startFrom** configures the beginning offset from where to start streaming
-- **ascending** configures the pagination stream to order results from oldest to newest
+- **descending** configures the pagination stream to order results from newest to oldest (otherwise the default order is oldest to newest)
 
 Example, **stream all messages of type `contact` from Alice or Bob in pages of size 10:**
 
@@ -138,7 +138,7 @@ pull(
 )
 ```
 
-**Stream all messages of type `contact` from Alice or Bob in pages of size 10, starting from the 15th message, sorted from oldest to newest:**
+**Stream all messages of type `contact` from Alice or Bob in pages of size 10, starting from the 15th message, sorted from newest to oldest:**
 
 ```js
 const pull = require('pull-stream')
@@ -149,7 +149,7 @@ const source = query(
   and(or(author(aliceId), author(bobId))),
   paginate(10),
   startFrom(15),
-  ascending(),
+  descending(),
   toPullStream()
 )
 
@@ -186,7 +186,6 @@ const results = query(
   and(or(author(aliceId), author(bobId))),
   paginate(10),
   startFrom(15),
-  ascending(),
   toAsyncIter()
 )
 
@@ -211,7 +210,7 @@ const {
   channel,
   paginate,
   startFrom,
-  ascending,
+  descending,
   debug,
   isRoot,
   isPrivate,
@@ -224,7 +223,7 @@ const {
 
 ## Low-level API
 
-### paginate(operation, offset, limit, reverse, cb)
+### paginate(operation, offset, limit, descending, cb)
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
@@ -280,10 +279,10 @@ some after processing that you wouldn't create and index for, but the
 overhead of decoding the buffers is small enough that I don't think it
 makes sense.
 
-### all(operation, cb)
+### all(operation, offset, descending, cb)
 
 Just like paginate except this will return all results given the
-operation.
+operation, and there is no `limit` argument.
 
 ### querySeq(operation, seq, cb)
 
