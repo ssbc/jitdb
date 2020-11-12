@@ -1,3 +1,4 @@
+const bipf = require('bipf');
 const helpers = require('./helpers');
 
 function query(...cbs) {
@@ -23,6 +24,82 @@ function offsets(values) {
   };
 }
 
+function seekFromDesc(desc) {
+  return buffer => {
+    const keys = desc.split('.')
+    var p = 0
+    for (let key of keys) {
+      p = bipf.seekKey(buffer, p, Buffer.from(key))
+      if (!~p) return void 0
+    }
+    return p
+  }
+}
+
+function slowEqual(seekDesc, value) {
+  const indexType = seekDesc.replace(/\./g, '_')
+  const seek = seekFromDesc(seekDesc)
+  return {
+    type: 'EQUAL',
+    data: {
+      seek: seek,
+      value: toBuffer(value),
+      indexType,
+    },
+  };
+}
+
+function equal(seek, value, indexType) {
+  return {
+    type: 'EQUAL',
+    data: {
+      seek: seek,
+      value: toBuffer(value),
+      indexType,
+    },
+  };
+}
+
+function gt(value, indexName) {
+  return {
+    type: 'GT',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
+function gte(value, indexName) {
+  return {
+    type: 'GTE',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
+function lt(value, indexName) {
+  return {
+    type: 'LT',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
+function lte(value, indexName) {
+  return {
+    type: 'LTE',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
 // FIXME: move to somewhere opinionated, because it leans on msg conventions
 function type(value) {
   return {
@@ -35,6 +112,7 @@ function type(value) {
   };
 }
 
+// FIXME: move to somewhere opinionated
 function author(value) {
   return {
     type: 'EQUAL',
@@ -244,6 +322,12 @@ module.exports = {
   fromDB,
   query,
 
+  slowEqual,
+  equal,
+  gt,
+  gte,
+  lt,
+  lte,
   and,
   or,
 
