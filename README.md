@@ -51,7 +51,7 @@ JITDB comes with a set of composable "operators" that allow you to query the dat
 ```js
 const FlumeLog = require('async-flumelog')
 const JITDB = require('jitdb')
-const {query, fromDB, and, type, toCallback} = require('jitdb/operators')
+const {query, fromDB, and, slowEqual, toCallback} = require('jitdb/operators')
 
 const raf = FlumeLog('/home/me/path/to/async-flumelog', {blockSize: 64*1024})
 const db = JITDB(raf, '/home/me/path/to/indexes')
@@ -59,7 +59,7 @@ const db = JITDB(raf, '/home/me/path/to/indexes')
 db.onReady(() => {
   query(
     fromDB(db),
-    and(type('post')),
+    and(slowEqual('value.content.type', 'post')),
     toCallback((err, msgs) => {
       console.log(msgs)
     })
@@ -73,12 +73,17 @@ The essential operators are `fromDB`, `query`, and `toCallback`.
 - **query** wraps all the operators, chaining them together
 - **toCallback** delivers the results of the query to a callback
 
-Then there are filtering operators that scope down the results to your desired set of messages: `and`, `or`, `type`, `author`.
+Then there are filtering operators that scope down the results to your desired set of messages: `and`, `or`, `equal`, `slowEqual`.
 
 - **and** filters for messages that satisfy **all** of the arguments provided
 - **or** filters for messages that satisfy **at least one** of the arguments provided
-- **type** filters for messages that match a certain `msg.value.content.type`
-- **author** filters for messages authored by a certain feed id
+- **equal** filters for messages that have a specific *field*, arguments are:
+  - `seek` is a function that takes a [bipf] buffer as input and uses `bipf.seekKey` to return a pointer to the *field*
+  - `value` is a string or buffer which is the value we want the *field*'s value to match
+  - `indexType` is a name used to identify the index produced by this query
+- **slowEqual** is a more ergonomic (but slower) way of performing `equal`, the arguments are:
+  - `seekDescriptor` a string in the shape `"foo.bar.baz"` which specifies the nested field `"baz"`
+  - `value` is the same as `value` in the `equal` operator
 
 Some examples:
 
@@ -87,7 +92,19 @@ Some examples:
 ```js
 query(
   fromDB(db),
-  and(type('post')),
+  and(slowEqual('value.content.type', 'post')),
+  toCallback((err, msgs) => {
+    console.log('There are ' + msgs.length + ' messages of type "post"')
+  })
+)
+```
+
+**Same as above but faster performance (recommended in production):**
+
+```js
+query(
+  fromDB(db),
+  and(equal(db.seekType, 'post', 'type')),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages of type "post"')
   })
@@ -99,8 +116,21 @@ query(
 ```js
 query(
   fromDB(db),
-  and(type('contact')),
-  and(or(author(aliceId), author(bobId))),
+  and(slowEqual('value.content.type', 'contact')),
+  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
+  toCallback((err, msgs) => {
+    console.log('There are ' + msgs.length + ' messages')
+  })
+)
+```
+
+**Same as above but faster performance (recommended in production):**
+
+```js
+query(
+  fromDB(db),
+  and(equal(db.seekType, 'contact', 'type')),
+  and(or(equal(db.seekAuthor, aliceId, 'author'), equal(db.seekAuthor, bobId, 'author'))),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages')
   })
@@ -123,8 +153,8 @@ const pull = require('pull-stream')
 
 const source = query(
   fromDB(db),
-  and(type('contact')),
-  and(or(author(aliceId), author(bobId))),
+  and(slowEqual('value.content.type', 'contact')),
+  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
   paginate(10),
   toPullStream()
 )
@@ -145,8 +175,8 @@ const pull = require('pull-stream')
 
 const source = query(
   fromDB(db),
-  and(type('contact')),
-  and(or(author(aliceId), author(bobId))),
+  and(slowEqual('value.content.type', 'contact')),
+  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
   paginate(10),
   startFrom(15),
   descending(),
@@ -169,8 +199,8 @@ There are also operators that support getting the values using `await`. **`toPro
 ```js
 const msgs = await query(
   fromDB(db),
-  and(type('contact')),
-  and(or(author(aliceId), author(bobId))),
+  and(slowEqual('value.content.type', 'contact')),
+  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
   toPromise()
 )
 
@@ -182,8 +212,8 @@ With pagination, **`toAsyncIter`** is like **`toPullStream`**, streaming the res
 ```js
 const results = query(
   fromDB(db),
-  and(type('contact')),
-  and(or(author(aliceId), author(bobId))),
+  and(slowEqual('value.content.type', 'contact')),
+  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
   paginate(10),
   startFrom(15),
   toAsyncIter()
@@ -205,15 +235,16 @@ const {
   query,
   and,
   or,
-  type,
-  author,
-  channel,
+  equal,
+  slowEqual,
+  gt,
+  gte,
+  lt,
+  lte,
   paginate,
   startFrom,
   descending,
   debug,
-  isRoot,
-  isPrivate,
   toCallback,
   toPullStream,
   toPromise,
@@ -308,4 +339,3 @@ Will call when all existing indexes have been loaded.
 [async-flumelog]: https://github.com/flumedb/async-flumelog
 [bipf]: https://github.com/dominictarr/bipf/
 [pull-stream]: https://github.com/pull-stream/pull-stream
-

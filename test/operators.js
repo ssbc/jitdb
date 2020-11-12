@@ -9,6 +9,12 @@ const {
   query,
   and,
   or,
+  equal,
+  slowEqual,
+  gt,
+  gte,
+  lt,
+  lte,
   type,
   author,
   fromDB,
@@ -36,6 +42,56 @@ prepareAndRunTest('operators API returns objects', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL');
 
   t.equal(queryTree.data.indexType, 'type');
+  t.deepEqual(queryTree.data.value, Buffer.from('post'));
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
+
+  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta');
+  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db');
+  t.equal(
+    typeof queryTree.meta.db.onReady,
+    'function',
+    'meta.db looks correct',
+  );
+
+  t.end();
+});
+
+prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(equal(db.seekType, 'post', 'type')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'EQUAL');
+
+  t.equal(queryTree.data.indexType, 'type');
+  t.deepEqual(queryTree.data.value, Buffer.from('post'));
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
+
+  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta');
+  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db');
+  t.equal(
+    typeof queryTree.meta.db.onReady,
+    'function',
+    'meta.db looks correct',
+  );
+
+  t.end();
+});
+
+prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(slowEqual('value.content.type', 'post')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'EQUAL');
+
+  t.equal(queryTree.data.indexType, 'value_content_type');
   t.deepEqual(queryTree.data.value, Buffer.from('post'));
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
 
@@ -163,6 +219,89 @@ prepareAndRunTest(
     t.end();
   },
 );
+
+prepareAndRunTest('operator gt', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(equal(db.seekAuthor, alice.id, 'author'), gt(2, 'sequence')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'AND');
+  t.true(Array.isArray(queryTree.data), '.data is an array');
+
+  t.equal(queryTree.data[0].type, 'EQUAL');
+  t.equal(queryTree.data[0].data.indexType, 'author');
+  t.deepEqual(queryTree.data[0].data.value, Buffer.from(alice.id));
+  t.true(queryTree.data[0].data.seek.toString().includes('bipf.seekKey'));
+
+  t.equal(queryTree.data[1].type, 'GT');
+  t.equal(queryTree.data[1].data.indexName, 'sequence')
+  t.equal(queryTree.data[1].data.value, 2)
+
+  t.end();
+})
+
+prepareAndRunTest('operator gte', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(equal(db.seekAuthor, alice.id, 'author'), gte(2, 'sequence')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'AND');
+  t.true(Array.isArray(queryTree.data), '.data is an array');
+
+  t.equal(queryTree.data[0].type, 'EQUAL');
+
+  t.equal(queryTree.data[1].type, 'GTE');
+  t.equal(queryTree.data[1].data.indexName, 'sequence')
+  t.equal(queryTree.data[1].data.value, 2)
+
+  t.end();
+})
+
+prepareAndRunTest('operator lt', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(equal(db.seekAuthor, alice.id, 'author'), lt(2, 'sequence')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'AND');
+  t.true(Array.isArray(queryTree.data), '.data is an array');
+
+  t.equal(queryTree.data[0].type, 'EQUAL');
+
+  t.equal(queryTree.data[1].type, 'LT');
+  t.equal(queryTree.data[1].data.indexName, 'sequence')
+  t.equal(queryTree.data[1].data.value, 2)
+
+  t.end();
+})
+
+prepareAndRunTest('operator lte', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(equal(db.seekAuthor, alice.id, 'author'), lte(2, 'sequence')),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'AND');
+  t.true(Array.isArray(queryTree.data), '.data is an array');
+
+  t.equal(queryTree.data[0].type, 'EQUAL');
+
+  t.equal(queryTree.data[1].type, 'LTE');
+  t.equal(queryTree.data[1].data.indexName, 'sequence')
+  t.equal(queryTree.data[1].data.value, 2)
+
+  t.end();
+})
 
 // FIXME: build support for this, then uncomment it:
 // prepareAndRunTest('operators fromDB then toCallback', dir, (t, db, raf) => {
