@@ -153,8 +153,8 @@ function or(...args) {
   };
 }
 
-function ascending() {
-  return (ops) => updateMeta(ops, 'reverse', true);
+function descending() {
+  return (ops) => updateMeta(ops, 'descending', true);
 }
 
 function startFrom(offset) {
@@ -168,16 +168,17 @@ function paginate(pageSize) {
 function toCallback(cb) {
   return (ops) => {
     const meta = extractMeta(ops);
+    const offset = meta.offset || 0
     if (meta.pageSize)
-      meta.db.paginate(ops, meta.offset || 0, meta.pageSize, meta.reverse, cb);
-    // FIXME: use `meta.offset || 0` here
-    else meta.db.all(ops, cb);
+      meta.db.paginate(ops, offset, meta.pageSize, meta.descending, cb);
+    else meta.db.all(ops, offset, meta.descending, cb);
   };
 }
 
 function toPromise() {
   return (ops) => {
     const meta = extractMeta(ops);
+    const offset = meta.offset || 0;
     return new Promise((resolve, reject) => {
       const cb = (err, data) => {
         if (err) reject(err);
@@ -186,13 +187,12 @@ function toPromise() {
       if (meta.pageSize)
         meta.db.paginate(
           ops,
-          meta.offset || 0,
+          offset,
           meta.pageSize,
-          meta.reverse,
+          meta.descending,
           cb,
         );
-      // FIXME: use `meta.offset || 0` here
-      else meta.db.all(ops, cb);
+      else meta.db.all(ops, offset, meta.descending, cb);
     });
   };
 }
@@ -206,7 +206,7 @@ function toPullStream() {
     return function readable(end, cb) {
       if (end) return cb(end);
       if (offset >= total) return cb(true);
-      meta.db.paginate(ops, offset, limit, meta.reverse, (err, result) => {
+      meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
         if (err) return cb(err);
         else {
           total = result.total;
@@ -227,7 +227,7 @@ function toAsyncIter() {
     const limit = meta.pageSize || 1;
     while (offset < total) {
       yield await new Promise((resolve, reject) => {
-        meta.db.paginate(ops, offset, limit, meta.reverse, (err, result) => {
+        meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
           if (err) return reject(err);
           else {
             total = result.total;
@@ -249,7 +249,7 @@ module.exports = {
 
   offsets,
 
-  ascending,
+  descending,
   startFrom,
   paginate,
   toCallback,

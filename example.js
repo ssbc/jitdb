@@ -1,7 +1,7 @@
 const FlumeLog = require('async-flumelog')
 const pull = require('pull-stream')
 const JITDB = require('./index')
-const {query, fromDB, and, or, type, debug, author, paginate, toCallback, toPromise, toPullStream, toAsyncIter} = require("./operators")
+const {query, fromDB, and, or, type, debug, author, startFrom, paginate, toCallback, toPromise, toPullStream, toAsyncIter} = require("./operators")
 
 var raf = FlumeLog(process.argv[2], {blockSize: 64*1024})
 

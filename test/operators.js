@@ -14,7 +14,7 @@ const {
   fromDB,
   paginate,
   startFrom,
-  ascending,
+  descending,
   toCallback,
   toPromise,
   toPullStream,
@@ -123,7 +123,7 @@ prepareAndRunTest('operators multi or', dir, (t, db, raf) => {
 });
 
 prepareAndRunTest(
-  'operators paginate startFrom ascending',
+  'operators paginate startFrom descending',
   dir,
   (t, db, raf) => {
     const queryTreePaginate = query(
@@ -138,10 +138,10 @@ prepareAndRunTest(
       startFrom(5),
     );
 
-    const queryTreeAscending = query(
+    const queryTreeDescending = query(
       fromDB(db),
       and(type('post')),
-      ascending(),
+      descending(),
     );
 
     const queryTreeAll = query(
@@ -149,16 +149,16 @@ prepareAndRunTest(
       and(type('post')),
       startFrom(5),
       paginate(10),
-      ascending(),
+      descending(),
     );
 
     t.equal(queryTreePaginate.meta.pageSize, 10);
     t.equal(queryTreeStartFrom.meta.offset, 5);
-    t.equal(queryTreeAscending.meta.reverse, true);
+    t.equal(queryTreeDescending.meta.descending, true);
 
     t.equal(queryTreeAll.meta.pageSize, 10);
     t.equal(queryTreeAll.meta.offset, 5);
-    t.equal(queryTreeAll.meta.reverse, true);
+    t.equal(queryTreeAll.meta.descending, true);
 
     t.end();
   },
@@ -256,7 +256,6 @@ prepareAndRunTest('operators toPullStream', dir, (t, db, raf) => {
           fromDB(db),
           or(author(alice.id), author(bob.id)),
           paginate(2),
-          ascending(),
           toPullStream(),
         ),
         pull.collect((err, pages) => {
@@ -289,7 +288,6 @@ prepareAndRunTest('operators toAsyncIter', dir, (t, db, raf) => {
           fromDB(db),
           or(author(alice.id), author(bob.id)),
           paginate(2),
-          ascending(),
           toAsyncIter(),
         )
         for await (let page of results) {
@@ -306,6 +304,56 @@ prepareAndRunTest('operators toAsyncIter', dir, (t, db, raf) => {
       } catch (err) {
         t.fail(err)
       }
+    });
+  });
+});
+
+prepareAndRunTest('operators toCallback with startFrom', dir, (t, db, raf) => {
+  const msg = {type: 'post', text: 'Testing!'};
+  let state = validate.initial();
+  state = validate.appendNew(state, null, alice, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now());
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        or(author(alice.id), author(bob.id)),
+        startFrom(1),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error');
+          t.equal(msgs.length, 1, 'toCallback got one messages');
+          t.equal(msgs[0].value.author, bob.id);
+          t.equal(msgs[0].value.content.type, 'post');
+          t.end();
+        }),
+      );
+    });
+  });
+});
+
+prepareAndRunTest('operators toCallback with descending', dir, (t, db, raf) => {
+  const msg = {type: 'post', text: 'Testing!'};
+  let state = validate.initial();
+  state = validate.appendNew(state, null, alice, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now());
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        or(author(alice.id), author(bob.id)),
+        descending(),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error');
+          t.equal(msgs.length, 2, 'toCallback got two messages');
+          t.equal(msgs[0].value.author, bob.id);
+          t.equal(msgs[0].value.content.type, 'post');
+          t.equal(msgs[1].value.author, alice.id);
+          t.equal(msgs[1].value.content.type, 'post');
+          t.end();
+        }),
+      );
     });
   });
 });

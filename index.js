@@ -170,14 +170,9 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function getTop(bitset, offset, limit, reverse, cb) {
+  function getValuesFromBitsetSlice(bitset, offset, limit, descending, cb) {
     offset = offset || 0
-    if (typeof reverse === 'function') {
-      cb = reverse
-      reverse = false
-    }
-    debug("results", bitset.size())
-    console.time("get values and sort top " + limit)
+    var start = Date.now()
 
     function s(x) {
       return {
@@ -187,32 +182,29 @@ module.exports = function (log, indexesPath) {
     }
     var timestamped = bitset.array().map(s)
     var sorted = timestamped.sort((a, b) => {
-      if (reverse)
-        return a.timestamp - b.timestamp
-      else
+      if (descending)
         return b.timestamp - a.timestamp
+      else
+        return a.timestamp - b.timestamp
     })
 
+    const sliced =
+      limit != null
+        ? sorted.slice(offset, offset + limit)
+        : offset > 0
+        ? sorted.slice(offset)
+        : sorted;
+
     push(
-      push.values(sorted.slice(offset, offset + limit)),
+      push.values(sliced),
       push.asyncMap((s, cb) => getValue(s.val, cb)),
       push.filter(x => x), // deleted messages
       push.collect((err, results) => {
-        console.timeEnd("get values and sort top " + limit)
-        cb(null, { data: results, total: timestamped.length })
-      })
-    )
-  }
-
-  function getAll(bitset, cb) {
-    var start = Date.now()
-    return push(
-      push.values(bitset.array()),
-      push.asyncMap(getValue),
-      push.filter(x => x), // deleted messages
-      push.collect((err, results) => {
-        debug(`get all: ${Date.now()-start}ms, total items: ${results.length}`)
-        cb(err, results)
+        cb(null, {
+          data: results,
+          total: timestamped.length,
+          duration: Date.now() - start
+        })
       })
     )
   }
@@ -612,18 +604,30 @@ module.exports = function (log, indexesPath) {
   }
 
   return Object.assign({
-    paginate: function(operation, offset, limit, reverse, cb) {
+    paginate: function(operation, offset, limit, descending, cb) {
       onReady(() => {
-        indexSync(operation, data => {
-          getTop(data, offset, limit, reverse, cb)
+        indexSync(operation, bitset => {
+          getValuesFromBitsetSlice(bitset, offset, limit, descending, (err, res) => {
+            if (err) cb(err)
+            else {
+              debug(`getTop: ${res.duration}ms, items: ${res.length}`)
+              cb(err, res)
+            }
+          })
         })
       })
     },
 
-    all: function(operation, cb) {
+    all: function(operation, offset, descending, cb) {
       onReady(() => {
-        indexSync(operation, data => {
-          getAll(data, cb)
+        indexSync(operation, bitset => {
+          getValuesFromBitsetSlice(bitset, offset, null, descending, (err, res) => {
+            if (err) cb(err)
+            else {
+              debug(`getAll: ${res.duration}ms, total items: ${res.length}`)
+              cb(err, res.data)
+            }
+          })
         })
       })
     },
