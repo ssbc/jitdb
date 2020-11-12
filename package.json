@@ -38,7 +38,9 @@
     "tape": "^5.0.1"
   },
   "scripts": {
-    "test": "tape test/*.js | tap-spec"
+    "test": "tape test/*.js | tap-spec",
+    "setup-fixture": "./benchmarks/setup-fixture.sh",
+    "benchmark-not-slower": "node benchmarks/not-slower.js"
   },
   "author": "Anders Rune Jensen <arj03@protonmail.ch>",
   "license": "Beerware"
