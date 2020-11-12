@@ -308,7 +308,7 @@ prepareAndRunTest('operator lte', dir, (t, db, raf) => {
 //   const msg = {type: 'post', text: 'Testing!'};
 //   let state = validate.initial();
 //   state = validate.appendNew(state, null, alice, msg, Date.now());
-//   state = validate.appendNew(state, null, bob, msg, Date.now());
+//   state = validate.appendNew(state, null, bob, msg, Date.now()+1);
 
 //   addMsg(state.queue[0].value, raf, (e1, msg1) => {
 //     addMsg(state.queue[1].value, raf, (e2, msg2) => {
@@ -332,7 +332,7 @@ prepareAndRunTest('operators toCallback', dir, (t, db, raf) => {
   const msg = {type: 'post', text: 'Testing!'};
   let state = validate.initial();
   state = validate.appendNew(state, null, alice, msg, Date.now());
-  state = validate.appendNew(state, null, bob, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now()+1);
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
@@ -357,7 +357,7 @@ prepareAndRunTest('operators toPromise', dir, (t, db, raf) => {
   const msg = {type: 'post', text: 'Testing!'};
   let state = validate.initial();
   state = validate.appendNew(state, null, alice, msg, Date.now());
-  state = validate.appendNew(state, null, bob, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now()+1);
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
@@ -386,7 +386,7 @@ prepareAndRunTest('operators toPullStream', dir, (t, db, raf) => {
   const msg = {type: 'post', text: 'Testing!'};
   let state = validate.initial();
   state = validate.appendNew(state, null, alice, msg, Date.now());
-  state = validate.appendNew(state, null, bob, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now()+1);
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
@@ -417,7 +417,7 @@ prepareAndRunTest('operators toAsyncIter', dir, (t, db, raf) => {
   const msg = {type: 'post', text: 'Testing!'};
   let state = validate.initial();
   state = validate.appendNew(state, null, alice, msg, Date.now());
-  state = validate.appendNew(state, null, bob, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now()+1);
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
     addMsg(state.queue[1].value, raf, async (e2, msg2) => {
@@ -451,7 +451,7 @@ prepareAndRunTest('operators toCallback with startFrom', dir, (t, db, raf) => {
   const msg = {type: 'post', text: 'Testing!'};
   let state = validate.initial();
   state = validate.appendNew(state, null, alice, msg, Date.now());
-  state = validate.appendNew(state, null, bob, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now()+1);
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
@@ -475,7 +475,7 @@ prepareAndRunTest('operators toCallback with descending', dir, (t, db, raf) => {
   const msg = {type: 'post', text: 'Testing!'};
   let state = validate.initial();
   state = validate.appendNew(state, null, alice, msg, Date.now());
-  state = validate.appendNew(state, null, bob, msg, Date.now());
+  state = validate.appendNew(state, null, bob, msg, Date.now()+1);
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
