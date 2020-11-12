@@ -9,7 +9,7 @@ const toBuffer = require('typedarray-to-buffer')
 const bsb = require('binary-search-bounds')
 const debug = require('debug')("jitdb")
 
-module.exports = function (db, indexesPath) {
+module.exports = function (log, indexesPath) {
   function saveTypedArray(name, seq, count, arr, cb) {
     const filename = path.join(indexesPath, name + ".index")
     if (!cb)
@@ -162,7 +162,7 @@ module.exports = function (db, indexesPath) {
 
   function getValue(val, cb) {
     var seq = indexes['offset'].data[val]
-    db.get(seq, (err, res) => {
+    log.get(seq, (err, res) => {
       if (err && err.code === 'flumelog:deleted')
         cb()
       else
@@ -338,7 +338,7 @@ module.exports = function (db, indexesPath) {
 
     const indexNeedsUpdate = op.data.indexName != 'sequence' && op.data.indexName != 'timestamp' && op.data.indexName != 'offset'
 
-    db.stream({ gt: index.seq }).pipe({
+    log.stream({ gt: index.seq }).pipe({
       paused: false,
       write: function (data) {
         if (updateOffsetIndex(offset, data.seq))
@@ -393,7 +393,7 @@ module.exports = function (db, indexesPath) {
     var updatedSequenceIndex = false
     const start = Date.now()
 
-    db.stream({}).pipe({
+    log.stream({}).pipe({
       paused: false,
       write: function (data) {
         var seq = data.seq
@@ -485,7 +485,7 @@ module.exports = function (db, indexesPath) {
       debug("missing indexes:", missingIndexes)
 
     function ensureIndexSync(op, cb) {
-      if (db.since.value > indexes[op.data.indexName].seq)
+      if (log.since.value > indexes[op.data.indexName].seq)
         updateIndex(op, cb)
       else
         cb()
@@ -519,12 +519,12 @@ module.exports = function (db, indexesPath) {
     }
 
     function ensureOffsetIndexSync(cb) {
-      if (db.since.value > indexes['offset'].seq)
+      if (log.since.value > indexes['offset'].seq)
         updateIndex({ data: { indexName: 'offset' } }, cb)
       else
         cb()
     }
-    
+
     function getBitsetForOperation(op, cb) {
       if (op.type === 'EQUAL') {
         ensureIndexSync(op, () => {
@@ -661,7 +661,7 @@ module.exports = function (db, indexesPath) {
       if (index)
         opts.gt = index.seq
 
-      db.stream(opts).pipe({
+      log.stream(opts).pipe({
         paused: false,
         write: function (data) {
           if (checkValue(op.data, index, data.value))
