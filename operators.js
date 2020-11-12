@@ -60,6 +60,46 @@ function equal(seek, value, indexType) {
   };
 }
 
+function gt(value, indexName) {
+  return {
+    type: 'GT',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
+function gte(value, indexName) {
+  return {
+    type: 'GTE',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
+function lt(value, indexName) {
+  return {
+    type: 'LT',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
+function lte(value, indexName) {
+  return {
+    type: 'LTE',
+    data: {
+      value,
+      indexName,
+    },
+  };
+}
+
 // FIXME: move to somewhere opinionated, because it leans on msg conventions
 function type(value) {
   return {
@@ -284,6 +324,10 @@ module.exports = {
 
   slowEqual,
   equal,
+  gt,
+  gte,
+  lt,
+  lte,
   and,
   or,
 
