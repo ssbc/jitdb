@@ -25,8 +25,8 @@ function offsets(values) {
 }
 
 function seekFromDesc(desc) {
+  const keys = desc.split('.')
   return buffer => {
-    const keys = desc.split('.')
     var p = 0
     for (let key of keys) {
       p = bipf.seekKey(buffer, p, Buffer.from(key))
