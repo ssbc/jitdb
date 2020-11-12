@@ -14,8 +14,6 @@ db.onReady(async () => {
   const mixy = '@G98XybiXD/amO9S/UyBKnWTWZnSKYS3YVB/5osSRHvY=.ed25519'
   const arj = '@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'
 
-  // FIXME: add offset to all
-
   if (true) query(
     fromDB(db),
     // debug(),

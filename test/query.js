@@ -43,12 +43,12 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, (err, results) => {
+        db.all(typeQuery, 0, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
 
-          db.all(contactQuery, (err, results) => {
+          db.all(contactQuery, 0, false, (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.type, 'contact')
 
@@ -82,7 +82,7 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 0, 1, (err, results) => {
+        db.paginate(typeQuery, 0, 1, true, (err, results) => {
           t.equal(results.data.length, 1)
           t.equal(results.data[0].value.content.text, 'Testing 2!')
           t.end()
@@ -114,7 +114,7 @@ prepareAndRunTest('Offset', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 1, 1, (err, results) => {
+        db.paginate(typeQuery, 1, 1, true, (err, results) => {
           t.equal(results.data.length, 1)
           t.equal(results.data[0].value.content.text, 'Testing!')
           t.end()
@@ -140,7 +140,7 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    db.paginate(typeQuery, 0, 1, (err, results) => {
+    db.paginate(typeQuery, 0, 1, true, (err, results) => {
       t.equal(results.data.length, 1)
       t.equal(results.data[0].value.content.text, 'Testing!')
       t.end()
@@ -167,7 +167,7 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.paginate(typeQuery, 0, 1, (err, results) => {
+      db.paginate(typeQuery, 0, 1, true, (err, results) => {
         t.equal(results.data.length, 1)
         t.equal(results.data[0].value.content.text, 'Testing no root')
         t.end()
@@ -212,30 +212,30 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
       addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
         addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
-          db.all(filterQuery, (err, results) => {
+          db.all(filterQuery, 0, false, (err, results) => {
             t.equal(results.length, 3)
             t.equal(results[0].value.content.text, '2')
 
             filterQuery.data[0].type = 'GTE'
-            db.all(filterQuery, (err, results) => {
+            db.all(filterQuery, 0, false, (err, results) => {
               t.equal(results.length, 4)
               t.equal(results[0].value.content.text, '1')
 
               filterQuery.data[0].type = 'LT'
               filterQuery.data[0].data.value = 3
-              db.all(filterQuery, (err, results) => {
+              db.all(filterQuery, 0, false, (err, results) => {
                 t.equal(results.length, 2)
                 t.equal(results[0].value.content.text, '1')
 
                 filterQuery.data[0].type = 'LTE'
-                db.all(filterQuery, (err, results) => {
+                db.all(filterQuery, 0, false, (err, results) => {
                   t.equal(results.length, 3)
                   t.equal(results[0].value.content.text, '1')
 
                   filterQuery.data[0].type = 'GT'
                   filterQuery.data[0].data.indexName = 'timestamp'
                   filterQuery.data[0].data.value = dbMsg1.value.timestamp
-                  db.all(filterQuery, (err, results) => {
+                  db.all(filterQuery, 0, false, (err, results) => {
                     t.equal(results.length, 3)
                     t.equal(results[0].value.content.text, '2')
 
@@ -281,7 +281,7 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(dataQuery, 0, 1, (err, results) => {
+        db.paginate(dataQuery, 0, 1, true, (err, results) => {
           t.equal(results.data.length, 1)
           t.equal(results.data[0].value.content.text, 'Testing no root')
           t.end()
@@ -309,7 +309,7 @@ prepareAndRunTest('Data offsets simple', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(dataQuery, (err, results) => {
+        db.all(dataQuery, 0, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.name, 'Test')
           t.equal(results[1].value.content.text, 'Testing no root')
@@ -350,7 +350,7 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(dataQuery, 0, 1, (err, results) => {
+        db.paginate(dataQuery, 0, 1, true, (err, results) => {
           t.equal(results.data.length, 1)
           t.equal(results.data[0].value.content.text, 'Testing no root')
           t.end()
@@ -404,7 +404,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(allQuery, (err, results) => {
+        db.all(allQuery, 0, false, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
           t.end()
@@ -473,7 +473,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(allQuery, (err, results) => {
+        db.all(allQuery, 0, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, 'Testing!')
           t.equal(results[1].value.content.text, 'Testing 2!')
