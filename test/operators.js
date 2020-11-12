@@ -16,6 +16,8 @@ const {
   lt,
   lte,
   type,
+  offsets,
+  seqs,
   author,
   fromDB,
   paginate,
@@ -299,6 +301,40 @@ prepareAndRunTest('operator lte', dir, (t, db, raf) => {
   t.equal(queryTree.data[1].type, 'LTE');
   t.equal(queryTree.data[1].data.indexName, 'sequence')
   t.equal(queryTree.data[1].data.value, 2)
+
+  t.end();
+})
+
+prepareAndRunTest('operator offsets', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(offsets([10,20])),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'OFFSETS');
+  t.true(Array.isArray(queryTree.offsets), '.offsets is an array');
+
+  t.equal(queryTree.offsets[0], 10);
+  t.equal(queryTree.offsets[1], 20);
+
+  t.end();
+})
+
+prepareAndRunTest('operator seqs', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(seqs([11,12])),
+  );
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'SEQS');
+  t.true(Array.isArray(queryTree.seqs), '.seqs is an array');
+
+  t.equal(queryTree.seqs[0], 11);
+  t.equal(queryTree.seqs[1], 12);
 
   t.end();
 })

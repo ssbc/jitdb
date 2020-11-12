@@ -464,7 +464,7 @@ module.exports = function (log, indexesPath) {
         }
         else if (op.type === 'AND' || op.type === 'OR')
           handleOperations(op.data)
-        else if (op.type === 'DATA')
+        else if (op.type === 'OFFSETS' || op.type === 'SEQS')
           ;
         else
           debug("Unknown operator type:" + op.type)
@@ -535,23 +535,24 @@ module.exports = function (log, indexesPath) {
       else if (op.type === 'LTE') {
         filterIndex(op, (d, op) => d <= op.data.value, cb)
       }
-      else if (op.type === 'DATA') {
+      else if (op.type === 'SEQS') {
         ensureOffsetIndexSync(() => {
           var offsets = []
-          if (!op.data && op.seqs) {
-            op.seqs.sort((x,y) => x-y)
-            for (var o = 0; o < indexes['offset'].data.length; ++o)
-            {
-              if (bsb.eq(op.seqs, indexes['offset'].data[o]) != -1)
-                offsets.push(o)
+          op.seqs.sort((x,y) => x-y)
+          for (var o = 0; o < indexes['offset'].data.length; ++o)
+          {
+            if (bsb.eq(op.seqs, indexes['offset'].data[o]) != -1)
+              offsets.push(o)
 
-              if (offsets.length == op.seqs.length)
-                break
-            }
-          } else
-            offsets = op.offsets
-
+            if (offsets.length == op.seqs.length)
+              break
+          }
           cb(new TypedFastBitSet(offsets))
+        })
+      }
+      else if (op.type === 'OFFSETS') {
+        ensureOffsetIndexSync(() => {
+          cb(new TypedFastBitSet(op.offsets))
         })
       }
       else if (op.type === 'AND')
