@@ -19,8 +19,15 @@ function toBuffer(value) {
 
 function offsets(values) {
   return {
-    type: 'DATA',
+    type: 'OFFSETS',
     offsets: values
+  };
+}
+
+function seqs(values) {
+  return {
+    type: 'SEQS',
+    seqs: values
   };
 }
 
@@ -332,6 +339,7 @@ module.exports = {
   or,
 
   offsets,
+  seqs,
 
   descending,
   startFrom,

@@ -272,7 +272,7 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
         }
       },
       {
-        type: 'DATA',
+        type: 'SEQS',
         seqs: [363, 765]
       }
     ]
@@ -302,7 +302,7 @@ prepareAndRunTest('Data offsets simple', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg3, Date.now())
 
   const dataQuery = {
-    type: 'DATA',
+    type: 'OFFSETS',
     offsets: [1, 2]
   }
 
@@ -341,7 +341,7 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
         }
       },
       {
-        type: 'DATA',
+        type: 'OFFSETS',
         offsets: [1, 2]
       }
     ]

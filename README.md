@@ -241,6 +241,8 @@ const {
   gte,
   lt,
   lte,
+  seqs,
+  offsets,
   paginate,
   startFrom,
   descending,
@@ -258,7 +260,7 @@ const {
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
-query is run. The result is an object with the fields: 
+query is run. The result is an object with the fields:
 
  - `data`: the actual messages
  - `total`: the total number of messages
@@ -270,7 +272,8 @@ Operation can be of the following types:
 | ------------- | ---- |
 | EQUAL         | { seek, value, indexType, indexAll } |
 | GT,GTE,LT,LTE | { indexName, value } |
-| DATA          | { seqs, offsets } |
+| SEQS          | { seqs } |
+| OFFSETS       | { offsets } |
 | AND           | [operation, operation] |
 | OR            | [operation, operation] |
 
@@ -291,9 +294,8 @@ indexes in one go instead of several hundreds is a lot faster.
 For `GT`, `GTE`, `LT` and `LTE`, `indexName` can be either `sequence`
 or `timestamp`.
 
-`DATA` allows one to use offset or seq positions into the log file as
-query operators. This is useful for interfacing with data indexed by
-something else than JITDB. Offsets are faster as they can be combined
+`OFFSETS` and `SEQS` allow one to use offset and seq (respectively) positions
+into the log file as query operators. This is useful for interfacing with data indexed by something else than JITDB. Offsets are faster as they can be combined
 in queries directly.
 
 Example
