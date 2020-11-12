@@ -258,8 +258,11 @@ const {
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
-query is run. The results are sorted based on timestamp with latest
-first.
+query is run. The result is an object with the fields: 
+
+ - `data`: the actual messages
+ - `total`: the total number of messages
+ - `duration`: the number of ms the query took
 
 Operation can be of the following types:
 
@@ -312,8 +315,8 @@ makes sense.
 
 ### all(operation, offset, descending, cb)
 
-Just like paginate except this will return all results given the
-operation, and there is no `limit` argument.
+Similar to paginate except there is no `limit` argument and the result
+will be the messages directly.
 
 ### querySeq(operation, seq, cb)
 
