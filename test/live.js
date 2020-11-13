@@ -44,7 +44,7 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
   })
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    console.log("waiting for live query")
+    // console.log("waiting for live query")
   })
 })
 
@@ -80,7 +80,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
       })
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
-        console.log("waiting for live query")
+        // console.log("waiting for live query")
       })
     })
   })
