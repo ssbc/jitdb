@@ -61,7 +61,7 @@ prepareAndRunTest('operators API returns objects', dir, (t, db, raf) => {
 prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(db.seekType, 'post', 'type')),
+    and(equal(db.seekType, 'post', 'type', true)),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -69,6 +69,7 @@ prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL');
 
   t.equal(queryTree.data.indexType, 'type');
+  t.equal(queryTree.data.indexAll, true);
   t.deepEqual(queryTree.data.value, Buffer.from('post'));
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
 
@@ -94,6 +95,7 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL');
 
   t.equal(queryTree.data.indexType, 'value_content_type');
+  t.notOk(queryTree.data.indexAll);
   t.deepEqual(queryTree.data.value, Buffer.from('post'));
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
 
@@ -104,6 +106,21 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
     'function',
     'meta.db looks correct',
   );
+
+  t.end();
+});
+
+prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
+  const queryTree = slowEqual('value.content.type', 'post', true)
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object');
+
+  t.equal(queryTree.type, 'EQUAL');
+
+  t.equal(queryTree.data.indexType, 'value_content_type');
+  t.equal(queryTree.data.indexAll, true);
+  t.deepEqual(queryTree.data.value, Buffer.from('post'));
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
 
   t.end();
 });

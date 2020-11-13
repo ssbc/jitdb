@@ -43,7 +43,7 @@ function seekFromDesc(desc) {
   }
 }
 
-function slowEqual(seekDesc, value) {
+function slowEqual(seekDesc, value, indexAll) {
   const indexType = seekDesc.replace(/\./g, '_')
   const seek = seekFromDesc(seekDesc)
   return {
@@ -52,17 +52,19 @@ function slowEqual(seekDesc, value) {
       seek: seek,
       value: toBuffer(value),
       indexType,
+      indexAll,
     },
   };
 }
 
-function equal(seek, value, indexType) {
+function equal(seek, value, indexType, indexAll) {
   return {
     type: 'EQUAL',
     data: {
       seek: seek,
       value: toBuffer(value),
       indexType,
+      indexAll,
     },
   };
 }
