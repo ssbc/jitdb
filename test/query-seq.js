@@ -2,7 +2,7 @@ const test = require('tape')
 const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
-const { prepareAndRunTest, addMsg } = require('./common')()
+const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 
@@ -22,7 +22,7 @@ prepareAndRunTest('Basic', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }

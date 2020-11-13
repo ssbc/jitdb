@@ -18,7 +18,6 @@ module.exports = {
       return bipf.seekKey(buffer, p, bAuthor)
   },
 
-  // FIXME: move to somewhere opinionated, because it leans on msg conventions
   seekType: function(buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)
@@ -30,7 +29,6 @@ module.exports = {
     }
   },
 
-  // FIXME: move to somewhere opinionated, because it leans on msg conventions
   seekRoot: function(buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)
@@ -42,7 +40,6 @@ module.exports = {
     }
   },
 
-  // FIXME: move to somewhere opinionated, because it leans on msg conventions
   seekPrivate: function(buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)
@@ -54,7 +51,6 @@ module.exports = {
     }
   },
 
-  // FIXME: move to somewhere opinionated, because it leans on msg conventions
   seekChannel: function(buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)

@@ -684,5 +684,5 @@ module.exports = function (log, indexesPath) {
     saveTypedArray,
     loadIndex,
     indexes
-  }, require("./helpers"))
+  })
 }

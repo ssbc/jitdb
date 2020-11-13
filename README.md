@@ -104,11 +104,25 @@ query(
 ```js
 query(
   fromDB(db),
-  and(equal(db.seekType, 'post', 'type')),
+  and(equal(seekType, 'post', 'type')),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages of type "post"')
   })
 )
+
+// The `seekType` function takes a buffer and uses `bipf` APIs to search for
+// the fields we want.
+const bValue = Buffer.from('value') // better for performance if defined outside
+const bContent = Buffer.from('content')
+const bType = Buffer.from('type')
+function seekType(buffer) {
+  var p = 0 // p stands for "position" in the buffer, offset from start
+  p = bipf.seekKey(buffer, p, bValue)
+  if (p < 0) return
+  p = bipf.seekKey(buffer, p, bContent)
+  if (p < 0) return
+  return bipf.seekKey(buffer, p, bType)
+}
 ```
 
 **Get all messages of type `contact` from Alice or Bob:**
@@ -129,12 +143,22 @@ query(
 ```js
 query(
   fromDB(db),
-  and(equal(db.seekType, 'contact', 'type')),
-  and(or(equal(db.seekAuthor, aliceId, 'author'), equal(db.seekAuthor, bobId, 'author'))),
+  and(equal(seekType, 'contact', 'type')),
+  and(or(equal(seekAuthor, aliceId, 'author'), equal(seekAuthor, bobId, 'author'))),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages')
   })
 )
+
+// where seekAuthor is
+const bValue = Buffer.from('value') // better for performance if defined outside
+const bAuthor = Buffer.from('author')
+function seekAuthor(buffer) {
+  var p = 0
+  p = bipf.seekKey(buffer, p, bValue)
+  if (p < 0) return
+  return bipf.seekKey(buffer, p, bAuthor)
+}
 ```
 
 #### Pagination

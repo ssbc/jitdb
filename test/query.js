@@ -2,7 +2,7 @@ const test = require('tape')
 const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
-const { prepareAndRunTest, addMsg } = require('./common')()
+const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 
@@ -25,7 +25,7 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -34,7 +34,7 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
   const contactQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'contact',
       indexType: "type"
     }
@@ -73,7 +73,7 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -105,7 +105,7 @@ prepareAndRunTest('Offset', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -133,7 +133,7 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: Buffer.from('post'),
       indexType: "type"
     }
@@ -159,7 +159,7 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekRoot,
+      seek: helpers.seekRoot,
       value: undefined,
       indexType: "root"
     }
@@ -199,7 +199,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
       },
       { type: 'EQUAL',
         data: {
-          seek: db.seekAuthor,
+          seek: helpers.seekAuthor,
           value: keys.id,
           indexType: "author",
           indexAll: true
@@ -266,7 +266,7 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
     data: [
       { type: 'EQUAL',
         data: {
-          seek: db.seekType,
+          seek: helpers.seekType,
           value: 'post',
           indexType: "type"
         }
@@ -335,7 +335,7 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
     data: [
       { type: 'EQUAL',
         data: {
-          seek: db.seekType,
+          seek: helpers.seekType,
           value: 'post',
           indexType: "type"
         }
@@ -373,7 +373,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -382,7 +382,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
   const authorQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekAuthor,
+      seek: helpers.seekAuthor,
       value: keys.id,
       indexType: "author"
     }
@@ -427,7 +427,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -436,7 +436,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
   const authorRandomQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekAuthor,
+      seek: helpers.seekAuthor,
       value: "random",
       indexType: "author"
     }
@@ -445,7 +445,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
   const authorRandom2Query = {
     type: 'EQUAL',
     data: {
-      seek: db.seekAuthor,
+      seek: helpers.seekAuthor,
       value: "random2",
       indexType: "author"
     }
@@ -454,7 +454,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
   const authorQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekAuthor,
+      seek: helpers.seekAuthor,
       value: keys.id,
       indexType: "author"
     }
