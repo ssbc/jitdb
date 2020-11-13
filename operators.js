@@ -174,7 +174,11 @@ function debug() {
     );
     console.log(
       'debug',
-      JSON.stringify(ops, (key, val) => (key === 'meta' ? void 0 : val), 2),
+      JSON.stringify(ops, (key, val) => {
+        if (key === 'meta') return void 0
+        else if (key === 'value' && val.type === 'Buffer') return Buffer.from(val.data).toString()
+        else return val
+      }, 2),
       meta === '{}' ? '' : 'meta: ' + meta,
     );
     return ops;
