@@ -10,6 +10,8 @@ const bsb = require('binary-search-bounds')
 const debug = require('debug')("jitdb")
 
 module.exports = function (log, indexesPath) {
+  debug("indexes path", indexesPath)
+
   function saveTypedArray(name, seq, count, arr, cb) {
     const filename = path.join(indexesPath, name + ".index")
     if (!cb)
