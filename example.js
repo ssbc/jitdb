@@ -34,11 +34,11 @@ db.onReady(async () => {
       // debug(),
       and(type('post')),
       // debug(),
-      or(author(mix), author(mixy), author(arj)),
+      and(or(author(mix), author(mixy), author(arj))),
       // debug(),
       toPromise(),
     );
-    console.log(results);
+    console.log(results.length);
   }
 
   var i = 0;
@@ -48,7 +48,7 @@ db.onReady(async () => {
       // debug(),
       and(type('blog')),
       // debug(),
-      or(author(mix), author(mixy), author(arj)),
+      and(or(author(mix), author(mixy), author(arj))),
       // debug(),
       paginate(3),
       // debug(),
