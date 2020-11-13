@@ -150,7 +150,6 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect((err, results) => {
-      console.log("done inserting", results.length)
       db.paginate(typeQuery, 0, 1, false, (err, results) => {
         t.equal(results.data.length, 1)
         t.equal(results.data[0].value.content.text, 'Testing 31999')
