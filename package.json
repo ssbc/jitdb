@@ -15,8 +15,10 @@
     "idb-kv-store": "^4.5.0",
     "lodash.debounce": "^4.0.8",
     "mkdirp": "^1.0.4",
+    "pify": "^5.0.0",
     "push-stream": "^11.0.0",
     "sanitize-filename": "^1.6.3",
+    "traverse": "^0.6.6",
     "typedarray-to-buffer": "^3.1.5",
     "typedfastbitset": "^0.1.5"
   },

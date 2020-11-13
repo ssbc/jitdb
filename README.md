@@ -249,6 +249,39 @@ for await (let msgs of results) {
 }
 ```
 
+#### Custom indexes and `deferred` operator
+
+There may be custom indexes external to JITDB, in which case you should convert the results from those indexes to `seqs()` or `offsets()` (read more about these in the low level API section). In those cases, the `SEQS` or `OFFSETS` are often received asynchronously. To support piping these async results in the `query` chain, we have the `deferred()` operator which postpones the fetching of results from your custom index, but allows you to compose operations nevertheless.
+
+```js
+// operator
+deferred(task)
+```
+
+where `task` is any function of the format
+
+```js
+function task(meta, cb)
+```
+
+where `meta` is an object containing an instance of JITDB and other metadata.
+
+As an example, suppose you have a custom index that returns offsets `11`, `13` and `17`, and you want to include these results into your operator chain, to `AND` them with a specific author. Use `deferred` like this:
+
+```js
+query(
+  fromDB(db),
+  deferred((meta, cb) => {
+    // do something asynchronously, then deliver results to cb
+    cb(null, offsets([11, 13, 17]))
+  }),
+  and(slowEqual('value.author', aliceId)),
+  toCallback((err, results) => {
+    console.log(results)
+  }),
+)
+```
+
 #### All operators
 
 This is a list of all the operators supported so far:
@@ -265,6 +298,7 @@ const {
   gte,
   lt,
   lte,
+  deferred,
   seqs,
   offsets,
   paginate,
