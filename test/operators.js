@@ -2,7 +2,7 @@ const test = require('tape');
 const pull = require('pull-stream');
 const validate = require('ssb-validate');
 const ssbKeys = require('ssb-keys');
-const {prepareAndRunTest, addMsg} = require('./common')();
+const {prepareAndRunTest, addMsg, helpers} = require('./common')();
 const rimraf = require('rimraf');
 const mkdirp = require('mkdirp');
 const {
@@ -15,10 +15,8 @@ const {
   gte,
   lt,
   lte,
-  type,
   offsets,
   seqs,
-  author,
   fromDB,
   paginate,
   startFrom,
@@ -36,32 +34,10 @@ mkdirp.sync(dir);
 const alice = ssbKeys.generate('ed25519', Buffer.alloc(32, 'a'));
 const bob = ssbKeys.generate('ed25519', Buffer.alloc(32, 'b'));
 
-prepareAndRunTest('operators API returns objects', dir, (t, db, raf) => {
-  const queryTree = query(fromDB(db), and(type('post')));
-
-  t.equal(typeof queryTree, 'object', 'queryTree is an object');
-
-  t.equal(queryTree.type, 'EQUAL');
-
-  t.equal(queryTree.data.indexType, 'type');
-  t.deepEqual(queryTree.data.value, Buffer.from('post'));
-  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'));
-
-  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta');
-  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db');
-  t.equal(
-    typeof queryTree.meta.db.onReady,
-    'function',
-    'meta.db looks correct',
-  );
-
-  t.end();
-});
-
 prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(db.seekType, 'post', 'type', true)),
+    and(equal(helpers.seekType, 'post', 'type', true)),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -128,8 +104,13 @@ prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
 prepareAndRunTest('operators API supports and or', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(type('post')),
-    and(or(author(alice.id), author(bob.id))),
+    and(slowEqual('value.content.type', 'post')),
+    and(
+      or(
+        slowEqual('value.author', alice.id),
+        slowEqual('value.author', bob.id)
+      )
+    ),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -138,21 +119,21 @@ prepareAndRunTest('operators API supports and or', dir, (t, db, raf) => {
   t.true(Array.isArray(queryTree.data), '.data is an array');
 
   t.equal(queryTree.data[0].type, 'EQUAL');
-  t.equal(queryTree.data[0].data.indexType, 'type');
+  t.equal(queryTree.data[0].data.indexType, 'value_content_type');
   t.deepEqual(queryTree.data[0].data.value, Buffer.from('post'));
 
   t.equal(queryTree.data[1].type, 'OR');
   t.true(Array.isArray(queryTree.data[1].data), '.data[1].data is an array');
 
   t.equal(queryTree.data[1].data[0].type, 'EQUAL');
-  t.deepEqual(queryTree.data[1].data[0].data.indexType, 'author');
+  t.deepEqual(queryTree.data[1].data[0].data.indexType, 'value_author');
   t.deepEqual(queryTree.data[1].data[0].data.value, Buffer.from(alice.id));
   t.true(
     queryTree.data[1].data[0].data.seek.toString().includes('bipf.seekKey'),
   );
 
   t.equal(queryTree.data[1].data[1].type, 'EQUAL');
-  t.equal(queryTree.data[1].data[1].data.indexType, 'author');
+  t.equal(queryTree.data[1].data[1].data.indexType, 'value_author');
   t.deepEqual(queryTree.data[1].data[1].data.value, Buffer.from(bob.id));
   t.true(
     queryTree.data[1].data[1].data.seek.toString().includes('bipf.seekKey'),
@@ -164,7 +145,11 @@ prepareAndRunTest('operators API supports and or', dir, (t, db, raf) => {
 prepareAndRunTest('operators multi and', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(type('post'), author(alice.id), author(bob.id)),
+    and(
+      slowEqual('value.content.type', 'post'),
+      slowEqual('value.author', alice.id),
+      slowEqual('value.author', bob.id)
+    ),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -182,7 +167,11 @@ prepareAndRunTest('operators multi and', dir, (t, db, raf) => {
 prepareAndRunTest('operators multi or', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    or(type('post'), author(alice.id), author(bob.id)),
+    or(
+      slowEqual('value.content.type', 'post'),
+      slowEqual('value.author', alice.id),
+      slowEqual('value.author', bob.id)
+    ),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -203,25 +192,25 @@ prepareAndRunTest(
   (t, db, raf) => {
     const queryTreePaginate = query(
       fromDB(db),
-      and(type('post')),
+      and(slowEqual('value.content.type', 'post')),
       paginate(10),
     );
 
     const queryTreeStartFrom = query(
       fromDB(db),
-      and(type('post')),
+      and(slowEqual('value.content.type', 'post')),
       startFrom(5),
     );
 
     const queryTreeDescending = query(
       fromDB(db),
-      and(type('post')),
+      and(slowEqual('value.content.type', 'post')),
       descending(),
     );
 
     const queryTreeAll = query(
       fromDB(db),
-      and(type('post')),
+      and(slowEqual('value.content.type', 'post')),
       startFrom(5),
       paginate(10),
       descending(),
@@ -242,7 +231,7 @@ prepareAndRunTest(
 prepareAndRunTest('operator gt', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(db.seekAuthor, alice.id, 'author'), gt(2, 'sequence')),
+    and(equal(helpers.seekAuthor, alice.id, 'author'), gt(2, 'sequence')),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -265,7 +254,7 @@ prepareAndRunTest('operator gt', dir, (t, db, raf) => {
 prepareAndRunTest('operator gte', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(db.seekAuthor, alice.id, 'author'), gte(2, 'sequence')),
+    and(equal(helpers.seekAuthor, alice.id, 'author'), gte(2, 'sequence')),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -285,7 +274,7 @@ prepareAndRunTest('operator gte', dir, (t, db, raf) => {
 prepareAndRunTest('operator lt', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(db.seekAuthor, alice.id, 'author'), lt(2, 'sequence')),
+    and(equal(helpers.seekAuthor, alice.id, 'author'), lt(2, 'sequence')),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -305,7 +294,7 @@ prepareAndRunTest('operator lt', dir, (t, db, raf) => {
 prepareAndRunTest('operator lte', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(db.seekAuthor, alice.id, 'author'), lte(2, 'sequence')),
+    and(equal(helpers.seekAuthor, alice.id, 'author'), lte(2, 'sequence')),
   );
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object');
@@ -391,7 +380,10 @@ prepareAndRunTest('operators toCallback', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(author(alice.id), author(bob.id)),
+        or(
+          slowEqual('value.author', alice.id),
+          slowEqual('value.author', bob.id)
+        ),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error');
           t.equal(msgs.length, 2, 'toCallback got two messages');
@@ -416,7 +408,10 @@ prepareAndRunTest('operators toPromise', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(author(alice.id), author(bob.id)),
+        or(
+          slowEqual('value.author', alice.id),
+          slowEqual('value.author', bob.id)
+        ),
         toPromise(),
       ).then(
         (msgs) => {
@@ -446,7 +441,10 @@ prepareAndRunTest('operators toPullStream', dir, (t, db, raf) => {
       pull(
         query(
           fromDB(db),
-          or(author(alice.id), author(bob.id)),
+          or(
+            slowEqual('value.author', alice.id),
+            slowEqual('value.author', bob.id)
+          ),
           paginate(2),
           toPullStream(),
         ),
@@ -478,7 +476,10 @@ prepareAndRunTest('operators toAsyncIter', dir, (t, db, raf) => {
         let i = 0
         const results = query(
           fromDB(db),
-          or(author(alice.id), author(bob.id)),
+          or(
+            slowEqual('value.author', alice.id),
+            slowEqual('value.author', bob.id)
+          ),
           paginate(2),
           toAsyncIter(),
         )
@@ -510,7 +511,10 @@ prepareAndRunTest('operators toCallback with startFrom', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(author(alice.id), author(bob.id)),
+        or(
+          slowEqual('value.author', alice.id),
+          slowEqual('value.author', bob.id)
+        ),
         startFrom(1),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error');
@@ -534,7 +538,10 @@ prepareAndRunTest('operators toCallback with descending', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(author(alice.id), author(bob.id)),
+        or(
+          slowEqual('value.author', alice.id),
+          slowEqual('value.author', bob.id)
+        ),
         descending(),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error');

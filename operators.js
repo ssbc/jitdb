@@ -1,5 +1,4 @@
 const bipf = require('bipf');
-const helpers = require('./helpers');
 
 function query(...cbs) {
   let res = cbs[0];
@@ -105,66 +104,6 @@ function lte(value, indexName) {
     data: {
       value,
       indexName,
-    },
-  };
-}
-
-// FIXME: move to somewhere opinionated, because it leans on msg conventions
-function type(value) {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekType,
-      value: toBuffer(value),
-      indexType: 'type',
-    },
-  };
-}
-
-// FIXME: move to somewhere opinionated
-function author(value) {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekAuthor,
-      value: toBuffer(value),
-      indexType: 'author',
-    },
-  };
-}
-
-// FIXME: move to somewhere opinionated, because it leans on msg conventions
-function channel(value) {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekChannel,
-      value: toBuffer(value),
-      indexType: 'channel',
-    },
-  };
-}
-
-// FIXME: move to somewhere opinionated, because it leans on msg conventions
-function isRoot() {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekRoot,
-      value: undefined,
-      indexType: 'root',
-    },
-  };
-}
-
-// FIXME: move to somewhere opinionated, because it leans on msg conventions
-function isPrivate() {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekPrivate,
-      value: Buffer.from('true'),
-      indexType: 'private',
     },
   };
 }
@@ -356,10 +295,4 @@ module.exports = {
   toAsyncIter,
 
   debug,
-
-  type,
-  author,
-  channel,
-  isRoot,
-  isPrivate,
 };

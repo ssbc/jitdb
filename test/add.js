@@ -2,7 +2,7 @@ const test = require('tape')
 const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
-const { prepareAndRunTest, addMsg } = require('./common')()
+const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const push = require('push-stream')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -24,7 +24,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -47,7 +47,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
             const authorQuery = {
               type: 'EQUAL',
               data: {
-                seek: db.seekAuthor,
+                seek: helpers.seekAuthor,
                 value: keys.id,
                 indexType: "author"
               }
@@ -71,7 +71,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                   const authorQuery2 = {
                     type: 'EQUAL',
                     data: {
-                      seek: db.seekAuthor,
+                      seek: helpers.seekAuthor,
                       value: keys2.id,
                       indexType: "author"
                     }
@@ -106,7 +106,7 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -138,7 +138,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
   const typeQuery = {
     type: 'EQUAL',
     data: {
-      seek: db.seekType,
+      seek: helpers.seekType,
       value: 'post',
       indexType: "type"
     }
@@ -175,14 +175,14 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
     data: [
       { type: 'EQUAL',
         data: {
-          seek: db.seekType,
+          seek: helpers.seekType,
           value: 'post',
           indexType: "type"
         }
       },
       { type: 'EQUAL',
         data: {
-          seek: db.seekAuthor,
+          seek: helpers.seekAuthor,
           value: keys.id,
           indexType: "author",
           indexAll: true
@@ -222,7 +222,7 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
     return {
       type: 'EQUAL',
       data: {
-        seek: db.seekType,
+        seek: helpers.seekType,
         value,
         indexType: "type",
         indexAll: true

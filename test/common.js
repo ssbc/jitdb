@@ -5,6 +5,7 @@ const path = require('path')
 const test = require('tape')
 const fs = require('fs')
 const jitdb = require('../index')
+const helpers = require('./helpers')
 
 module.exports = function () {
   function getId(msg) {
@@ -36,6 +37,8 @@ module.exports = function () {
       db.onReady(() => {
         test(name, (t) => cb(t, db, raf))
       })
-    }
+    },
+
+    helpers,
   }
 }
