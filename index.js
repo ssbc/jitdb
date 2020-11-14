@@ -587,7 +587,12 @@ module.exports = function (log, indexesPath) {
           })
         })
       }
-      else
+      else if (!op.type) {
+        getBitsetForOperation(
+          {type: 'GTE', data: {indexName: 'sequence', value: 0}},
+          cb,
+        );
+      } else
         console.error("Unknown type", op)
     }
 
