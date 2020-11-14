@@ -8,9 +8,28 @@ const AtomicFile = require('atomic-file/buffer')
 const toBuffer = require('typedarray-to-buffer')
 const bsb = require('binary-search-bounds')
 const debug = require('debug')("jitdb")
+const jsesc = require('jsesc')
 
 module.exports = function (log, indexesPath) {
   debug("indexes path", indexesPath)
+
+  function safeFilename(filename) {
+    // in general we want to escape wierd characters
+    let result = jsesc(filename)
+    // sanitize will remove special characters, which means that two
+    // indexes might end up with the same name so lets replace those
+    // with jsesc escapeEverything values
+    result = result.replace(/\./g, "x2E")
+    result = result.replace(/\//g, "x2F")
+    result = result.replace(/\?/g, "x3F")
+    result = result.replace(/\</g, "x3C")
+    result = result.replace(/\>/g, "x3E")
+    result = result.replace(/\:/g, "x3A")
+    result = result.replace(/\*/g, "x2A")
+    result = result.replace(/\|/g, "x7C")
+    // finally sanitize
+    return sanitize(result)
+  }
 
   function saveTypedArray(name, seq, count, arr, cb) {
     const filename = path.join(indexesPath, name + ".index")
@@ -79,7 +98,7 @@ module.exports = function (log, indexesPath) {
       push(
         push.values(files),
         push.asyncMap((file, cb) => {
-          const indexName = file.replace(/\.[^/.]+$/, "")
+          const indexName = path.parse(file).name
           if (file === 'offset.index') {
             loadIndex(path.join(indexesPath, file), Uint32Array, (err, data) => {
               indexes[indexName] = data
@@ -302,8 +321,8 @@ module.exports = function (log, indexesPath) {
 
   function updateAllIndexValue(opData, newIndexes, buffer, offset) {
     const seekKey = opData.seek(buffer)
-    const value = sanitize(bipf.decode(buffer, seekKey))
-    const indexName = opData.indexType + "_" + value
+    const value = bipf.decode(buffer, seekKey)
+    const indexName = safeFilename(opData.indexType + "_" + value)
 
     if (!newIndexes[indexName]) {
       newIndexes[indexName] = {
@@ -444,9 +463,10 @@ module.exports = function (log, indexesPath) {
   }
 
   function setupIndex(op) {
-    const name = op.data.value === undefined ? '' : sanitize(op.data.value.toString())
-    if (!op.data.indexName)
-      op.data.indexName = op.data.indexType + "_" + name
+    if (!op.data.indexName) {
+      const name = op.data.value === undefined ? '' : op.data.value.toString()
+      op.data.indexName = safeFilename(op.data.indexType + "_" + name)
+    }
     if (op.data.value !== undefined)
       op.data.value = Buffer.isBuffer(op.data.value) ? op.data.value : Buffer.from(op.data.value)
   }
