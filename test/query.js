@@ -275,7 +275,7 @@ prepareAndRunTest('GTE Zero', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
       addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
         addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
-          db.all(filterQuery, (err, results) => {
+          db.all(filterQuery, 0, false, (err, results) => {
             t.equal(results.length, 4)
             t.equal(results[0].value.content.text, '1')
             t.equal(results[1].value.content.text, '2')

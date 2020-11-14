@@ -487,11 +487,19 @@ module.exports = function (log, indexesPath) {
       ensureIndexSync(op, () => {
         if (op.data.indexName == 'sequence') {
           let t = new TypedFastBitSet()
-          indexes['sequence'].data.forEach((d, index) => { if (filterCheck(d, op)) t.add(index) })
+          for (var i = 0; i < indexes['sequence'].count; ++i)
+          {
+            if (filterCheck(indexes['sequence'].data[i], op))
+              t.add(i)
+          }
           cb(t)
         } else if (op.data.indexName == 'timestamp') {
           let t = new TypedFastBitSet()
-          indexes['timestamp'].data.forEach((d, index) => { if (filterCheck(d, op)) t.add(index) })
+          for (var i = 0; i < indexes['timestamp'].count; ++i)
+          {
+            if (filterCheck(indexes['timestamp'].data[i], op))
+              t.add(i)
+          }
           cb(t)
         }
       })
