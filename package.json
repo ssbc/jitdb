@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "async-flumelog": "^1.0.6",
+    "cpu-stat": "^2.0.1",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
     "mkdirp": "^1.0.4",
