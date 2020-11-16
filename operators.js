@@ -1,4 +1,6 @@
 const bipf = require('bipf');
+const traverse = require('traverse')
+const promisify = require('pify')
 
 function query(...cbs) {
   let res = cbs[0];
@@ -108,6 +110,13 @@ function lte(value, indexName) {
   };
 }
 
+function deferred(task) {
+  return {
+    type: 'DEFERRED',
+    task,
+  }
+}
+
 function debug() {
   return (ops) => {
     const meta = JSON.stringify(ops.meta, (key, val) =>
@@ -117,6 +126,7 @@ function debug() {
       'debug',
       JSON.stringify(ops, (key, val) => {
         if (key === 'meta') return void 0
+        else if (key === 'task' && typeof val === 'function') return '[Function]'
         else if (key === 'value' && val.type === 'Buffer') return Buffer.from(val.data).toString()
         else return val
       }, 2),
@@ -195,45 +205,77 @@ function paginate(pageSize) {
   return (ops) => updateMeta(ops, 'pageSize', pageSize);
 }
 
+async function executeDeferredOps(ops, meta) {
+  // Collect all deferred tasks and their object-traversal paths
+  const allDeferred = [];
+  traverse(ops).forEach(function (val) {
+    if (!val) return;
+    // this.block() means don't traverse inside these, they won't have DEFERRED
+    if (this.path.length === 1 && this.key === 'meta') return this.block()
+    if (val.type === 'Buffer' && Array.isArray(val.data)) return this.block();
+    if (val.type === 'DEFERRED' && val.task) allDeferred.push([this.path, val]);
+    if (val.type !== 'AND' && val.type !== 'OR') this.block();
+  });
+  if (allDeferred.length === 0) return ops;
+
+  // Execute all deferred tasks and collect the results (and the paths)
+  const allResults = await Promise.all(
+    allDeferred.map(([path, obj]) =>
+      promisify(obj.task)(meta).then((result) => [path, result]),
+    ),
+  );
+
+  // Replace all deferreds with their respective results
+  allResults.forEach(([path, result]) => {
+    result.meta = meta
+    if (path.length === 0) ops = result
+    else traverse(ops).set(path, result);
+  });
+
+  return ops;
+}
+
 function toCallback(cb) {
-  return (ops) => {
-    const meta = extractMeta(ops);
-    const offset = meta.offset || 0
-    if (meta.pageSize)
-      meta.db.paginate(ops, offset, meta.pageSize, meta.descending, cb);
-    else meta.db.all(ops, offset, meta.descending, cb);
+  return (rawOps) => {
+    const meta = extractMeta(rawOps);
+    executeDeferredOps(rawOps, meta)
+      .then((ops) => {
+        const offset = meta.offset || 0;
+        if (meta.pageSize)
+          meta.db.paginate(ops, offset, meta.pageSize, meta.descending, cb);
+        else meta.db.all(ops, offset, meta.descending, cb);
+      })
+      .catch((err) => {
+        cb(err);
+      });
   };
 }
 
 function toPromise() {
-  return (ops) => {
-    const meta = extractMeta(ops);
+  return async (rawOps) => {
+    const meta = extractMeta(rawOps);
+    const ops = await executeDeferredOps(rawOps, meta);
     const offset = meta.offset || 0;
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const cb = (err, data) => {
         if (err) reject(err);
         else resolve(data);
       };
       if (meta.pageSize)
-        meta.db.paginate(
-          ops,
-          offset,
-          meta.pageSize,
-          meta.descending,
-          cb,
-        );
+        meta.db.paginate(ops, offset, meta.pageSize, meta.descending, cb);
       else meta.db.all(ops, offset, meta.descending, cb);
     });
   };
 }
 
 function toPullStream() {
-  return (ops) => {
-    const meta = extractMeta(ops);
+  return (rawOps) => {
+    const meta = extractMeta(rawOps);
     let offset = meta.offset || 0;
     let total = Infinity;
     const limit = meta.pageSize || 1;
-    return function readable(end, cb) {
+    let ops
+    function readable(end, cb) {
       if (end) return cb(end);
       if (offset >= total) return cb(true);
       meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
@@ -244,14 +286,29 @@ function toPullStream() {
           cb(null, !meta.pageSize ? result.data[0] : result.data);
         }
       });
+    }
+    return function (end, cb) {
+      if (!ops) {
+        executeDeferredOps(rawOps, meta)
+          .then((_ops) => {
+            ops = _ops;
+            readable(end, cb);
+          })
+          .catch((err) => {
+            cb(err);
+          });
+      } else {
+        readable(end, cb)
+      }
     };
   };
 }
 
 // `async function*` supported in Node 10+ and browsers (except IE11)
 function toAsyncIter() {
-  return async function* (ops) {
-    const meta = extractMeta(ops);
+  return async function* (rawOps) {
+    const meta = extractMeta(rawOps);
+    const ops = await executeDeferredOps(rawOps, meta);
     let offset = meta.offset || 0;
     let total = Infinity;
     const limit = meta.pageSize || 1;
@@ -282,6 +339,7 @@ module.exports = {
   lte,
   and,
   or,
+  deferred,
 
   offsets,
   seqs,
