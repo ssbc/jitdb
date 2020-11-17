@@ -24,19 +24,17 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   var i = 1
   db.liveQuerySingleIndex(typeQuery, (err, results) => {
-    if (i++ == 1)
-    {
+    if (i++ == 1) {
       t.equal(results.length, 1)
       t.equal(results[0].id, state.queue[0].value.id)
       addMsg(state.queue[1].value, raf, (err, msg1) => {})
-    }
-    else {
+    } else {
       t.equal(results.length, 1)
       t.equal(results[0].id, state.queue[1].value.id)
       t.end()
@@ -59,8 +57,8 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {

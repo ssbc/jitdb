@@ -9,15 +9,15 @@ const helpers = require('./helpers')
 
 module.exports = function () {
   function getId(msg) {
-    return '%'+hash(JSON.stringify(msg, null, 2))
+    return '%' + hash(JSON.stringify(msg, null, 2))
   }
 
   return {
-    addMsg: function(msg, raf, cb) {
+    addMsg: function (msg, raf, cb) {
       var data = {
         key: getId(msg),
         value: msg,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       }
       var b = Buffer.alloc(bipf.encodingLength(data))
       bipf.encode(data, b, 0)
@@ -29,11 +29,10 @@ module.exports = function () {
       })
     },
 
-    prepareAndRunTest: function(name, dir, cb)
-    {
+    prepareAndRunTest: function (name, dir, cb) {
       fs.closeSync(fs.openSync(path.join(dir, name), 'w')) // touch
-      let raf = FlumeLog(path.join(dir, name), { blockSize: 64*1024 })
-      let db = jitdb(raf, path.join(dir, "indexes" + name))
+      let raf = FlumeLog(path.join(dir, name), { blockSize: 64 * 1024 })
+      let db = jitdb(raf, path.join(dir, 'indexes' + name))
       db.onReady(() => {
         test(name, (t) => cb(t, db, raf))
       })
