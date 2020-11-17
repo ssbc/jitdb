@@ -26,8 +26,8 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
@@ -49,8 +49,8 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
               data: {
                 seek: helpers.seekAuthor,
                 value: keys.id,
-                indexType: "author"
-              }
+                indexType: 'author',
+              },
             }
             db.paginate(authorQuery, 0, 10, false, (err, results) => {
               t.equal(results.data.length, 1)
@@ -61,33 +61,48 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                 t.equal(results.data.length, 1)
                 t.equal(results.data[0].id, msg1.id)
 
-                db.paginate({
-                  type: 'AND',
-                  data: [authorQuery, typeQuery]
-                }, 0, 10, false, (err, results) => {
-                  t.equal(results.data.length, 1)
-                  t.equal(results.data[0].id, msg1.id)
-
-                  const authorQuery2 = {
-                    type: 'EQUAL',
-                    data: {
-                      seek: helpers.seekAuthor,
-                      value: keys2.id,
-                      indexType: "author"
-                    }
-                  }
-
-                  db.paginate({
+                db.paginate(
+                  {
                     type: 'AND',
-                    data: [typeQuery, {
-                      type: 'OR',
-                      data: [authorQuery, authorQuery2]
-                    }]
-                  }, 0, 10, false, (err, results) => {
-                    t.equal(results.data.length, 2)
-                    t.end()
-                  })
-                })
+                    data: [authorQuery, typeQuery],
+                  },
+                  0,
+                  10,
+                  false,
+                  (err, results) => {
+                    t.equal(results.data.length, 1)
+                    t.equal(results.data[0].id, msg1.id)
+
+                    const authorQuery2 = {
+                      type: 'EQUAL',
+                      data: {
+                        seek: helpers.seekAuthor,
+                        value: keys2.id,
+                        indexType: 'author',
+                      },
+                    }
+
+                    db.paginate(
+                      {
+                        type: 'AND',
+                        data: [
+                          typeQuery,
+                          {
+                            type: 'OR',
+                            data: [authorQuery, authorQuery2],
+                          },
+                        ],
+                      },
+                      0,
+                      10,
+                      false,
+                      (err, results) => {
+                        t.equal(results.data.length, 2)
+                        t.end()
+                      }
+                    )
+                  }
+                )
               })
             })
           })
@@ -108,8 +123,8 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
@@ -131,7 +146,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
 
   let state = validate.initial()
   for (var i = 0; i < 32 * 1000; ++i) {
-    msg.text = "Testing " + i
+    msg.text = 'Testing ' + i
     state = validate.appendNew(state, null, keys, msg, Date.now())
   }
 
@@ -140,8 +155,8 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   push(
@@ -173,22 +188,24 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
   const authorQuery = {
     type: 'AND',
     data: [
-      { type: 'EQUAL',
+      {
+        type: 'EQUAL',
         data: {
           seek: helpers.seekType,
           value: 'post',
-          indexType: "type"
-        }
+          indexType: 'type',
+        },
       },
-      { type: 'EQUAL',
+      {
+        type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
           value: keys.id,
-          indexType: "author",
-          indexAll: true
-        }
-      }
-    ]
+          indexType: 'author',
+          indexAll: true,
+        },
+      },
+    ],
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -198,7 +215,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
           db.all(authorQuery, 0, false, (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
-            t.equal(Object.keys(db.indexes).length, 3+2+1+1)
+            t.equal(Object.keys(db.indexes).length, 3 + 2 + 1 + 1)
             t.end()
           })
         })
@@ -224,9 +241,9 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
       data: {
         seek: helpers.seekType,
         value,
-        indexType: "type",
-        indexAll: true
-      }
+        indexType: 'type',
+        indexAll: true,
+      },
     }
   }
 

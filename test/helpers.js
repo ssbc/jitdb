@@ -10,55 +10,50 @@ const bPrivate = Buffer.from('private')
 const bChannel = Buffer.from('channel')
 
 module.exports = {
-  seekAuthor: function(buffer) {
+  seekAuthor: function (buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)
 
-    if (~p)
-      return bipf.seekKey(buffer, p, bAuthor)
+    if (~p) return bipf.seekKey(buffer, p, bAuthor)
   },
 
-  seekType: function(buffer) {
-    var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
-
-    if (~p) {
-      p = bipf.seekKey(buffer, p, bContent)
-      if (~p)
-        return bipf.seekKey(buffer, p, bType)
-    }
-  },
-
-  seekRoot: function(buffer) {
+  seekType: function (buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)
 
     if (~p) {
       p = bipf.seekKey(buffer, p, bContent)
-      if (~p)
-        return bipf.seekKey(buffer, p, bRoot)
+      if (~p) return bipf.seekKey(buffer, p, bType)
     }
   },
 
-  seekPrivate: function(buffer) {
+  seekRoot: function (buffer) {
+    var p = 0 // note you pass in p!
+    p = bipf.seekKey(buffer, p, bValue)
+
+    if (~p) {
+      p = bipf.seekKey(buffer, p, bContent)
+      if (~p) return bipf.seekKey(buffer, p, bRoot)
+    }
+  },
+
+  seekPrivate: function (buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)
 
     if (~p) {
       p = bipf.seekKey(buffer, p, bMeta)
-      if (~p)
-        return bipf.seekKey(buffer, p, bPrivate)
+      if (~p) return bipf.seekKey(buffer, p, bPrivate)
     }
   },
 
-  seekChannel: function(buffer) {
+  seekChannel: function (buffer) {
     var p = 0 // note you pass in p!
     p = bipf.seekKey(buffer, p, bValue)
 
     if (~p) {
       p = bipf.seekKey(buffer, p, bContent)
-      if (~p)
-        return bipf.seekKey(buffer, p, bChannel)
+      if (~p) return bipf.seekKey(buffer, p, bChannel)
     }
-  }
+  },
 }

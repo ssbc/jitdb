@@ -27,8 +27,8 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   const contactQuery = {
@@ -36,8 +36,8 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'contact',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -67,16 +67,16 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now()+1)
-  state = validate.appendNew(state, null, keys, msg3, Date.now()+2)
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const typeQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -99,16 +99,16 @@ prepareAndRunTest('Offset', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now()+1)
-  state = validate.appendNew(state, null, keys, msg3, Date.now()+2)
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const typeQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -135,8 +135,8 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: Buffer.from('post'),
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -161,8 +161,8 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekRoot,
       value: undefined,
-      indexType: "root"
-    }
+      indexType: 'root',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -184,28 +184,30 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now()+1)
-  state = validate.appendNew(state, null, keys, msg3, Date.now()+2)
-  state = validate.appendNew(state, null, keys, msg4, Date.now()+3)
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+  state = validate.appendNew(state, null, keys, msg4, Date.now() + 3)
 
   const filterQuery = {
     type: 'AND',
     data: [
-      { type: 'GT',
+      {
+        type: 'GT',
         data: {
           indexName: 'sequence',
           value: 1,
-        }
+        },
       },
-      { type: 'EQUAL',
+      {
+        type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
           value: keys.id,
-          indexType: "author",
-          indexAll: true
-        }
-      }
-    ]
+          indexType: 'author',
+          indexAll: true,
+        },
+      },
+    ],
   }
 
   addMsg(state.queue[0].value, raf, (err, dbMsg1) => {
@@ -259,16 +261,16 @@ prepareAndRunTest('GTE Zero', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now()+1)
-  state = validate.appendNew(state, null, keys, msg3, Date.now()+2)
-  state = validate.appendNew(state, null, keys, msg4, Date.now()+3)
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+  state = validate.appendNew(state, null, keys, msg4, Date.now() + 3)
 
   const filterQuery = {
     type: 'GTE',
     data: {
       indexName: 'sequence',
       value: 0,
-    }
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, dbMsg1) => {
@@ -302,18 +304,19 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
   const dataQuery = {
     type: 'AND',
     data: [
-      { type: 'EQUAL',
+      {
+        type: 'EQUAL',
         data: {
           seek: helpers.seekType,
           value: 'post',
-          indexType: "type"
-        }
+          indexType: 'type',
+        },
       },
       {
         type: 'SEQS',
-        seqs: [363, 765]
-      }
-    ]
+        seqs: [363, 765],
+      },
+    ],
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -341,7 +344,7 @@ prepareAndRunTest('Data offsets simple', dir, (t, db, raf) => {
 
   const dataQuery = {
     type: 'OFFSETS',
-    offsets: [1, 2]
+    offsets: [1, 2],
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -371,18 +374,19 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
   const dataQuery = {
     type: 'AND',
     data: [
-      { type: 'EQUAL',
+      {
+        type: 'EQUAL',
         data: {
           seek: helpers.seekType,
           value: 'post',
-          indexType: "type"
-        }
+          indexType: 'type',
+        },
       },
       {
         type: 'OFFSETS',
-        offsets: [1, 2]
-      }
-    ]
+        offsets: [1, 2],
+      },
+    ],
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -413,8 +417,8 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   const authorQuery = {
@@ -422,8 +426,8 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekAuthor,
       value: keys.id,
-      indexType: "author"
-    }
+      indexType: 'author',
+    },
   }
 
   const seqQuery = {
@@ -431,12 +435,12 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     data: {
       indexName: 'sequence',
       value: 1,
-    }
+    },
   }
 
   const allQuery = {
     type: 'AND',
-    data: [typeQuery, authorQuery, seqQuery]
+    data: [typeQuery, authorQuery, seqQuery],
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
@@ -467,26 +471,26 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   const authorRandomQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: "random",
-      indexType: "author"
-    }
+      value: 'random',
+      indexType: 'author',
+    },
   }
 
   const authorRandom2Query = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: "random2",
-      indexType: "author"
-    }
+      value: 'random2',
+      indexType: 'author',
+    },
   }
 
   const authorQuery = {
@@ -494,18 +498,18 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekAuthor,
       value: keys.id,
-      indexType: "author"
-    }
+      indexType: 'author',
+    },
   }
 
   const authorsQuery = {
     type: 'OR',
-    data: [authorRandomQuery, authorRandom2Query, authorQuery]
+    data: [authorRandomQuery, authorRandom2Query, authorQuery],
   }
 
   const allQuery = {
     type: 'AND',
-    data: [typeQuery, authorsQuery]
+    data: [typeQuery, authorsQuery],
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {

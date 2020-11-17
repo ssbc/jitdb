@@ -26,8 +26,8 @@ prepareAndRunTest('Delete', dir, (t, db, raf) => {
     data: {
       seek: helpers.seekType,
       value: 'post',
-      indexType: "type"
-    }
+      indexType: 'type',
+    },
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
