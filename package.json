@@ -27,8 +27,11 @@
     "async-flumelog": "^1.0.6",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
+    "husky": "^4.3.0",
     "mkdirp": "^1.0.4",
     "obv": "0.0.1",
+    "prettier": "^2.1.2",
+    "pretty-quick": "^3.1.0",
     "pull-stream": "^3.6.14",
     "rimraf": "^3.0.2",
     "ssb-keys": "^7.2.2",
@@ -38,7 +41,14 @@
     "tape": "^5.0.1"
   },
   "scripts": {
-    "test": "tape test/*.js | tap-spec"
+    "test": "tape test/*.js | tap-spec",
+    "format-code": "prettier --write \"*.js\" \"test/*.js\"",
+    "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\""
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run format-code-staged"
+    }
   },
   "author": "Anders Rune Jensen <arj03@protonmail.ch>",
   "contributors": ["Andre Staltz <contact@staltz.com>"],
