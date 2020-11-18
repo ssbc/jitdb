@@ -1,6 +1,6 @@
 const bipf = require('bipf')
 const traverse = require('traverse')
-const promisify = require('pify')
+const promisify = require('promisify-4loc')
 
 function query(...cbs) {
   let res = cbs[0]
