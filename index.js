@@ -190,8 +190,8 @@ module.exports = function (log, indexesPath) {
   const bSequence = Buffer.from('sequence')
   const bValue = Buffer.from('value')
 
-  function getValue(val, cb) {
-    var seq = indexes['offset'].data[val]
+  function getValue(offset, cb) {
+    var seq = indexes['offset'].data[offset]
     log.get(seq, (err, res) => {
       if (err && err.code === 'flumelog:deleted') cb()
       else cb(err, bipf.decode(res, 0))
@@ -308,7 +308,7 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function checkValue(opData, index, buffer) {
+  function checkValue(opData, buffer) {
     const seekKey = opData.seek(buffer)
     if (opData.value === undefined) return seekKey === -1
     else if (
@@ -320,7 +320,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function updateIndexValue(opData, index, buffer, offset) {
-    const status = checkValue(opData, index, buffer)
+    const status = checkValue(opData, buffer)
     if (status) index.data.add(offset)
 
     return status
@@ -509,6 +509,12 @@ module.exports = function (log, indexesPath) {
         : Buffer.from(op.data.value)
   }
 
+  function ensureOffsetIndexSync(cb) {
+    if (log.since.value > indexes['offset'].seq)
+      updateIndex({ data: { indexName: 'offset' } }, cb)
+    else cb()
+  }
+
   function indexSync(operation, cb) {
     var missingIndexes = []
     var lazyIndexes = []
@@ -567,12 +573,6 @@ module.exports = function (log, indexesPath) {
       return op
     }
 
-    function ensureOffsetIndexSync(cb) {
-      if (log.since.value > indexes['offset'].seq)
-        updateIndex({ data: { indexName: 'offset' } }, cb)
-      else cb()
-    }
-
     function getBitsetForOperation(op, cb) {
       if (op.type === 'EQUAL') {
         ensureIndexSync(op, () => {
@@ -626,17 +626,18 @@ module.exports = function (log, indexesPath) {
       } else console.error('Unknown type', op)
     }
 
-    function step3() {
+    function getBitset() {
       getBitsetForOperation(operation, cb)
     }
 
-    function step2() {
-      if (missingIndexes.length > 0) createIndexes(missingIndexes, step3)
-      else step3()
+    function createMissingIndexes() {
+      if (missingIndexes.length > 0) createIndexes(missingIndexes, getBitset)
+      else getBitset()
     }
 
-    if (lazyIndexes.length > 0) loadLazyIndexes(lazyIndexes, step2)
-    else step2()
+    if (lazyIndexes.length > 0)
+      loadLazyIndexes(lazyIndexes, createMissingIndexes)
+    else createMissingIndexes()
   }
 
   function onReady(cb) {
@@ -697,32 +698,96 @@ module.exports = function (log, indexesPath) {
       return indexes[op.data.indexName].seq
     },
 
-    liveQuerySingleIndex: function (op, cb) {
-      var newValues = []
-      var sendNewValues = debounce(function () {
-        var v = newValues.slice(0)
-        newValues = []
-        cb(null, v)
-      }, 300)
+    // live will return new messages as they enter the log
+    // can be combined with a normal all or paginate first
+    live: function (op, cb) {
+      // FIXME: probably return a remove function?
+      onReady(() => {
+        // FIXME: index sync? careful with empty db and seq
 
-      function syncNewValue(val) {
-        newValues.push(val)
-        sendNewValues()
-      }
+        function getRawData(offset, cb) {
+          var seq = indexes['offset'].data[offset]
+          log.get(seq, (err, res) => {
+            if (err && err.code === 'flumelog:deleted') cb()
+            else cb(err, res)
+          })
+        }
 
-      setupIndex(op)
+        let seq = -1
+        let isDeferred = false
+        function newDeferredValue(offset) {
+          ensureOffsetIndexSync(() => {
+            getRawData(offset, (err, data) => {
+              if (isValueOk([op], data))
+                cb(null, bipf.decode(data, 0))
+            })
+          })
+        }
 
-      var opts = { live: true }
+        function setupOps(ops) {
+          ops.forEach((op) => {
+            if (op.type === 'EQUAL') {
+              setupIndex(op)
+              if (!indexes[op.data.indexName])
+                seq = -1
+              else
+                seq = indexes[op.data.indexName].seq
+            }
+            else if (op.type === 'AND' || op.type === 'OR')
+              setupOps(op.data)
+            else if (op.type === 'OFFSETS') {
+              if (isDeferred)
+                throw new Error("Only one deferred in live supported")
+              isDeferred = true
+              op.newValue = newDeferredValue
+            }
+          })
+        }
 
-      var index = indexes[op.data.indexName]
-      if (index) opts.gt = index.seq
+        setupOps([op])
 
-      log.stream(opts).pipe({
-        paused: false,
-        write: function (data) {
-          if (checkValue(op.data, index, data.value))
-            syncNewValue(bipf.decode(data.value, 0))
-        },
+        function isValueOk(ops, value, isOr) {
+          for (var i = 0; i < ops.length; ++i) {
+            const op = ops[i]
+            let ok = false
+            if (op.type === 'EQUAL')
+              ok = checkValue(op.data, value)
+            else if (op.type === 'AND')
+              ok = isValueOk(op.data, value, false)
+            else if (op.type === 'OR')
+              ok = isValueOk(op.data, value, true)
+            else if (op.type === 'OFFSETS')
+              ok = true
+
+            if (ok && isOr)
+              return true
+            else if (!ok && !isOr)
+              return false
+          }
+
+          if (isOr)
+            return false
+          else
+            return true
+        }
+
+        // there are two cases here:
+        // - op contains a live deferred value, in which case we
+        //   wait for the deferred, as we won't know if the msg is
+        //   good until we know the state of the deferred value
+        // - op doesn't contain, in which case we do a live stream
+        //   on the log directly
+
+        if (!isDeferred) {
+          let opts = { live: true, gt: seq }
+          log.stream(opts).pipe({
+            paused: false,
+            write: function (data) {
+              if (isValueOk([op], data.value))
+                cb(null, bipf.decode(data.value, 0))
+            }
+          })
+        }
       })
     },
 
