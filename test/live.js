@@ -204,8 +204,11 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
 prepareAndRunTest('Live with deferred values', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
-  state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg, Date.now())
+
+  for (var i = 0; i < 1001; ++i) {
+    msg.i = i
+    state = validate.appendNew(state, null, keys, msg, Date.now()+i)
+  }
 
   const typeQuery = {
     type: 'AND',
@@ -229,15 +232,19 @@ prepareAndRunTest('Live with deferred values', dir, (t, db, raf) => {
     db.all(typeQuery, 0, false, (err, results) => {
       t.equal(results.length, 1)
 
+      let deferredI = 1
+
       // setup deferred cb handler
       db.live(typeQuery, (err, result) => {
-        t.equal(result.id, state.queue[1].value.id)
-        t.end()
+        t.equal(result.id, state.queue[deferredI++].value.id)
+        if (deferredI == 1001)
+          t.end()
       })
 
-      addMsg(state.queue[1].value, raf, (err, msg1) => {
-        typeQuery.data[1].newValue(1)
-      })
+      for (var i = 1; i < 1001; ++i) {
+        addMsg(state.queue[i].value, raf, () => {})
+        typeQuery.data[1].newValue(i)
+      }
     })
   })
 })
