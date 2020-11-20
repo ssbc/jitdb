@@ -706,7 +706,7 @@ module.exports = function (log, indexesPath) {
         // FIXME: index sync? careful with empty db and seq
 
         function getRawData(offset, cb) {
-          var seq = indexes['offset'].data[offset]
+          let seq = indexes['offset'].data[offset]
           log.get(seq, (err, res) => {
             if (err && err.code === 'flumelog:deleted') cb()
             else cb(err, res)
