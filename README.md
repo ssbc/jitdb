@@ -388,11 +388,14 @@ data structure in sync with the result of a query.
 
 Get the latest seq of an index
 
-### liveQuerySingleIndex(operation, cb)
+### live(operation, cb)
 
-Operation must be a single index, such as the contact index. With this
-results matching the index will be returned in callback as they are
-added to the database. The index is *not* updated when using this method.
+Works like `all` except it will only return message in cb as they come
+in. This can be run after `paginate` or `all` to simulate a all
+results followed by live results. See operators for examples of this.
+
+The index is *not* updated when using this method. And only 1 live
+deferred value is supported.
 
 ### onReady(cb)
 
