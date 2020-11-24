@@ -752,8 +752,7 @@ module.exports = function (log, indexesPath) {
               if (op.type === 'EQUAL') ok = checkValue(op.data, value)
               else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
               else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
-              else if (op.type === 'OFFSETS' || op.type === 'DEFERREDOFFSETS')
-                ok = true
+              else if (op.type === 'DEFERREDOFFSETS') ok = true
 
               if (ok && isOr) return true
               else if (!ok && !isOr) return false
