@@ -161,21 +161,21 @@ module.exports = function (log, indexesPath) {
 
     if (!indexes['offset']) {
       indexes['offset'] = {
-        seq: 0,
+        seq: -1,
         count: 0,
         data: new Uint32Array(16 * 1000),
       }
     }
     if (!indexes['timestamp']) {
       indexes['timestamp'] = {
-        seq: 0,
+        seq: -1,
         count: 0,
         data: new Float64Array(16 * 1000),
       }
     }
     if (!indexes['sequence']) {
       indexes['sequence'] = {
-        seq: 0,
+        seq: -1,
         count: 0,
         data: new Uint32Array(16 * 1000),
       }
@@ -195,6 +195,14 @@ module.exports = function (log, indexesPath) {
     log.get(seq, (err, res) => {
       if (err && err.code === 'flumelog:deleted') cb()
       else cb(err, bipf.decode(res, 0))
+    })
+  }
+
+  function getRawData(offset, cb) {
+    let seq = indexes['offset'].data[offset]
+    log.get(seq, (err, res) => {
+      if (err && err.code === 'flumelog:deleted') cb()
+      else cb(err, res)
     })
   }
 
@@ -345,11 +353,14 @@ module.exports = function (log, indexesPath) {
     var index = indexes[op.data.indexName]
 
     // find the next possible offset
-    for (var offset = 0; offset < indexes['offset'].data.length; ++offset)
-      if (indexes['offset'].data[offset] === index.seq) {
-        offset++
-        break
-      }
+    var offset = 0
+    if (index.seq != -1) {
+      for (; offset < indexes['offset'].data.length; ++offset)
+        if (indexes['offset'].data[offset] === index.seq) {
+          offset++
+          break
+        }
+    }
 
     var updatedOffsetIndex = false
     var updatedTimestampIndex = false
@@ -701,94 +712,82 @@ module.exports = function (log, indexesPath) {
     // live will return new messages as they enter the log
     // can be combined with a normal all or paginate first
     live: function (op, cb) {
-      // FIXME: probably return a remove function?
+      let cleaner = {}
       onReady(() => {
-        // FIXME: index sync? careful with empty db and seq
-
-        function getRawData(offset, cb) {
-          let seq = indexes['offset'].data[offset]
-          log.get(seq, (err, res) => {
-            if (err && err.code === 'flumelog:deleted') cb()
-            else cb(err, res)
-          })
-        }
-
-        let seq = -1
-        let isDeferred = false
-        function newDeferredValue(offset) {
-          ensureOffsetIndexSync(() => {
-            getRawData(offset, (err, data) => {
-              if (isValueOk([op], data))
-                cb(null, bipf.decode(data, 0))
+        indexSync(op, (bitset) => {
+          let seq = -1
+          let isDeferred = false
+          function newDeferredValue(offset) {
+            ensureOffsetIndexSync(() => {
+              getRawData(offset, (err, data) => {
+                if (isValueOk([op], data)) cb(null, bipf.decode(data, 0))
+              })
             })
-          })
-        }
-
-        function setupOps(ops) {
-          ops.forEach((op) => {
-            if (op.type === 'EQUAL') {
-              setupIndex(op)
-              if (!indexes[op.data.indexName])
-                seq = -1
-              else
-                seq = indexes[op.data.indexName].seq
-            }
-            else if (op.type === 'AND' || op.type === 'OR')
-              setupOps(op.data)
-            else if (op.type === 'OFFSETS') {
-              if (isDeferred)
-                throw new Error("Only one deferred in live supported")
-              isDeferred = true
-              op.newValue = newDeferredValue
-            }
-          })
-        }
-
-        setupOps([op])
-
-        function isValueOk(ops, value, isOr) {
-          for (var i = 0; i < ops.length; ++i) {
-            const op = ops[i]
-            let ok = false
-            if (op.type === 'EQUAL')
-              ok = checkValue(op.data, value)
-            else if (op.type === 'AND')
-              ok = isValueOk(op.data, value, false)
-            else if (op.type === 'OR')
-              ok = isValueOk(op.data, value, true)
-            else if (op.type === 'OFFSETS')
-              ok = true
-
-            if (ok && isOr)
-              return true
-            else if (!ok && !isOr)
-              return false
           }
 
-          if (isOr)
-            return false
-          else
-            return true
-        }
+          let abortDeferred
 
-        // there are two cases here:
-        // - op contains a live deferred value, in which case we
-        //   wait for the deferred, as we won't know if the msg is
-        //   good until we know the state of the deferred value
-        // - op doesn't contain, in which case we do a live stream
-        //   on the log directly
+          function setupOps(ops) {
+            ops.forEach((op) => {
+              if (op.type === 'EQUAL') {
+                setupIndex(op)
+                if (!indexes[op.data.indexName]) seq = -1
+                else seq = indexes[op.data.indexName].seq
+              } else if (op.type === 'AND' || op.type === 'OR')
+                setupOps(op.data)
+              else if (op.type === 'OFFSETS') {
+                // FIXME: this needs to be reworked
+                if (isDeferred)
+                  throw new Error('Only one deferred in live supported')
+                isDeferred = true
+                op.newValue = newDeferredValue
+                abortDeferred = op.abort
+              }
+            })
+          }
 
-        if (!isDeferred) {
-          let opts = { live: true, gt: seq }
-          log.stream(opts).pipe({
-            paused: false,
-            write: function (data) {
-              if (isValueOk([op], data.value))
-                cb(null, bipf.decode(data.value, 0))
+          setupOps([op])
+
+          function isValueOk(ops, value, isOr) {
+            for (var i = 0; i < ops.length; ++i) {
+              const op = ops[i]
+              let ok = false
+              if (op.type === 'EQUAL') ok = checkValue(op.data, value)
+              else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
+              else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
+              else if (op.type === 'OFFSETS') ok = true
+
+              if (ok && isOr) return true
+              else if (!ok && !isOr) return false
             }
-          })
-        }
+
+            if (isOr) return false
+            else return true
+          }
+
+          // there are two cases here:
+          // - op contains a live deferred value, in which case we
+          //   wait for the deferred, as we won't know if the msg is
+          //   good until we know the state of the deferred value
+          // - op doesn't contain, in which case we do a live stream
+          //   on the log directly
+
+          if (!isDeferred) {
+            let opts = { live: true, gt: seq }
+            const stream = log.stream(opts)
+            cleaner.cleanup = stream.abort.bind(stream)
+            stream.pipe({
+              paused: false,
+              write: function (data) {
+                if (isValueOk([op], data.value))
+                  cb(null, bipf.decode(data.value, 0))
+              },
+            })
+          } else cleaner.cleanup = abortDeferred
+        })
       })
+
+      return cleaner
     },
 
     onReady,
