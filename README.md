@@ -415,12 +415,12 @@ Get the latest seq of an index
 
 ### live(operation, cb)
 
-Works like `all` except it will only return message in cb as they come
-in. This can be run after `paginate` or `all` to simulate a all
-results followed by live results. See operators for examples of this.
+Will setup a pull stream and this in `cb`. The pull stream will emit
+new values as they are added to the underlying log. This is meant to
+run after `paginate` or `all`.
 
-The index is *not* updated when using this method. And only 1 live
-deferred value is supported.
+Please note the index is *not* updated when using this method and only
+one live deferred offset stream is supported.
 
 ### onReady(cb)
 
