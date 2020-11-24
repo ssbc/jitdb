@@ -27,9 +27,10 @@ function offsets(values) {
   }
 }
 
-function deferredOffsets(pullStream) {
+function liveOffsets(values, pullStream) {
   return {
-    type: 'DEFERREDOFFSETS',
+    type: 'LIVEOFFSETS',
+    offsets: values,
     stream: pullStream,
   }
 }
@@ -296,7 +297,6 @@ function toPullStream() {
     const live = meta.live
     let ops
     let abortable
-    console.log('pulling, is live?', meta.live)
     function readable(end, cb) {
       if (end) {
         if (abortable) abortable.abort()
@@ -305,10 +305,8 @@ function toPullStream() {
       if (offset >= total) {
         if (!live) return cb(true)
         else {
-          console.log('setting up a live stream')
           const abortable = Abortable()
           return meta.db.live(ops, (err, p) => {
-            console.log('pulling', p)
             pull(
               p,
               abortable,
@@ -383,6 +381,7 @@ module.exports = {
   and,
   or,
   deferred,
+  liveOffsets,
 
   offsets,
   seqs,

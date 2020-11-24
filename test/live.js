@@ -248,7 +248,7 @@ prepareAndRunTest('Live with deferred values', dir, (t, db, raf) => {
         },
       },
       {
-        type: 'DEFERREDOFFSETS',
+        type: 'LIVEOFFSETS',
         offsets: [0],
         stream: ps,
       },

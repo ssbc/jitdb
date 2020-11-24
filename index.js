@@ -543,7 +543,7 @@ module.exports = function (log, indexesPath) {
           handleOperations(op.data)
         else if (
           op.type === 'OFFSETS' ||
-          op.type === 'DEFERREDOFFSETS' ||
+          op.type === 'LIVEOFFSETS' ||
           op.type === 'SEQS'
         );
         else debug('Unknown operator type:' + op.type)
@@ -619,7 +619,7 @@ module.exports = function (log, indexesPath) {
         ensureOffsetIndexSync(() => {
           cb(new TypedFastBitSet(op.offsets))
         })
-      } else if (op.type === 'DEFERREDOFFSETS') {
+      } else if (op.type === 'LIVEOFFSETS') {
         ensureOffsetIndexSync(() => {
           cb(new TypedFastBitSet(op.offsets))
         })
@@ -735,7 +735,7 @@ module.exports = function (log, indexesPath) {
                 else seq = indexes[op.data.indexName].seq
               } else if (op.type === 'AND' || op.type === 'OR')
                 setupOps(op.data)
-              else if (op.type === 'DEFERREDOFFSETS') {
+              else if (op.type === 'LIVEOFFSETS') {
                 if (dataStream)
                   throw new Error('Only one deferred in live supported')
                 dataStream = op.stream
@@ -752,7 +752,7 @@ module.exports = function (log, indexesPath) {
               if (op.type === 'EQUAL') ok = checkValue(op.data, value)
               else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
               else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
-              else if (op.type === 'DEFERREDOFFSETS') ok = true
+              else if (op.type === 'LIVEOFFSETS') ok = true
 
               if (ok && isOr) return true
               else if (!ok && !isOr) return false
