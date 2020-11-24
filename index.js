@@ -2,6 +2,8 @@ const bipf = require('bipf')
 const TypedFastBitSet = require('typedfastbitset')
 const path = require('path')
 const push = require('push-stream')
+const toPull = require('push-stream-to-pull-stream')
+const pull = require('pull-stream')
 const sanitize = require('sanitize-filename')
 const debounce = require('lodash.debounce')
 const AtomicFile = require('atomic-file/buffer')
@@ -202,7 +204,7 @@ module.exports = function (log, indexesPath) {
     let seq = indexes['offset'].data[offset]
     log.get(seq, (err, res) => {
       if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, res)
+      else cb(err, { seq, value: res })
     })
   }
 
@@ -539,7 +541,11 @@ module.exports = function (log, indexesPath) {
             lazyIndexes.push(op.data.indexName)
         } else if (op.type === 'AND' || op.type === 'OR')
           handleOperations(op.data)
-        else if (op.type === 'OFFSETS' || op.type === 'SEQS');
+        else if (
+          op.type === 'OFFSETS' ||
+          op.type === 'DEFERREDOFFSETS' ||
+          op.type === 'SEQS'
+        );
         else debug('Unknown operator type:' + op.type)
       })
     }
@@ -610,6 +616,10 @@ module.exports = function (log, indexesPath) {
           cb(new TypedFastBitSet(offsets))
         })
       } else if (op.type === 'OFFSETS') {
+        ensureOffsetIndexSync(() => {
+          cb(new TypedFastBitSet(op.offsets))
+        })
+      } else if (op.type === 'DEFERREDOFFSETS') {
         ensureOffsetIndexSync(() => {
           cb(new TypedFastBitSet(op.offsets))
         })
@@ -712,20 +722,10 @@ module.exports = function (log, indexesPath) {
     // live will return new messages as they enter the log
     // can be combined with a normal all or paginate first
     live: function (op, cb) {
-      let cleaner = {}
       onReady(() => {
         indexSync(op, (bitset) => {
           let seq = -1
-          let isDeferred = false
-          function newDeferredValue(offset) {
-            ensureOffsetIndexSync(() => {
-              getRawData(offset, (err, data) => {
-                if (isValueOk([op], data)) cb(null, bipf.decode(data, 0))
-              })
-            })
-          }
-
-          let abortDeferred
+          let dataStream
 
           function setupOps(ops) {
             ops.forEach((op) => {
@@ -735,13 +735,10 @@ module.exports = function (log, indexesPath) {
                 else seq = indexes[op.data.indexName].seq
               } else if (op.type === 'AND' || op.type === 'OR')
                 setupOps(op.data)
-              else if (op.type === 'OFFSETS') {
-                // FIXME: this needs to be reworked
-                if (isDeferred)
+              else if (op.type === 'DEFERREDOFFSETS') {
+                if (dataStream)
                   throw new Error('Only one deferred in live supported')
-                isDeferred = true
-                op.newValue = newDeferredValue
-                abortDeferred = op.abort
+                dataStream = op.stream
               }
             })
           }
@@ -755,7 +752,8 @@ module.exports = function (log, indexesPath) {
               if (op.type === 'EQUAL') ok = checkValue(op.data, value)
               else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
               else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
-              else if (op.type === 'OFFSETS') ok = true
+              else if (op.type === 'OFFSETS' || op.type === 'DEFERREDOFFSETS')
+                ok = true
 
               if (ok && isOr) return true
               else if (!ok && !isOr) return false
@@ -766,28 +764,40 @@ module.exports = function (log, indexesPath) {
           }
 
           // there are two cases here:
-          // - op contains a live deferred value, in which case we
-          //   wait for the deferred, as we won't know if the msg is
-          //   good until we know the state of the deferred value
-          // - op doesn't contain, in which case we do a live stream
-          //   on the log directly
 
-          if (!isDeferred) {
+          // - op contains a live deferred, in which case we let the
+          //   deferred stream drive new values
+          // - op doesn't, in which we let the log stream drive new
+          //   values
+
+          if (!dataStream) {
             let opts = { live: true, gt: seq }
-            const stream = log.stream(opts)
-            cleaner.cleanup = stream.abort.bind(stream)
-            stream.pipe({
-              paused: false,
-              write: function (data) {
-                if (isValueOk([op], data.value))
-                  cb(null, bipf.decode(data.value, 0))
-              },
-            })
-          } else cleaner.cleanup = abortDeferred
+            dataStream = toPull(log.stream(opts))
+          } else {
+            dataStream = pull(
+              dataStream,
+              pull.asyncMap((i, cb) => {
+                ensureOffsetIndexSync(() => {
+                  getRawData(i, cb)
+                })
+              })
+            )
+          }
+
+          return cb(
+            null,
+            pull(
+              dataStream,
+              pull.filter((data) => {
+                return isValueOk([op], data.value)
+              }),
+              pull.map((data) => {
+                return bipf.decode(data.value, 0)
+              })
+            )
+          )
         })
       })
-
-      return cleaner
     },
 
     onReady,

@@ -21,6 +21,7 @@ const {
   fromDB,
   paginate,
   startFrom,
+  live,
   descending,
   toCallback,
   toPromise,
@@ -568,3 +569,34 @@ prepareAndRunTest('support deferred operations', dir, (t, db, raf) => {
     })
   })
 })
+
+prepareAndRunTest('support live deferred operations', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        and(
+          deferred((meta, cb) => {
+            setTimeout(() => {
+              cb(null, slowEqual('value.author', alice.id))
+            }, 100)
+          })
+        ),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error')
+          t.equal(msgs.length, 1, 'toCallback got two messages')
+          t.equal(msgs[0].value.author, alice.id)
+          t.equal(msgs[0].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
+// FIXME: support normal live
