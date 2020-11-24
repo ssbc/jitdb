@@ -263,7 +263,6 @@ prepareAndRunTest('Live with deferred values', dir, (t, db, raf) => {
 
       // setup deferred cb handler
       db.live(typeQuery, (err, p) => {
-        console.log('draining', p)
         drain(p, (result) => {
           t.equal(result.key, state.queue[deferredI].key)
           deferredI += 2
