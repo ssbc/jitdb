@@ -304,8 +304,8 @@ function toPullStream() {
       }
       if (offset >= total) {
         if (!live) return cb(true)
-        else {
-          const abortable = Abortable()
+        else if (!abortable) {
+          abortable = Abortable()
           return meta.db.live(ops, (err, p) => {
             pull(
               p,
@@ -315,7 +315,7 @@ function toPullStream() {
               })
             )
           })
-        }
+        } else return
       }
       meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
         if (err) return cb(err)

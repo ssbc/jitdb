@@ -605,4 +605,28 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
   })
 })
 
-// FIXME: normal live
+prepareAndRunTest('support live operations', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    let i = 0
+    query(
+      fromDB(db),
+      and(slowEqual('value.content.type', 'post')),
+      live(),
+      toPullStream(),
+      pull.drain((msg) => {
+        if (i++ == 0) {
+          t.equal(msg.value.author, alice.id)
+          addMsg(state.queue[1].value, raf, (e2, msg2) => {})
+        } else {
+          t.equal(msg.value.author, bob.id)
+          t.end()
+        }
+      })
+    )
+  })
+})
