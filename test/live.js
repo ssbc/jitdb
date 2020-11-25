@@ -6,7 +6,6 @@ const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const pull = require('pull-stream')
-const Abortable = require('pull-abortable')
 
 const dir = '/tmp/jitdb-live'
 rimraf.sync(dir)
@@ -15,10 +14,6 @@ mkdirp.sync(dir)
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 var keys2 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret2'))
 var keys3 = ssbKeys.loadOrCreateSync(path.join(dir, 'secret3'))
-
-function drain(p, f) {
-  pull(p, pull.drain(f))
-}
 
 prepareAndRunTest('Live', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
@@ -36,8 +31,9 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
   }
 
   var i = 1
-  db.live(typeQuery, (err, p) => {
-    drain(p, (result) => {
+  pull(
+    db.live(typeQuery),
+    pull.drain((result) => {
       if (i++ == 1) {
         t.equal(result.key, state.queue[0].key)
         addMsg(state.queue[1].value, raf, (err, msg1) => {})
@@ -46,7 +42,7 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
         t.end()
       }
     })
-  })
+  )
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     // console.log("waiting for live query")
@@ -83,8 +79,9 @@ prepareAndRunTest('Live and', dir, (t, db, raf) => {
   }
 
   var i = 1
-  db.live(filterQuery, (err, p) => {
-    drain(p, (result) => {
+  pull(
+    db.live(filterQuery),
+    pull.drain((result) => {
       if (i++ == 1) {
         t.equal(result.key, state.queue[0].key)
         addMsg(state.queue[1].value, raf, (err, msg1) => {})
@@ -96,7 +93,7 @@ prepareAndRunTest('Live and', dir, (t, db, raf) => {
         t.fail('should only be called once')
       }
     })
-  })
+  )
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     // console.log("waiting for live query")
@@ -150,8 +147,9 @@ prepareAndRunTest('Live or', dir, (t, db, raf) => {
   }
 
   var i = 1
-  db.live(filterQuery, (err, p) => {
-    drain(p, (result) => {
+  pull(
+    db.live(filterQuery),
+    pull.drain((result) => {
       if (i == 1) {
         t.equal(result.key, state.queue[0].key)
         addMsg(state.queue[1].value, raf, () => {})
@@ -168,7 +166,7 @@ prepareAndRunTest('Live or', dir, (t, db, raf) => {
 
       i += 1
     })
-  })
+  )
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     // console.log("waiting for live query")
@@ -195,8 +193,9 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
     db.all(typeQuery, 0, false, (err, results) => {
       t.equal(results.length, 1)
 
-      db.live(typeQuery, (err, p) => {
-        drain(p, (result) => {
+      pull(
+        db.live(typeQuery),
+        pull.drain((result) => {
           t.equal(result.key, state.queue[1].key)
 
           // rerun on updated index
@@ -205,7 +204,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
             t.end()
           })
         })
-      })
+      )
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
         // console.log("waiting for live query")
@@ -262,13 +261,14 @@ prepareAndRunTest('Live with deferred values', dir, (t, db, raf) => {
       let deferredI = 1
 
       // setup deferred cb handler
-      db.live(typeQuery, (err, p) => {
-        drain(p, (result) => {
+      pull(
+        db.live(typeQuery),
+        pull.drain((result) => {
           t.equal(result.key, state.queue[deferredI].key)
           deferredI += 2
           if (deferredI == n) t.end()
         })
-      })
+      )
     })
   })
 })
@@ -288,26 +288,23 @@ prepareAndRunTest('Live with cleanup', dir, (t, db, raf) => {
     },
   }
 
-  db.live(typeQuery, (err, p) => {
-    const abortable = Abortable()
+  pull(
+    db.live(typeQuery),
+    pull.drain((result) => {
+      t.equal(result.key, state.queue[0].key)
 
-    pull(
-      p,
-      abortable,
-      pull.drain((result) => {
-        t.equal(result.key, state.queue[0].key)
-        abortable.abort()
-
-        // add second live query
-        db.live(typeQuery, (err, p) => {
-          drain(p, (result) => {
-            t.equal(result.key, state.queue[1].key)
-            t.end()
-          })
+      // add second live query
+      pull(
+        db.live(typeQuery),
+        pull.drain((result) => {
+          t.equal(result.key, state.queue[1].key)
+          t.end()
         })
-      })
-    )
-  })
+      )
+
+      return false // abort
+    })
+  )
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     addMsg(state.queue[1].value, raf, (err, msg1) => {

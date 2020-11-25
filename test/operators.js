@@ -1,7 +1,6 @@
 const test = require('tape')
 const pull = require('pull-stream')
 const Pushable = require('pull-pushable')
-const Abortable = require('pull-abortable')
 const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const { prepareAndRunTest, addMsg, helpers } = require('./common')()
@@ -611,7 +610,6 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
 
   var ps = Pushable()
-  const abortable = Abortable()
 
   query(
     fromDB(db),
@@ -624,18 +622,17 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
       })
     ),
     toPullStream(),
-    abortable,
     pull.filter((x) => x), // filter out the first non-live empty result
     pull.drain((msg) => {
       t.equal(msg.value.author, bob.id)
-
-      abortable.abort()
 
       // test we don't get live messages after aborting stream
       addMsg(state.queue[1].value, raf, (e2, msg2) => {
         ps.push(2)
         t.end()
       })
+
+      return false // abort
     })
   )
 
@@ -643,6 +640,32 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       ps.push(1)
     })
+  })
+})
+
+prepareAndRunTest('support live operations async iter', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, async (e1, msg1) => {
+    let i = 0
+    const results = query(
+      fromDB(db),
+      and(slowEqual('value.content.type', 'post')),
+      live(),
+      toAsyncIter()
+    )
+    for await (let msg of results) {
+      if (i++ == 0) {
+        t.equal(msg.value.author, alice.id)
+        addMsg(state.queue[1].value, raf, (e2, msg2) => {})
+      } else {
+        t.equal(msg.value.author, bob.id)
+        t.end()
+      }
+    }
   })
 })
 
