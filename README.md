@@ -30,7 +30,9 @@ messages.
 
 ### Setup
 
-Before using JITDB, you have to setup an instance of [async-flumelog] located at a certain path. Then you can instantiate JITDB, and it requires a **path to the directory where the indexes** will live.
+Before using JITDB, you have to setup an instance of [async-flumelog]
+located at a certain path. Then you can instantiate JITDB, and it
+requires a **path to the directory where the indexes** will live.
 
 ```js
 const FlumeLog = require('async-flumelog')
@@ -46,7 +48,9 @@ db.onReady(() => {
 
 ### Operators
 
-JITDB comes with a set of composable "operators" that allow you to query the database. You can load these operators from `require('jitdb/operators')`.
+JITDB comes with a set of composable "operators" that allow you to
+query the database. You can load these operators from
+`require('jitdb/operators')`.
 
 ```js
 const FlumeLog = require('async-flumelog')
@@ -73,12 +77,14 @@ The essential operators are `fromDB`, `query`, and `toCallback`.
 - **query** wraps all the operators, chaining them together
 - **toCallback** delivers the results of the query to a callback
 
-Then there are filtering operators that scope down the results to your desired set of messages: `and`, `or`, `equal`, `slowEqual`.
+Then there are filtering operators that scope down the results to your
+desired set of messages: `and`, `or`, `equal`, `slowEqual`.
 
 - **and** filters for messages that satisfy **all** of the arguments provided
 - **or** filters for messages that satisfy **at least one** of the arguments provided
 - **equal** filters for messages that have a specific *field*, arguments are:
-  - `seek` is a function that takes a [bipf] buffer as input and uses `bipf.seekKey` to return a pointer to the *field*
+  - `seek` is a function that takes a [bipf] buffer as input and uses
+    `bipf.seekKey` to return a pointer to the *field*
   - `value` is a string or buffer which is the value we want the *field*'s value to match
   - `indexType` is a name used to identify the index produced by this query
 - **slowEqual** is a more ergonomic (but slower) way of performing `equal`, the arguments are:
@@ -163,12 +169,16 @@ function seekAuthor(buffer) {
 
 #### Pagination
 
-If you use `toCallback`, it gives you all results in one go. If you want to get results in batches, you should use **`toPullStream`**, **`paginate`**, and optionally `startFrom` and `descending`.
+If you use `toCallback`, it gives you all results in one go. If you
+want to get results in batches, you should use **`toPullStream`**,
+**`paginate`**, and optionally `startFrom` and `descending`.
 
 - **toPullStream** creates a [pull-stream] source to stream the results
 - **paginate** configures the size of each page stream to the pull-stream source
 - **startFrom** configures the beginning offset from where to start streaming
-- **descending** configures the pagination stream to order results from newest to oldest (otherwise the default order is oldest to newest)
+- **descending** configures the pagination stream to order results
+  from newest to oldest (otherwise the default order is oldest to
+  newest)
 
 Example, **stream all messages of type `contact` from Alice or Bob in pages of size 10:**
 
@@ -192,7 +202,9 @@ pull(
 )
 ```
 
-**Stream all messages of type `contact` from Alice or Bob in pages of size 10, starting from the 15th message, sorted from newest to oldest:**
+**Stream all messages of type `contact` from Alice or Bob in pages of
+size 10, starting from the 15th message, sorted from newest to
+oldest:**
 
 ```js
 const pull = require('pull-stream')
@@ -218,7 +230,9 @@ pull(
 
 #### async/await
 
-There are also operators that support getting the values using `await`. **`toPromise`** is like `toCallback`, delivering all results at once:
+There are also operators that support getting the values using
+`await`. **`toPromise`** is like `toCallback`, delivering all results
+at once:
 
 ```js
 const msgs = await query(
@@ -251,7 +265,14 @@ for await (let msgs of results) {
 
 #### Custom indexes and `deferred` operator
 
-There may be custom indexes external to JITDB, in which case you should convert the results from those indexes to `seqs()` or `offsets()` (read more about these in the low level API section). In those cases, the `SEQS` or `OFFSETS` are often received asynchronously. To support piping these async results in the `query` chain, we have the `deferred()` operator which postpones the fetching of results from your custom index, but allows you to compose operations nevertheless.
+There may be custom indexes external to JITDB, in which case you
+should convert the results from those indexes to `seqs()` or
+`offsets()` (read more about these in the low level API section). In
+those cases, the `SEQS` or `OFFSETS` are often received
+asynchronously. To support piping these async results in the `query`
+chain, we have the `deferred()` operator which postpones the fetching
+of results from your custom index, but allows you to compose
+operations nevertheless.
 
 ```js
 // operator
@@ -264,9 +285,13 @@ where `task` is any function of the format
 function task(meta, cb)
 ```
 
-where `meta` is an object containing an instance of JITDB and other metadata.
+where `meta` is an object containing an instance of JITDB and other
+metadata.
 
-As an example, suppose you have a custom index that returns offsets `11`, `13` and `17`, and you want to include these results into your operator chain, to `AND` them with a specific author. Use `deferred` like this:
+As an example, suppose you have a custom index that returns offsets
+`11`, `13` and `17`, and you want to include these results into your
+operator chain, to `AND` them with a specific author. Use `deferred`
+like this:
 
 ```js
 query(
@@ -388,11 +413,14 @@ data structure in sync with the result of a query.
 
 Get the latest seq of an index
 
-### liveQuerySingleIndex(operation, cb)
+### live(operation, cb)
 
-Operation must be a single index, such as the contact index. With this
-results matching the index will be returned in callback as they are
-added to the database. The index is *not* updated when using this method.
+Will setup a pull stream and this in `cb`. The pull stream will emit
+new values as they are added to the underlying log. This is meant to
+run after `paginate` or `all`.
+
+Please note the index is *not* updated when using this method and only
+one live deferred offset stream is supported.
 
 ### onReady(cb)
 

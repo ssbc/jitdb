@@ -1,6 +1,8 @@
 const bipf = require('bipf')
 const traverse = require('traverse')
 const promisify = require('promisify-4loc')
+const pull = require('pull-stream')
+const Abortable = require('pull-abortable')
 
 function query(...cbs) {
   let res = cbs[0]
@@ -22,6 +24,14 @@ function offsets(values) {
   return {
     type: 'OFFSETS',
     offsets: values,
+  }
+}
+
+function liveOffsets(values, pullStream) {
+  return {
+    type: 'LIVEOFFSETS',
+    offsets: values,
+    stream: pullStream,
   }
 }
 
@@ -199,6 +209,10 @@ function or(...args) {
   }
 }
 
+function live() {
+  return (ops) => updateMeta(ops, 'live', true)
+}
+
 function descending() {
   return (ops) => updateMeta(ops, 'descending', true)
 }
@@ -280,10 +294,29 @@ function toPullStream() {
     let offset = meta.offset || 0
     let total = Infinity
     const limit = meta.pageSize || 1
+    const live = meta.live
     let ops
+    let abortable
     function readable(end, cb) {
-      if (end) return cb(end)
-      if (offset >= total) return cb(true)
+      if (end) {
+        if (abortable) abortable.abort()
+        return cb(end)
+      }
+      if (offset >= total) {
+        if (!live) return cb(true)
+        else if (!abortable) {
+          abortable = Abortable()
+          return meta.db.live(ops, (err, p) => {
+            pull(
+              p,
+              abortable,
+              pull.drain((value) => {
+                cb(null, value)
+              })
+            )
+          })
+        } else return
+      }
       meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
         if (err) return cb(err)
         else {
@@ -318,6 +351,7 @@ function toAsyncIter() {
     let offset = meta.offset || 0
     let total = Infinity
     const limit = meta.pageSize || 1
+    // FIXME: handle live
     while (offset < total) {
       yield await new Promise((resolve, reject) => {
         meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
@@ -337,6 +371,7 @@ module.exports = {
   fromDB,
   query,
 
+  live,
   slowEqual,
   equal,
   gt,
@@ -346,6 +381,7 @@ module.exports = {
   and,
   or,
   deferred,
+  liveOffsets,
 
   offsets,
   seqs,
