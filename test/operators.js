@@ -1,7 +1,6 @@
 const test = require('tape')
 const pull = require('pull-stream')
 const Pushable = require('pull-pushable')
-const Abortable = require('pull-abortable')
 const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const { prepareAndRunTest, addMsg, helpers } = require('./common')()
@@ -611,7 +610,6 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
 
   var ps = Pushable()
-  const abortable = Abortable()
 
   query(
     fromDB(db),
@@ -624,18 +622,17 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
       })
     ),
     toPullStream(),
-    abortable,
     pull.filter((x) => x), // filter out the first non-live empty result
     pull.drain((msg) => {
       t.equal(msg.value.author, bob.id)
-
-      abortable.abort()
 
       // test we don't get live messages after aborting stream
       addMsg(state.queue[1].value, raf, (e2, msg2) => {
         ps.push(2)
         t.end()
       })
+
+      return false // abort
     })
   )
 

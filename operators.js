@@ -2,7 +2,8 @@ const bipf = require('bipf')
 const traverse = require('traverse')
 const promisify = require('promisify-4loc')
 const pull = require('pull-stream')
-const Abortable = require('pull-abortable')
+const pullAsync = require('pull-async')
+const cat = require('pull-cat')
 
 function query(...cbs) {
   let res = cbs[0]
@@ -291,55 +292,37 @@ function toPromise() {
 function toPullStream() {
   return (rawOps) => {
     const meta = extractMeta(rawOps)
-    let offset = meta.offset || 0
-    let total = Infinity
-    const limit = meta.pageSize || 1
-    const live = meta.live
-    let ops
-    let abortable
-    function readable(end, cb) {
-      if (end) {
-        if (abortable) abortable.abort()
-        return cb(end)
-      }
-      if (offset >= total) {
-        if (!live) return cb(true)
-        else if (!abortable) {
-          abortable = Abortable()
-          return meta.db.live(ops, (err, p) => {
-            pull(
-              p,
-              abortable,
-              pull.drain((value) => {
-                cb(null, value)
-              })
-            )
-          })
-        } else return
-      }
-      meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
-        if (err) return cb(err)
-        else {
-          total = result.total
-          offset += limit
-          cb(null, !meta.pageSize ? result.data[0] : result.data)
-        }
-      })
-    }
-    return function (end, cb) {
-      if (!ops) {
-        executeDeferredOps(rawOps, meta)
-          .then((_ops) => {
-            ops = _ops
-            readable(end, cb)
-          })
-          .catch((err) => {
-            cb(err)
-          })
-      } else {
-        readable(end, cb)
+
+    function paginateStream(ops) {
+      let offset = meta.offset || 0
+      let total = Infinity
+      const limit = meta.pageSize || 1
+      return function readable(end, cb) {
+        if (end) return cb(end)
+        if (offset >= total) return cb(true)
+        meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
+          if (err) return cb(err)
+          else {
+            total = result.total
+            offset += limit
+            cb(null, !meta.pageSize ? result.data[0] : result.data)
+          }
+        })
       }
     }
+
+    return pull(
+      pullAsync((cb) => {
+        executeDeferredOps(rawOps, meta).then(
+          (ops) => cb(null, ops),
+          (err) => cb(err)
+        )
+      }),
+      pull.map((ops) =>
+        cat([paginateStream(ops), meta.live ? meta.db.live(ops) : null])
+      ),
+      pull.flatten()
+    )
   }
 }
 

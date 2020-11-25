@@ -4,6 +4,7 @@ const path = require('path')
 const push = require('push-stream')
 const toPull = require('push-stream-to-pull-stream')
 const pull = require('pull-stream')
+const pullAsync = require('pull-async')
 const sanitize = require('sanitize-filename')
 const debounce = require('lodash.debounce')
 const AtomicFile = require('atomic-file/buffer')
@@ -666,6 +667,23 @@ module.exports = function (log, indexesPath) {
     else waiting.push(cb)
   }
 
+  function isValueOk(ops, value, isOr) {
+    for (var i = 0; i < ops.length; ++i) {
+      const op = ops[i]
+      let ok = false
+      if (op.type === 'EQUAL') ok = checkValue(op.data, value)
+      else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
+      else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
+      else if (op.type === 'LIVEOFFSETS') ok = true
+
+      if (ok && isOr) return true
+      else if (!ok && !isOr) return false
+    }
+
+    if (isOr) return false
+    else return true
+  }
+
   return Object.assign({
     paginate: function (operation, offset, limit, descending, cb) {
       onReady(() => {
@@ -721,9 +739,16 @@ module.exports = function (log, indexesPath) {
 
     // live will return new messages as they enter the log
     // can be combined with a normal all or paginate first
-    live: function (op, cb) {
-      onReady(() => {
-        indexSync(op, (bitset) => {
+    live: function (op) {
+      return pull(
+        pullAsync((cb) =>
+          onReady(() => {
+            indexSync(op, (bitset) => {
+              cb()
+            })
+          })
+        ),
+        pull.map(() => {
           let seq = -1
           let dataStream
 
@@ -744,23 +769,6 @@ module.exports = function (log, indexesPath) {
           }
 
           setupOps([op])
-
-          function isValueOk(ops, value, isOr) {
-            for (var i = 0; i < ops.length; ++i) {
-              const op = ops[i]
-              let ok = false
-              if (op.type === 'EQUAL') ok = checkValue(op.data, value)
-              else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
-              else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
-              else if (op.type === 'LIVEOFFSETS') ok = true
-
-              if (ok && isOr) return true
-              else if (!ok && !isOr) return false
-            }
-
-            if (isOr) return false
-            else return true
-          }
 
           // there are two cases here:
 
@@ -783,20 +791,12 @@ module.exports = function (log, indexesPath) {
             )
           }
 
-          return cb(
-            null,
-            pull(
-              dataStream,
-              pull.filter((data) => {
-                return isValueOk([op], data.value)
-              }),
-              pull.map((data) => {
-                return bipf.decode(data.value, 0)
-              })
-            )
-          )
-        })
-      })
+          return dataStream
+        }),
+        pull.flatten(),
+        pull.filter((data) => isValueOk([op], data.value)),
+        pull.map((data) => bipf.decode(data.value, 0))
+      )
     },
 
     onReady,
