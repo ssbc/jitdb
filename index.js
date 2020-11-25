@@ -512,7 +512,7 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function setupIndex(op) {
+  function sanitizeOpData(op) {
     if (!op.data.indexName) {
       const name = op.data.value === undefined ? '' : op.data.value.toString()
       op.data.indexName = safeFilename(op.data.indexType + '_' + name)
@@ -536,7 +536,7 @@ module.exports = function (log, indexesPath) {
     function handleOperations(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL') {
-          setupIndex(op)
+          sanitizeOpData(op)
           if (!indexes[op.data.indexName]) missingIndexes.push(op.data)
           else if (indexes[op.data.indexName].lazy)
             lazyIndexes.push(op.data.indexName)
@@ -684,121 +684,125 @@ module.exports = function (log, indexesPath) {
     else return true
   }
 
-  return Object.assign({
-    paginate: function (operation, offset, limit, descending, cb) {
-      onReady(() => {
-        indexSync(operation, (bitset) => {
-          getValuesFromBitsetSlice(
-            bitset,
-            offset,
-            limit,
-            descending,
-            (err, res) => {
-              if (err) cb(err)
-              else {
-                debug(`getTop: ${res.duration}ms, items: ${res.length}`)
-                cb(err, res)
-              }
+  function paginate(operation, offset, limit, descending, cb) {
+    onReady(() => {
+      indexSync(operation, (bitset) => {
+        getValuesFromBitsetSlice(
+          bitset,
+          offset,
+          limit,
+          descending,
+          (err, res) => {
+            if (err) cb(err)
+            else {
+              debug(`getTop: ${res.duration}ms, items: ${res.length}`)
+              cb(err, res)
             }
-          )
-        })
+          }
+        )
       })
-    },
+    })
+  }
 
-    all: function (operation, offset, descending, cb) {
-      onReady(() => {
-        indexSync(operation, (bitset) => {
-          getValuesFromBitsetSlice(
-            bitset,
-            offset,
-            null,
-            descending,
-            (err, res) => {
-              if (err) cb(err)
-              else {
-                debug(`getAll: ${res.duration}ms, total items: ${res.length}`)
-                cb(err, res.data)
-              }
+  function all(operation, offset, descending, cb) {
+    onReady(() => {
+      indexSync(operation, (bitset) => {
+        getValuesFromBitsetSlice(
+          bitset,
+          offset,
+          null,
+          descending,
+          (err, res) => {
+            if (err) cb(err)
+            else {
+              debug(`getAll: ${res.duration}ms, total items: ${res.length}`)
+              cb(err, res.data)
             }
-          )
-        })
+          }
+        )
       })
-    },
+    })
+  }
 
-    querySeq: function (operation, seq, cb) {
-      onReady(() => {
-        indexSync(operation, (data) => {
-          getLargerThanSeq(data, seq, cb)
-        })
+  function querySeq(operation, seq, cb) {
+    onReady(() => {
+      indexSync(operation, (data) => {
+        getLargerThanSeq(data, seq, cb)
       })
-    },
+    })
+  }
 
-    getSeq(op) {
-      return indexes[op.data.indexName].seq
-    },
+  function getSeq(op) {
+    return indexes[op.data.indexName].seq
+  }
 
-    // live will return new messages as they enter the log
-    // can be combined with a normal all or paginate first
-    live: function (op) {
-      return pull(
-        pullAsync((cb) =>
-          onReady(() => {
-            indexSync(op, (bitset) => {
-              cb()
-            })
+  // live will return new messages as they enter the log
+  // can be combined with a normal all or paginate first
+  function live(op) {
+    return pull(
+      pullAsync((cb) =>
+        onReady(() => {
+          indexSync(op, (bitset) => {
+            cb()
           })
-        ),
-        pull.map(() => {
-          let seq = -1
-          let dataStream
+        })
+      ),
+      pull.map(() => {
+        let seq = -1
+        let dataStream
 
-          function setupOps(ops) {
-            ops.forEach((op) => {
-              if (op.type === 'EQUAL') {
-                setupIndex(op)
-                if (!indexes[op.data.indexName]) seq = -1
-                else seq = indexes[op.data.indexName].seq
-              } else if (op.type === 'AND' || op.type === 'OR')
-                setupOps(op.data)
-              else if (op.type === 'LIVEOFFSETS') {
-                if (dataStream)
-                  throw new Error('Only one deferred in live supported')
-                dataStream = op.stream
-              }
-            })
-          }
+        function setupOps(ops) {
+          ops.forEach((op) => {
+            if (op.type === 'EQUAL') {
+              sanitizeOpData(op)
+              if (!indexes[op.data.indexName]) seq = -1
+              else seq = indexes[op.data.indexName].seq
+            } else if (op.type === 'AND' || op.type === 'OR') setupOps(op.data)
+            else if (op.type === 'LIVEOFFSETS') {
+              if (dataStream)
+                throw new Error('Only one deferred in live supported')
+              dataStream = op.stream
+            }
+          })
+        }
 
-          setupOps([op])
+        setupOps([op])
 
-          // there are two cases here:
+        // there are two cases here:
 
-          // - op contains a live deferred, in which case we let the
-          //   deferred stream drive new values
-          // - op doesn't, in which we let the log stream drive new
-          //   values
+        // - op contains a live deferred, in which case we let the
+        //   deferred stream drive new values
+        // - op doesn't, in which we let the log stream drive new
+        //   values
 
-          if (!dataStream) {
-            let opts = { live: true, gt: seq }
-            dataStream = toPull(log.stream(opts))
-          } else {
-            dataStream = pull(
-              dataStream,
-              pull.asyncMap((i, cb) => {
-                ensureOffsetIndexSync(() => {
-                  getRawData(i, cb)
-                })
+        if (!dataStream) {
+          let opts = { live: true, gt: seq }
+          dataStream = toPull(log.stream(opts))
+        } else {
+          dataStream = pull(
+            dataStream,
+            pull.asyncMap((i, cb) => {
+              ensureOffsetIndexSync(() => {
+                getRawData(i, cb)
               })
-            )
-          }
+            })
+          )
+        }
 
-          return dataStream
-        }),
-        pull.flatten(),
-        pull.filter((data) => isValueOk([op], data.value)),
-        pull.map((data) => bipf.decode(data.value, 0))
-      )
-    },
+        return dataStream
+      }),
+      pull.flatten(),
+      pull.filter((data) => isValueOk([op], data.value)),
+      pull.map((data) => bipf.decode(data.value, 0))
+    )
+  }
 
+  return {
+    paginate,
+    all,
+    querySeq,
+    getSeq,
+    live,
     onReady,
 
     // testing
@@ -806,5 +810,5 @@ module.exports = function (log, indexesPath) {
     saveTypedArray,
     loadIndex,
     indexes,
-  })
+  }
 }
