@@ -213,7 +213,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('Live with deferred values', dir, (t, db, raf) => {
+prepareAndRunTest('Live with offset values', dir, (t, db, raf) => {
   let state = validate.initial()
 
   const n = 1001
@@ -258,15 +258,14 @@ prepareAndRunTest('Live with deferred values', dir, (t, db, raf) => {
     db.all(typeQuery, 0, false, (err, results) => {
       t.equal(results.length, 1)
 
-      let deferredI = 1
+      let liveI = 1
 
-      // setup deferred cb handler
       pull(
         db.live(typeQuery),
         pull.drain((result) => {
-          t.equal(result.key, state.queue[deferredI].key)
-          deferredI += 2
-          if (deferredI == n) t.end()
+          t.equal(result.key, state.queue[liveI].key)
+          liveI += 2
+          if (liveI == n) t.end()
         })
       )
     })

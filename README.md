@@ -420,7 +420,7 @@ new values as they are added to the underlying log. This is meant to
 run after `paginate` or `all`.
 
 Please note the index is *not* updated when using this method and only
-one live deferred offset stream is supported.
+one live offsets stream is supported.
 
 ### onReady(cb)
 
