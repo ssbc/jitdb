@@ -1,2 +1,4 @@
 /node_modules
 /indexes
+/.vscode
+pnpm-lock.yaml
