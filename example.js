@@ -6,7 +6,6 @@ const {
   fromDB,
   and,
   or,
-  live,
   slowEqual,
   type,
   debug,
@@ -29,44 +28,7 @@ db.onReady(async () => {
   const mixy = '@G98XybiXD/amO9S/UyBKnWTWZnSKYS3YVB/5osSRHvY=.ed25519'
   const arj = '@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'
 
-  const bipf = require('bipf')
-  function seekFromDesc(desc) {
-    const keys = desc.split('.')
-    return (buffer) => {
-      var p = 0
-      for (let key of keys) {
-        p = bipf.seekKey(buffer, p, Buffer.from(key))
-        if (!~p) return void 0
-      }
-      return p
-    }
-  }
-
-  var i = 0
   if (true)
-    pull(
-      query(
-        fromDB(db),
-        // debug(),
-        and(slowEqual('value.content.type', 'blog')),
-        // debug(),
-        and(slowEqual('value.author', mix)),
-        debug(),
-        paginate(3),
-        // debug(),
-        live(),
-        // debug(),
-        toPullStream()
-      ),
-      pull.drain((msgs) => {
-        console.log('page #' + i++)
-        console.log(msgs)
-      })
-    )
-
-  return
-
-  if (false)
     query(
       fromDB(db),
       // debug(),
