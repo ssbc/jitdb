@@ -3,6 +3,7 @@ const traverse = require('traverse')
 const promisify = require('promisify-4loc')
 const pull = require('pull-stream')
 const pullAsync = require('pull-async')
+const pullAwaitable = require('pull-awaitable')
 const cat = require('pull-cat')
 
 function query(...cbs) {
@@ -273,19 +274,8 @@ function toCallback(cb) {
 }
 
 function toPromise() {
-  return async (rawOps) => {
-    const meta = extractMeta(rawOps)
-    const ops = await executeDeferredOps(rawOps, meta)
-    const offset = meta.offset || 0
-    return await new Promise((resolve, reject) => {
-      const cb = (err, data) => {
-        if (err) reject(err)
-        else resolve(data)
-      }
-      if (meta.pageSize)
-        meta.db.paginate(ops, offset, meta.pageSize, meta.descending, cb)
-      else meta.db.all(ops, offset, meta.descending, cb)
-    })
+  return (rawOps) => {
+    return promisify((cb) => toCallback(cb)(rawOps))()
   }
 }
 
@@ -329,24 +319,8 @@ function toPullStream() {
 // `async function*` supported in Node 10+ and browsers (except IE11)
 function toAsyncIter() {
   return async function* (rawOps) {
-    const meta = extractMeta(rawOps)
-    const ops = await executeDeferredOps(rawOps, meta)
-    let offset = meta.offset || 0
-    let total = Infinity
-    const limit = meta.pageSize || 1
-    // FIXME: handle live
-    while (offset < total) {
-      yield await new Promise((resolve, reject) => {
-        meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
-          if (err) return reject(err)
-          else {
-            total = result.total
-            offset += limit
-            resolve(!meta.pageSize ? result.data[0] : result.data)
-          }
-        })
-      })
-    }
+    const ps = toPullStream()(rawOps)
+    for await (let x of pullAwaitable(ps)) yield x
   }
 }
 
