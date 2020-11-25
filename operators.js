@@ -1,6 +1,10 @@
 const bipf = require('bipf')
 const traverse = require('traverse')
 const promisify = require('promisify-4loc')
+const pull = require('pull-stream')
+const pullAsync = require('pull-async')
+const pullAwaitable = require('pull-awaitable')
+const cat = require('pull-cat')
 
 function query(...cbs) {
   let res = cbs[0]
@@ -22,6 +26,14 @@ function offsets(values) {
   return {
     type: 'OFFSETS',
     offsets: values,
+  }
+}
+
+function liveOffsets(values, pullStream) {
+  return {
+    type: 'LIVEOFFSETS',
+    offsets: values,
+    stream: pullStream,
   }
 }
 
@@ -199,6 +211,10 @@ function or(...args) {
   }
 }
 
+function live() {
+  return (ops) => updateMeta(ops, 'live', true)
+}
+
 function descending() {
   return (ops) => updateMeta(ops, 'descending', true)
 }
@@ -258,78 +274,53 @@ function toCallback(cb) {
 }
 
 function toPromise() {
-  return async (rawOps) => {
-    const meta = extractMeta(rawOps)
-    const ops = await executeDeferredOps(rawOps, meta)
-    const offset = meta.offset || 0
-    return await new Promise((resolve, reject) => {
-      const cb = (err, data) => {
-        if (err) reject(err)
-        else resolve(data)
-      }
-      if (meta.pageSize)
-        meta.db.paginate(ops, offset, meta.pageSize, meta.descending, cb)
-      else meta.db.all(ops, offset, meta.descending, cb)
-    })
+  return (rawOps) => {
+    return promisify((cb) => toCallback(cb)(rawOps))()
   }
 }
 
 function toPullStream() {
   return (rawOps) => {
     const meta = extractMeta(rawOps)
-    let offset = meta.offset || 0
-    let total = Infinity
-    const limit = meta.pageSize || 1
-    let ops
-    function readable(end, cb) {
-      if (end) return cb(end)
-      if (offset >= total) return cb(true)
-      meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
-        if (err) return cb(err)
-        else {
-          total = result.total
-          offset += limit
-          cb(null, !meta.pageSize ? result.data[0] : result.data)
-        }
-      })
-    }
-    return function (end, cb) {
-      if (!ops) {
-        executeDeferredOps(rawOps, meta)
-          .then((_ops) => {
-            ops = _ops
-            readable(end, cb)
-          })
-          .catch((err) => {
-            cb(err)
-          })
-      } else {
-        readable(end, cb)
+
+    function paginateStream(ops) {
+      let offset = meta.offset || 0
+      let total = Infinity
+      const limit = meta.pageSize || 1
+      return function readable(end, cb) {
+        if (end) return cb(end)
+        if (offset >= total) return cb(true)
+        meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
+          if (err) return cb(err)
+          else {
+            total = result.total
+            offset += limit
+            cb(null, !meta.pageSize ? result.data[0] : result.data)
+          }
+        })
       }
     }
+
+    return pull(
+      pullAsync((cb) => {
+        executeDeferredOps(rawOps, meta).then(
+          (ops) => cb(null, ops),
+          (err) => cb(err)
+        )
+      }),
+      pull.map((ops) =>
+        cat([paginateStream(ops), meta.live ? meta.db.live(ops) : null])
+      ),
+      pull.flatten()
+    )
   }
 }
 
 // `async function*` supported in Node 10+ and browsers (except IE11)
 function toAsyncIter() {
   return async function* (rawOps) {
-    const meta = extractMeta(rawOps)
-    const ops = await executeDeferredOps(rawOps, meta)
-    let offset = meta.offset || 0
-    let total = Infinity
-    const limit = meta.pageSize || 1
-    while (offset < total) {
-      yield await new Promise((resolve, reject) => {
-        meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
-          if (err) return reject(err)
-          else {
-            total = result.total
-            offset += limit
-            resolve(!meta.pageSize ? result.data[0] : result.data)
-          }
-        })
-      })
-    }
+    const ps = toPullStream()(rawOps)
+    for await (let x of pullAwaitable(ps)) yield x
   }
 }
 
@@ -337,6 +328,7 @@ module.exports = {
   fromDB,
   query,
 
+  live,
   slowEqual,
   equal,
   gt,
@@ -346,6 +338,7 @@ module.exports = {
   and,
   or,
   deferred,
+  liveOffsets,
 
   offsets,
   seqs,
