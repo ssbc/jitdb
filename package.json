@@ -14,7 +14,6 @@
     "debug": "^4.2.0",
     "idb-kv-store": "^4.5.0",
     "jsesc": "^3.0.2",
-    "lodash.debounce": "^4.0.8",
     "mkdirp": "^1.0.4",
     "promisify-4loc": "1.0.0",
     "pull-async": "~1.0.0",
