@@ -32,17 +32,17 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     addMsg(state.queue[1].value, raf, (err, msg2) => {
-      db.paginate(typeQuery, 0, 10, false, (err, results) => {
-        t.equal(results.data.length, 2)
+      db.paginate(typeQuery, 0, 10, false, (err, answer) => {
+        t.equal(answer.results.length, 2)
 
         // rerun on created index
-        db.paginate(typeQuery, 0, 10, true, (err, results) => {
-          t.equal(results.data.length, 2)
-          t.equal(results.data[0].value.author, keys2.id)
+        db.paginate(typeQuery, 0, 10, true, (err, answer) => {
+          t.equal(answer.results.length, 2)
+          t.equal(answer.results[0].value.author, keys2.id)
 
-          db.paginate(typeQuery, 0, 10, false, (err, results) => {
-            t.equal(results.data.length, 2)
-            t.equal(results.data[0].value.author, keys.id)
+          db.paginate(typeQuery, 0, 10, false, (err, answer) => {
+            t.equal(answer.results.length, 2)
+            t.equal(answer.results[0].value.author, keys.id)
 
             const authorQuery = {
               type: 'EQUAL',
@@ -52,14 +52,14 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                 indexType: 'author',
               },
             }
-            db.paginate(authorQuery, 0, 10, false, (err, results) => {
-              t.equal(results.data.length, 1)
-              t.equal(results.data[0].id, msg1.id)
+            db.paginate(authorQuery, 0, 10, false, (err, answer) => {
+              t.equal(answer.results.length, 1)
+              t.equal(answer.results[0].id, msg1.id)
 
               // rerun on created index
-              db.paginate(authorQuery, 0, 10, false, (err, results) => {
-                t.equal(results.data.length, 1)
-                t.equal(results.data[0].id, msg1.id)
+              db.paginate(authorQuery, 0, 10, false, (err, answer) => {
+                t.equal(answer.results.length, 1)
+                t.equal(answer.results[0].id, msg1.id)
 
                 db.paginate(
                   {
@@ -69,9 +69,9 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                   0,
                   10,
                   false,
-                  (err, results) => {
-                    t.equal(results.data.length, 1)
-                    t.equal(results.data[0].id, msg1.id)
+                  (err, answer) => {
+                    t.equal(answer.results.length, 1)
+                    t.equal(answer.results[0].id, msg1.id)
 
                     const authorQuery2 = {
                       type: 'EQUAL',
@@ -96,8 +96,8 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                       0,
                       10,
                       false,
-                      (err, results) => {
-                        t.equal(results.data.length, 2)
+                      (err, answer) => {
+                        t.equal(answer.results.length, 2)
                         t.end()
                       }
                     )
@@ -165,9 +165,9 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect((err, results) => {
-      db.paginate(typeQuery, 0, 1, false, (err, results) => {
-        t.equal(results.data.length, 1)
-        t.equal(results.data[0].value.content.text, 'Testing 31999')
+      db.paginate(typeQuery, 0, 1, false, (err, answer) => {
+        t.equal(answer.results.length, 1)
+        t.equal(answer.results[0].value.content.text, 'Testing 31999')
         t.end()
       })
     })
@@ -260,9 +260,9 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
 
               db.all(typeQuery('post'), 0, false, (err, results) => {
                 t.equal(results.length, 2)
-                t.deepEqual(db.indexes['type_post'].data.array(), [0, 2])
-                t.deepEqual(db.indexes['type_contact'].data.array(), [1])
-                t.deepEqual(db.indexes['type_about'].data.array(), [3])
+                t.deepEqual(db.indexes['type_post'].bitset.array(), [0, 2])
+                t.deepEqual(db.indexes['type_contact'].bitset.array(), [1])
+                t.deepEqual(db.indexes['type_about'].bitset.array(), [3])
                 t.end()
               })
             })

@@ -290,12 +290,12 @@ function toPullStream() {
       return function readable(end, cb) {
         if (end) return cb(end)
         if (offset >= total) return cb(true)
-        meta.db.paginate(ops, offset, limit, meta.descending, (err, result) => {
+        meta.db.paginate(ops, offset, limit, meta.descending, (err, answer) => {
           if (err) return cb(err)
           else {
-            total = result.total
+            total = answer.total
             offset += limit
-            cb(null, !meta.pageSize ? result.data[0] : result.data)
+            cb(null, !meta.pageSize ? answer.results[0] : answer.results)
           }
         })
       }
