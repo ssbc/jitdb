@@ -350,7 +350,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function createIndexes(missingIndexes, cb) {
-    var newIndexes = {}
+    const newIndexes = {}
     missingIndexes.forEach((m) => {
       newIndexes[m.indexName] = {
         seq: 0,
@@ -358,25 +358,25 @@ module.exports = function (log, indexesPath) {
       }
     })
 
-    var offset = 0
+    let offset = 0
 
-    var updatedOffsetIndex = false
-    var updatedTimestampIndex = false
-    var updatedSequenceIndex = false
+    let updatedOffsetIndex = false
+    let updatedTimestampIndex = false
+    let updatedSequenceIndex = false
     const start = Date.now()
 
     log.stream({}).pipe({
       paused: false,
       write: function (data) {
-        var seq = data.seq
-        var buffer = data.value
+        const seq = data.seq
+        const buffer = data.value
 
         if (updateOffsetIndex(offset, seq)) updatedOffsetIndex = true
 
         if (updateTimestampIndex(offset, data.seq, buffer))
           updatedTimestampIndex = true
 
-        if (updateSequenceIndex(offset, data.seq, data.value))
+        if (updateSequenceIndex(offset, data.seq, buffer))
           updatedSequenceIndex = true
 
         missingIndexes.forEach((m) => {
@@ -387,7 +387,7 @@ module.exports = function (log, indexesPath) {
         offset++
       },
       end: () => {
-        var count = offset // incremented at end
+        const count = offset // incremented at end
         debug(`time: ${Date.now() - start}ms, total items: ${count}`)
 
         if (updatedOffsetIndex)
