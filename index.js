@@ -85,18 +85,6 @@ module.exports = function (log, indexesPath) {
     store.keys(cb)
   }
 
-  function loadLazyIndex(indexName, cb) {
-    debug('lazy loading', indexName)
-    let index = indexes[indexName]
-    loadIndex(index.filepath, Uint32Array, (err, i) => {
-      index.seq = i.seq
-      index.data.words = i.data
-      index.data.count = i.count
-      index.lazy = false
-      cb()
-    })
-  }
-
   function loadIndexes(cb) {
     function parseIndexes(err, files) {
       push(
@@ -189,80 +177,14 @@ module.exports = function (log, indexesPath) {
     waiting = []
   })
 
+  function onReady(cb) {
+    if (isReady) cb()
+    else waiting.push(cb)
+  }
+
   const bTimestamp = Buffer.from('timestamp')
   const bSequence = Buffer.from('sequence')
   const bValue = Buffer.from('value')
-
-  function getValue(offset, cb) {
-    var seq = indexes['offset'].data[offset]
-    log.get(seq, (err, res) => {
-      if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, bipf.decode(res, 0))
-    })
-  }
-
-  function getRawData(offset, cb) {
-    let seq = indexes['offset'].data[offset]
-    log.get(seq, (err, res) => {
-      if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, { seq, value: res })
-    })
-  }
-
-  function getValuesFromBitsetSlice(bitset, offset, limit, descending, cb) {
-    offset = offset || 0
-    var start = Date.now()
-
-    function s(x) {
-      return {
-        val: x,
-        timestamp: indexes['timestamp'].data[x],
-      }
-    }
-    var timestamped = bitset.array().map(s)
-    var sorted = timestamped.sort((a, b) => {
-      if (descending) return b.timestamp - a.timestamp
-      else return a.timestamp - b.timestamp
-    })
-
-    const sliced =
-      limit != null
-        ? sorted.slice(offset, offset + limit)
-        : offset > 0
-        ? sorted.slice(offset)
-        : sorted
-
-    push(
-      push.values(sliced),
-      push.asyncMap((s, cb) => getValue(s.val, cb)),
-      push.filter((x) => x), // deleted messages
-      push.collect((err, results) => {
-        cb(null, {
-          data: results,
-          total: timestamped.length,
-          duration: Date.now() - start,
-        })
-      })
-    )
-  }
-
-  function getLargerThanSeq(bitset, dbSeq, cb) {
-    var start = Date.now()
-    return push(
-      push.values(bitset.array()),
-      push.filter((val) => {
-        return indexes['offset'].data[val] > dbSeq
-      }),
-      push.asyncMap(getValue),
-      push.filter((x) => x), // deleted messages
-      push.collect((err, results) => {
-        debug(
-          `get all: ${Date.now() - start}ms, total items: ${results.length}`
-        )
-        cb(err, results)
-      })
-    )
-  }
 
   function growIndex(index, Type) {
     debug('growing index')
@@ -504,6 +426,18 @@ module.exports = function (log, indexesPath) {
     })
   }
 
+  function loadLazyIndex(indexName, cb) {
+    debug('lazy loading', indexName)
+    let index = indexes[indexName]
+    loadIndex(index.filepath, Uint32Array, (err, i) => {
+      index.seq = i.seq
+      index.data.words = i.data
+      index.data.count = i.count
+      index.lazy = false
+      cb()
+    })
+  }
+
   function loadLazyIndexes(indexNames, cb) {
     push(
       push.values(indexNames),
@@ -662,11 +596,6 @@ module.exports = function (log, indexesPath) {
     else createMissingIndexes()
   }
 
-  function onReady(cb) {
-    if (isReady) cb()
-    else waiting.push(cb)
-  }
-
   function isValueOk(ops, value, isOr) {
     for (var i = 0; i < ops.length; ++i) {
       const op = ops[i]
@@ -682,6 +611,77 @@ module.exports = function (log, indexesPath) {
 
     if (isOr) return false
     else return true
+  }
+
+  function getValue(offset, cb) {
+    var seq = indexes['offset'].data[offset]
+    log.get(seq, (err, res) => {
+      if (err && err.code === 'flumelog:deleted') cb()
+      else cb(err, bipf.decode(res, 0))
+    })
+  }
+
+  function getRawData(offset, cb) {
+    let seq = indexes['offset'].data[offset]
+    log.get(seq, (err, res) => {
+      if (err && err.code === 'flumelog:deleted') cb()
+      else cb(err, { seq, value: res })
+    })
+  }
+
+  function getValuesFromBitsetSlice(bitset, offset, limit, descending, cb) {
+    offset = offset || 0
+    var start = Date.now()
+
+    function s(x) {
+      return {
+        val: x,
+        timestamp: indexes['timestamp'].data[x],
+      }
+    }
+    var timestamped = bitset.array().map(s)
+    var sorted = timestamped.sort((a, b) => {
+      if (descending) return b.timestamp - a.timestamp
+      else return a.timestamp - b.timestamp
+    })
+
+    const sliced =
+      limit != null
+        ? sorted.slice(offset, offset + limit)
+        : offset > 0
+        ? sorted.slice(offset)
+        : sorted
+
+    push(
+      push.values(sliced),
+      push.asyncMap((s, cb) => getValue(s.val, cb)),
+      push.filter((x) => x), // deleted messages
+      push.collect((err, results) => {
+        cb(null, {
+          data: results,
+          total: timestamped.length,
+          duration: Date.now() - start,
+        })
+      })
+    )
+  }
+
+  function getLargerThanSeq(bitset, dbSeq, cb) {
+    var start = Date.now()
+    return push(
+      push.values(bitset.array()),
+      push.filter((val) => {
+        return indexes['offset'].data[val] > dbSeq
+      }),
+      push.asyncMap(getValue),
+      push.filter((x) => x), // deleted messages
+      push.collect((err, results) => {
+        debug(
+          `get all: ${Date.now() - start}ms, total items: ${results.length}`
+        )
+        cb(err, results)
+      })
+    )
   }
 
   function paginate(operation, offset, limit, descending, cb) {
@@ -730,10 +730,6 @@ module.exports = function (log, indexesPath) {
         getLargerThanSeq(data, seq, cb)
       })
     })
-  }
-
-  function getSeq(op) {
-    return indexes[op.data.indexName].seq
   }
 
   // live will return new messages as they enter the log
@@ -797,13 +793,17 @@ module.exports = function (log, indexesPath) {
     )
   }
 
+  function getSeq(op) {
+    return indexes[op.data.indexName].seq
+  }
+
   return {
+    onReady,
     paginate,
     all,
     querySeq,
-    getSeq,
     live,
-    onReady,
+    getSeq,
 
     // testing
     saveIndex,
