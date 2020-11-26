@@ -6,7 +6,6 @@ const toPull = require('push-stream-to-pull-stream')
 const pull = require('pull-stream')
 const pullAsync = require('pull-async')
 const sanitize = require('sanitize-filename')
-const debounce = require('lodash.debounce')
 const AtomicFile = require('atomic-file/buffer')
 const toBuffer = require('typedarray-to-buffer')
 const bsb = require('binary-search-bounds')
@@ -83,18 +82,6 @@ module.exports = function (log, indexesPath) {
     const IdbKvStore = require('idb-kv-store')
     const store = new IdbKvStore(indexesPath, { disableBroadcast: true })
     store.keys(cb)
-  }
-
-  function loadLazyIndex(indexName, cb) {
-    debug('lazy loading', indexName)
-    let index = indexes[indexName]
-    loadIndex(index.filepath, Uint32Array, (err, i) => {
-      index.seq = i.seq
-      index.data.words = i.data
-      index.data.count = i.count
-      index.lazy = false
-      cb()
-    })
   }
 
   function loadIndexes(cb) {
@@ -189,80 +176,14 @@ module.exports = function (log, indexesPath) {
     waiting = []
   })
 
+  function onReady(cb) {
+    if (isReady) cb()
+    else waiting.push(cb)
+  }
+
   const bTimestamp = Buffer.from('timestamp')
   const bSequence = Buffer.from('sequence')
   const bValue = Buffer.from('value')
-
-  function getValue(offset, cb) {
-    var seq = indexes['offset'].data[offset]
-    log.get(seq, (err, res) => {
-      if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, bipf.decode(res, 0))
-    })
-  }
-
-  function getRawData(offset, cb) {
-    let seq = indexes['offset'].data[offset]
-    log.get(seq, (err, res) => {
-      if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, { seq, value: res })
-    })
-  }
-
-  function getValuesFromBitsetSlice(bitset, offset, limit, descending, cb) {
-    offset = offset || 0
-    var start = Date.now()
-
-    function s(x) {
-      return {
-        val: x,
-        timestamp: indexes['timestamp'].data[x],
-      }
-    }
-    var timestamped = bitset.array().map(s)
-    var sorted = timestamped.sort((a, b) => {
-      if (descending) return b.timestamp - a.timestamp
-      else return a.timestamp - b.timestamp
-    })
-
-    const sliced =
-      limit != null
-        ? sorted.slice(offset, offset + limit)
-        : offset > 0
-        ? sorted.slice(offset)
-        : sorted
-
-    push(
-      push.values(sliced),
-      push.asyncMap((s, cb) => getValue(s.val, cb)),
-      push.filter((x) => x), // deleted messages
-      push.collect((err, results) => {
-        cb(null, {
-          data: results,
-          total: timestamped.length,
-          duration: Date.now() - start,
-        })
-      })
-    )
-  }
-
-  function getLargerThanSeq(bitset, dbSeq, cb) {
-    var start = Date.now()
-    return push(
-      push.values(bitset.array()),
-      push.filter((val) => {
-        return indexes['offset'].data[val] > dbSeq
-      }),
-      push.asyncMap(getValue),
-      push.filter((x) => x), // deleted messages
-      push.collect((err, results) => {
-        debug(
-          `get all: ${Date.now() - start}ms, total items: ${results.length}`
-        )
-        cb(err, results)
-      })
-    )
-  }
 
   function growIndex(index, Type) {
     debug('growing index')
@@ -429,7 +350,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function createIndexes(missingIndexes, cb) {
-    var newIndexes = {}
+    const newIndexes = {}
     missingIndexes.forEach((m) => {
       newIndexes[m.indexName] = {
         seq: 0,
@@ -437,25 +358,25 @@ module.exports = function (log, indexesPath) {
       }
     })
 
-    var offset = 0
+    let offset = 0
 
-    var updatedOffsetIndex = false
-    var updatedTimestampIndex = false
-    var updatedSequenceIndex = false
+    let updatedOffsetIndex = false
+    let updatedTimestampIndex = false
+    let updatedSequenceIndex = false
     const start = Date.now()
 
     log.stream({}).pipe({
       paused: false,
       write: function (data) {
-        var seq = data.seq
-        var buffer = data.value
+        const seq = data.seq
+        const buffer = data.value
 
         if (updateOffsetIndex(offset, seq)) updatedOffsetIndex = true
 
         if (updateTimestampIndex(offset, data.seq, buffer))
           updatedTimestampIndex = true
 
-        if (updateSequenceIndex(offset, data.seq, data.value))
+        if (updateSequenceIndex(offset, data.seq, buffer))
           updatedSequenceIndex = true
 
         missingIndexes.forEach((m) => {
@@ -466,7 +387,7 @@ module.exports = function (log, indexesPath) {
         offset++
       },
       end: () => {
-        var count = offset // incremented at end
+        const count = offset // incremented at end
         debug(`time: ${Date.now() - start}ms, total items: ${count}`)
 
         if (updatedOffsetIndex)
@@ -501,6 +422,18 @@ module.exports = function (log, indexesPath) {
 
         cb()
       },
+    })
+  }
+
+  function loadLazyIndex(indexName, cb) {
+    debug('lazy loading', indexName)
+    let index = indexes[indexName]
+    loadIndex(index.filepath, Uint32Array, (err, i) => {
+      index.seq = i.seq
+      index.data.words = i.data
+      index.data.count = i.count
+      index.lazy = false
+      cb()
     })
   }
 
@@ -662,11 +595,6 @@ module.exports = function (log, indexesPath) {
     else createMissingIndexes()
   }
 
-  function onReady(cb) {
-    if (isReady) cb()
-    else waiting.push(cb)
-  }
-
   function isValueOk(ops, value, isOr) {
     for (var i = 0; i < ops.length; ++i) {
       const op = ops[i]
@@ -682,6 +610,77 @@ module.exports = function (log, indexesPath) {
 
     if (isOr) return false
     else return true
+  }
+
+  function getValue(offset, cb) {
+    var seq = indexes['offset'].data[offset]
+    log.get(seq, (err, res) => {
+      if (err && err.code === 'flumelog:deleted') cb()
+      else cb(err, bipf.decode(res, 0))
+    })
+  }
+
+  function getRawData(offset, cb) {
+    let seq = indexes['offset'].data[offset]
+    log.get(seq, (err, res) => {
+      if (err && err.code === 'flumelog:deleted') cb()
+      else cb(err, { seq, value: res })
+    })
+  }
+
+  function getValuesFromBitsetSlice(bitset, offset, limit, descending, cb) {
+    offset = offset || 0
+    var start = Date.now()
+
+    function s(x) {
+      return {
+        val: x,
+        timestamp: indexes['timestamp'].data[x],
+      }
+    }
+    var timestamped = bitset.array().map(s)
+    var sorted = timestamped.sort((a, b) => {
+      if (descending) return b.timestamp - a.timestamp
+      else return a.timestamp - b.timestamp
+    })
+
+    const sliced =
+      limit != null
+        ? sorted.slice(offset, offset + limit)
+        : offset > 0
+        ? sorted.slice(offset)
+        : sorted
+
+    push(
+      push.values(sliced),
+      push.asyncMap((s, cb) => getValue(s.val, cb)),
+      push.filter((x) => x), // deleted messages
+      push.collect((err, results) => {
+        cb(null, {
+          data: results,
+          total: timestamped.length,
+          duration: Date.now() - start,
+        })
+      })
+    )
+  }
+
+  function getLargerThanSeq(bitset, dbSeq, cb) {
+    var start = Date.now()
+    return push(
+      push.values(bitset.array()),
+      push.filter((val) => {
+        return indexes['offset'].data[val] > dbSeq
+      }),
+      push.asyncMap(getValue),
+      push.filter((x) => x), // deleted messages
+      push.collect((err, results) => {
+        debug(
+          `get all: ${Date.now() - start}ms, total items: ${results.length}`
+        )
+        cb(err, results)
+      })
+    )
   }
 
   function paginate(operation, offset, limit, descending, cb) {
@@ -730,10 +729,6 @@ module.exports = function (log, indexesPath) {
         getLargerThanSeq(data, seq, cb)
       })
     })
-  }
-
-  function getSeq(op) {
-    return indexes[op.data.indexName].seq
   }
 
   // live will return new messages as they enter the log
@@ -797,13 +792,17 @@ module.exports = function (log, indexesPath) {
     )
   }
 
+  function getSeq(op) {
+    return indexes[op.data.indexName].seq
+  }
+
   return {
+    onReady,
     paginate,
     all,
     querySeq,
-    getSeq,
     live,
-    onReady,
+    getSeq,
 
     // testing
     saveIndex,
