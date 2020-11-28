@@ -1,142 +1,29 @@
-const bipf = require('bipf')
-const TypedFastBitSet = require('typedfastbitset')
 const path = require('path')
+const bipf = require('bipf')
 const push = require('push-stream')
-const toPull = require('push-stream-to-pull-stream')
 const pull = require('pull-stream')
+const toPull = require('push-stream-to-pull-stream')
 const pullAsync = require('pull-async')
-const sanitize = require('sanitize-filename')
-const AtomicFile = require('atomic-file/buffer')
-const toBuffer = require('typedarray-to-buffer')
+const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
 const debug = require('debug')('jitdb')
-const jsesc = require('jsesc')
+const {
+  saveTypedArrayFile,
+  loadTypedArrayFile,
+  saveBitsetFile,
+  loadBitsetFile,
+  safeFilename,
+  listFilesIDB,
+  listFilesFS,
+} = require('./files')
 
 module.exports = function (log, indexesPath) {
   debug('indexes path', indexesPath)
 
-  function safeFilename(filename) {
-    // in general we want to escape wierd characters
-    let result = jsesc(filename)
-    // sanitize will remove special characters, which means that two
-    // indexes might end up with the same name so lets replace those
-    // with jsesc escapeEverything values
-    result = result.replace(/\./g, 'x2E')
-    result = result.replace(/\//g, 'x2F')
-    result = result.replace(/\?/g, 'x3F')
-    result = result.replace(/\</g, 'x3C')
-    result = result.replace(/\>/g, 'x3E')
-    result = result.replace(/\:/g, 'x3A')
-    result = result.replace(/\*/g, 'x2A')
-    result = result.replace(/\|/g, 'x7C')
-    // finally sanitize
-    return sanitize(result)
-  }
+  const indexes = {}
+  let isReady = false
+  let waiting = []
 
-  function saveTypedArray(name, seq, count, tarr, cb) {
-    const filename = path.join(indexesPath, name + '.index')
-    if (!cb) cb = () => {}
-
-    debug('writing index to %s', filename)
-
-    const dataBuffer = toBuffer(tarr)
-    var b = Buffer.alloc(8 + dataBuffer.length)
-    b.writeInt32LE(seq, 0)
-    b.writeInt32LE(count, 4)
-    dataBuffer.copy(b, 8)
-
-    var f = AtomicFile(filename)
-    f.set(b, cb)
-  }
-
-  function saveCoreIndex(name, coreIndex, count) {
-    debug('saving index: %s', name)
-    saveTypedArray(name, coreIndex.seq, count, coreIndex.tarr)
-  }
-
-  function saveIndex(name, seq, bitset, cb) {
-    debug('saving index: %s', name)
-    bitset.trim()
-    saveTypedArray(name, seq, bitset.count, bitset.words, cb)
-  }
-
-  function loadIndex(filename, Type, cb) {
-    var f = AtomicFile(filename)
-    f.get((err, buf) => {
-      if (err) return cb(err)
-
-      const seq = buf.readInt32LE(0)
-      const count = buf.readInt32LE(4)
-      const body = buf.slice(8)
-
-      cb(null, {
-        seq,
-        count,
-        tarr: new Type(
-          body.buffer,
-          body.offset,
-          body.byteLength / (Type === Float64Array ? 8 : 4)
-        ),
-      })
-    })
-  }
-
-  var indexes = {}
-
-  function listIndexesIDB(indexesPath, cb) {
-    const IdbKvStore = require('idb-kv-store')
-    const store = new IdbKvStore(indexesPath, { disableBroadcast: true })
-    store.keys(cb)
-  }
-
-  function loadIndexes(cb) {
-    function parseIndexes(err, files) {
-      push(
-        push.values(files),
-        push.asyncMap((file, cb) => {
-          const indexName = path.parse(file).name
-          if (file === 'offset.index') {
-            loadIndex(path.join(indexesPath, file), Uint32Array, (e, idx) => {
-              indexes[indexName] = idx
-              cb()
-            })
-          } else if (file === 'timestamp.index') {
-            loadIndex(path.join(indexesPath, file), Float64Array, (e, idx) => {
-              indexes[indexName] = idx
-              cb()
-            })
-          } else if (file === 'sequence.index') {
-            loadIndex(path.join(indexesPath, file), Uint32Array, (e, idx) => {
-              indexes[indexName] = idx
-              cb()
-            })
-          } else if (file.endsWith('.index')) {
-            indexes[indexName] = {
-              seq: 0,
-              bitset: new TypedFastBitSet(),
-              lazy: true,
-              filepath: path.join(indexesPath, file),
-            }
-            cb()
-          } else cb()
-        }),
-        push.collect(cb)
-      )
-    }
-
-    if (typeof window !== 'undefined') {
-      // browser
-      listIndexesIDB(indexesPath, parseIndexes)
-    } else {
-      const fs = require('fs')
-      const mkdirp = require('mkdirp')
-      mkdirp.sync(indexesPath)
-      parseIndexes(null, fs.readdirSync(indexesPath))
-    }
-  }
-
-  var isReady = false
-  var waiting = []
   loadIndexes(() => {
     debug('loaded indexes', Object.keys(indexes))
 
@@ -175,6 +62,76 @@ module.exports = function (log, indexesPath) {
   const bTimestamp = Buffer.from('timestamp')
   const bSequence = Buffer.from('sequence')
   const bValue = Buffer.from('value')
+
+  // FIXME: handle the errors in these callbacks
+  function loadIndexes(cb) {
+    function parseIndexes(err, files) {
+      push(
+        push.values(files),
+        push.asyncMap((file, cb) => {
+          const indexName = path.parse(file).name
+          if (file === 'offset.index') {
+            loadTypedArrayFile(
+              path.join(indexesPath, file),
+              Uint32Array,
+              (e, idx) => {
+                indexes[indexName] = idx
+                cb()
+              }
+            )
+          } else if (file === 'timestamp.index') {
+            loadTypedArrayFile(
+              path.join(indexesPath, file),
+              Float64Array,
+              (e, idx) => {
+                indexes[indexName] = idx
+                cb()
+              }
+            )
+          } else if (file === 'sequence.index') {
+            loadTypedArrayFile(
+              path.join(indexesPath, file),
+              Uint32Array,
+              (e, idx) => {
+                indexes[indexName] = idx
+                cb()
+              }
+            )
+          } else if (file.endsWith('.index')) {
+            // Don't load it yet, just tag it `lazy`
+            indexes[indexName] = {
+              seq: 0,
+              bitset: new TypedFastBitSet(),
+              lazy: true,
+              filepath: path.join(indexesPath, file),
+            }
+            cb()
+          } else cb()
+        }),
+        push.collect(cb)
+      )
+    }
+
+    if (typeof window !== 'undefined') {
+      // browser
+      listFilesIDB(indexesPath, parseIndexes)
+    } else {
+      // node.js
+      listFilesFS(indexesPath, parseIndexes)
+    }
+  }
+
+  function saveCoreIndex(name, coreIndex, count) {
+    debug('saving core index: %s', name)
+    const filename = path.join(indexesPath, name + '.index')
+    saveTypedArrayFile(filename, coreIndex.seq, count, coreIndex.tarr)
+  }
+
+  function saveIndex(name, index, cb) {
+    debug('saving index: %s', name)
+    const filename = path.join(indexesPath, name + '.index')
+    saveBitsetFile(filename, index.seq, index.bitset, cb)
+  }
 
   function growCoreIndex(coreIndex, Type) {
     debug('growing index')
@@ -317,8 +274,7 @@ module.exports = function (log, indexesPath) {
           saveCoreIndex('sequence', indexes['sequence'], count)
 
         index.seq = indexes['offset'].seq
-        if (indexNeedsUpdate)
-          saveIndex(op.data.indexName, index.seq, index.bitset)
+        if (indexNeedsUpdate) saveIndex(op.data.indexName, index)
 
         cb()
       },
@@ -378,7 +334,7 @@ module.exports = function (log, indexesPath) {
         for (var indexName in newIndexes) {
           const index = (indexes[indexName] = newIndexes[indexName])
           index.seq = indexes['offset'].seq
-          saveIndex(indexName, index.seq, index.bitset)
+          saveIndex(indexName, index)
         }
 
         cb()
@@ -389,10 +345,10 @@ module.exports = function (log, indexesPath) {
   function loadLazyIndex(indexName, cb) {
     debug('lazy loading %s', indexName)
     let index = indexes[indexName]
-    loadIndex(index.filepath, Uint32Array, (err, idx) => {
-      index.seq = idx.seq
-      index.bitset.words = idx.tarr
-      index.bitset.count = idx.count
+    // FIXME: handle error
+    loadBitsetFile(index.filepath, (err, { seq, bitset }) => {
+      index.seq = seq
+      index.bitset = bitset
       index.lazy = false
       cb()
     })
@@ -768,9 +724,6 @@ module.exports = function (log, indexesPath) {
     getSeq,
 
     // testing
-    saveIndex,
-    saveTypedArray,
-    loadIndex,
     indexes,
   }
 }
