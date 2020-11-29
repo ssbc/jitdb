@@ -403,16 +403,6 @@ makes sense.
 Similar to paginate except there is no `limit` argument and the result
 will be the messages directly.
 
-### querySeq(operation, seq, cb)
-
-Executes the `operation` but takes a database seq and returns all
-results added after the seq. This can be useful to keep an external
-data structure in sync with the result of a query.
-
-### getSeq(operation)
-
-Get the latest seq of an index
-
 ### live(operation, cb)
 
 Will setup a pull stream and this in `cb`. The pull stream will emit

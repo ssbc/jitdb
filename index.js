@@ -578,23 +578,6 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function getMessagesFromBitsetLargerThanSeq(bitset, seq, cb) {
-    const start = Date.now()
-    return push(
-      push.values(bitset.array()),
-      push.filter((offset) => indexes['offset'].tarr[offset] > seq),
-      push.asyncMap(getMessage),
-      push.filter((x) => x), // removes deleted messages
-      push.collect((err, results) => {
-        cb(err, {
-          results: results,
-          total: results.length,
-          duration: Date.now() - start,
-        })
-      })
-    )
-  }
-
   function paginate(operation, offset, limit, descending, cb) {
     onReady(() => {
       executeOperation(operation, (bitset) => {
@@ -635,22 +618,6 @@ module.exports = function (log, indexesPath) {
             }
           }
         )
-      })
-    })
-  }
-
-  function querySeq(operation, seq, cb) {
-    onReady(() => {
-      executeOperation(operation, (bitset) => {
-        getMessagesFromBitsetLargerThanSeq(bitset, seq, (err, answer) => {
-          if (err) cb(err)
-          else {
-            debug(
-              `querySeq(): ${answer.duration}ms, total messages: ${answer.total}`
-            )
-            cb(err, answer.results)
-          }
-        })
       })
     })
   }
@@ -716,18 +683,11 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  // FIXME: why do we need to export this? It's simple and only used in 1 test
-  function getSeq(op) {
-    return indexes[op.data.indexName].seq
-  }
-
   return {
     onReady,
     paginate,
     all,
-    querySeq,
     live,
-    getSeq,
 
     // testing
     indexes,
