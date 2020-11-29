@@ -373,12 +373,13 @@ module.exports = function (log, indexesPath) {
         : Buffer.from(op.data.value)
   }
 
-  function ensureIndexSync(opOrName, cb) {
-    const isName = typeof opOrName === 'string'
-    const op = isName ? { data: { indexName: opOrName } } : opOrName
-    const indexName = isName ? opOrName : op.data.indexName
-    if (log.since.value > indexes[indexName].seq) updateIndex(op, cb)
+  function ensureIndexSync(op, cb) {
+    if (log.since.value > indexes[op.data.indexName].seq) updateIndex(op, cb)
     else cb()
+  }
+
+  function ensureOffsetIndexSync(cb) {
+    ensureIndexSync({ data: { indexName: 'offset' } }, cb)
   }
 
   function filterIndex(op, filterCheck, cb) {
@@ -426,7 +427,7 @@ module.exports = function (log, indexesPath) {
     } else if (op.type === 'LTE') {
       filterIndex(op, (num, op) => num <= op.data.value, cb)
     } else if (op.type === 'SEQS') {
-      ensureIndexSync('offset', () => {
+      ensureOffsetIndexSync(() => {
         const offsets = []
         op.seqs.sort((x, y) => x - y)
         for (var o = 0; o < indexes['offset'].tarr.length; ++o) {
@@ -437,11 +438,11 @@ module.exports = function (log, indexesPath) {
         cb(new TypedFastBitSet(offsets))
       })
     } else if (op.type === 'OFFSETS') {
-      ensureIndexSync('offset', () => {
+      ensureOffsetIndexSync(() => {
         cb(new TypedFastBitSet(op.offsets))
       })
     } else if (op.type === 'LIVEOFFSETS') {
-      ensureIndexSync('offset', () => {
+      ensureOffsetIndexSync(() => {
         cb(new TypedFastBitSet(op.offsets))
       })
     } else if (op.type === 'AND') {
@@ -697,7 +698,7 @@ module.exports = function (log, indexesPath) {
           recordStream = pull(
             offsetStream,
             pull.asyncMap((o, cb) => {
-              ensureIndexSync('offset', () => {
+              ensureOffsetIndexSync(() => {
                 getRecord(o, cb)
               })
             })
