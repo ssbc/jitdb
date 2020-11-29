@@ -222,11 +222,11 @@ module.exports = function (log, indexesPath) {
   }
 
   function updateIndex(op, cb) {
-    var index = indexes[op.data.indexName]
+    const index = indexes[op.data.indexName]
 
     // find the next possible offset
-    var offset = 0
-    if (index.seq != -1) {
+    let offset = 0
+    if (index.seq !== -1) {
       for (; offset < indexes['offset'].tarr.length; ++offset)
         if (indexes['offset'].tarr[offset] === index.seq) {
           offset++
@@ -234,15 +234,15 @@ module.exports = function (log, indexesPath) {
         }
     }
 
-    var updatedOffsetIndex = false
-    var updatedTimestampIndex = false
-    var updatedSequenceIndex = false
+    let updatedOffsetIndex = false
+    let updatedTimestampIndex = false
+    let updatedSequenceIndex = false
     const start = Date.now()
 
     const indexNeedsUpdate =
-      op.data.indexName != 'sequence' &&
-      op.data.indexName != 'timestamp' &&
-      op.data.indexName != 'offset'
+      op.data.indexName !== 'sequence' &&
+      op.data.indexName !== 'timestamp' &&
+      op.data.indexName !== 'offset'
 
     log.stream({ gt: index.seq }).pipe({
       paused: false,
@@ -261,7 +261,7 @@ module.exports = function (log, indexesPath) {
         offset++
       },
       end: () => {
-        var count = offset // incremented at end
+        const count = offset // incremented at end
         debug(`time: ${Date.now() - start}ms, total items: ${count}`)
 
         if (updatedOffsetIndex)
@@ -373,17 +373,108 @@ module.exports = function (log, indexesPath) {
         : Buffer.from(op.data.value)
   }
 
-  function ensureOffsetIndexSync(cb) {
-    if (log.since.value > indexes['offset'].seq)
-      updateIndex({ data: { indexName: 'offset' } }, cb)
+  function ensureIndexSync(op, cb) {
+    if (log.since.value > indexes[op.data.indexName].seq) updateIndex(op, cb)
     else cb()
   }
 
-  function indexSync(operation, cb) {
-    var missingIndexes = []
-    var lazyIndexes = []
+  function ensureOffsetIndexSync(cb) {
+    ensureIndexSync({ data: { indexName: 'offset' } }, cb)
+  }
 
-    function handleOperations(ops) {
+  function filterIndex(op, filterCheck, cb) {
+    ensureIndexSync(op, () => {
+      if (op.data.indexName === 'sequence') {
+        const bitset = new TypedFastBitSet()
+        for (var i = 0; i < indexes['sequence'].count; ++i) {
+          if (filterCheck(indexes['sequence'].tarr[i], op)) bitset.add(i)
+        }
+        cb(bitset)
+      } else if (op.data.indexName === 'timestamp') {
+        const bitset = new TypedFastBitSet()
+        for (var i = 0; i < indexes['timestamp'].count; ++i) {
+          if (filterCheck(indexes['timestamp'].tarr[i], op)) bitset.add(i)
+        }
+        cb(bitset)
+      } else {
+        debug('filterIndex() is unsupported for %s', op.data.indexName)
+      }
+    })
+  }
+
+  function nestLargeOpsArray(ops, type) {
+    let op = ops[0]
+    ops.slice(1).forEach((rest) => {
+      op = {
+        type,
+        data: [op, rest],
+      }
+    })
+    return op
+  }
+
+  function getBitsetForOperation(op, cb) {
+    if (op.type === 'EQUAL') {
+      ensureIndexSync(op, () => {
+        cb(indexes[op.data.indexName].bitset)
+      })
+    } else if (op.type === 'GT') {
+      filterIndex(op, (num, op) => num > op.data.value, cb)
+    } else if (op.type === 'GTE') {
+      filterIndex(op, (num, op) => num >= op.data.value, cb)
+    } else if (op.type === 'LT') {
+      filterIndex(op, (num, op) => num < op.data.value, cb)
+    } else if (op.type === 'LTE') {
+      filterIndex(op, (num, op) => num <= op.data.value, cb)
+    } else if (op.type === 'SEQS') {
+      ensureOffsetIndexSync(() => {
+        const offsets = []
+        op.seqs.sort((x, y) => x - y)
+        for (var o = 0; o < indexes['offset'].tarr.length; ++o) {
+          if (bsb.eq(op.seqs, indexes['offset'].tarr[o]) !== -1) offsets.push(o)
+
+          if (offsets.length === op.seqs.length) break
+        }
+        cb(new TypedFastBitSet(offsets))
+      })
+    } else if (op.type === 'OFFSETS') {
+      ensureOffsetIndexSync(() => {
+        cb(new TypedFastBitSet(op.offsets))
+      })
+    } else if (op.type === 'LIVEOFFSETS') {
+      ensureOffsetIndexSync(() => {
+        cb(new TypedFastBitSet(op.offsets))
+      })
+    } else if (op.type === 'AND') {
+      if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
+
+      getBitsetForOperation(op.data[0], (op1) => {
+        getBitsetForOperation(op.data[1], (op2) => {
+          cb(op1.new_intersection(op2))
+        })
+      })
+    } else if (op.type === 'OR') {
+      if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'OR')
+
+      getBitsetForOperation(op.data[0], (op1) => {
+        getBitsetForOperation(op.data[1], (op2) => {
+          cb(op1.new_union(op2))
+        })
+      })
+    } else if (!op.type) {
+      // to support `query(fromDB(jitdb), toCallback(cb))`, we do GTE>=0
+      getBitsetForOperation(
+        { type: 'GTE', data: { indexName: 'sequence', value: 0 } },
+        cb
+      )
+    } else console.error('Unknown type', op)
+  }
+
+  function executeOperation(operation, cb) {
+    const missingIndexes = []
+    const lazyIndexes = []
+
+    function detectMissingAndLazyIndexes(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL') {
           sanitizeOpData(op)
@@ -391,7 +482,7 @@ module.exports = function (log, indexesPath) {
           else if (indexes[op.data.indexName].lazy)
             lazyIndexes.push(op.data.indexName)
         } else if (op.type === 'AND' || op.type === 'OR')
-          handleOperations(op.data)
+          detectMissingAndLazyIndexes(op.data)
         else if (
           op.type === 'OFFSETS' ||
           op.type === 'LIVEOFFSETS' ||
@@ -399,103 +490,6 @@ module.exports = function (log, indexesPath) {
         );
         else debug('Unknown operator type:' + op.type)
       })
-    }
-
-    handleOperations([operation])
-
-    if (missingIndexes.length > 0) debug('missing indexes:', missingIndexes)
-
-    function ensureIndexSync(op, cb) {
-      if (log.since.value > indexes[op.data.indexName].seq) updateIndex(op, cb)
-      else cb()
-    }
-
-    function filterIndex(op, filterCheck, cb) {
-      ensureIndexSync(op, () => {
-        if (op.data.indexName == 'sequence') {
-          let t = new TypedFastBitSet()
-          for (var i = 0; i < indexes['sequence'].count; ++i) {
-            if (filterCheck(indexes['sequence'].tarr[i], op)) t.add(i)
-          }
-          cb(t)
-        } else if (op.data.indexName == 'timestamp') {
-          let t = new TypedFastBitSet()
-          for (var i = 0; i < indexes['timestamp'].count; ++i) {
-            if (filterCheck(indexes['timestamp'].tarr[i], op)) t.add(i)
-          }
-          cb(t)
-        }
-      })
-    }
-
-    function nestLargeArray(ops, type) {
-      let op = ops[0]
-
-      ops.slice(1).forEach((r) => {
-        op = {
-          type,
-          data: [op, r],
-        }
-      })
-
-      return op
-    }
-
-    function getBitsetForOperation(op, cb) {
-      if (op.type === 'EQUAL') {
-        ensureIndexSync(op, () => {
-          cb(indexes[op.data.indexName].bitset)
-        })
-      } else if (op.type === 'GT') {
-        filterIndex(op, (d, op) => d > op.data.value, cb)
-      } else if (op.type === 'GTE') {
-        filterIndex(op, (d, op) => d >= op.data.value, cb)
-      } else if (op.type === 'LT') {
-        filterIndex(op, (d, op) => d < op.data.value, cb)
-      } else if (op.type === 'LTE') {
-        filterIndex(op, (d, op) => d <= op.data.value, cb)
-      } else if (op.type === 'SEQS') {
-        ensureOffsetIndexSync(() => {
-          var offsets = []
-          op.seqs.sort((x, y) => x - y)
-          for (var o = 0; o < indexes['offset'].tarr.length; ++o) {
-            if (bsb.eq(op.seqs, indexes['offset'].tarr[o]) != -1)
-              offsets.push(o)
-
-            if (offsets.length == op.seqs.length) break
-          }
-          cb(new TypedFastBitSet(offsets))
-        })
-      } else if (op.type === 'OFFSETS') {
-        ensureOffsetIndexSync(() => {
-          cb(new TypedFastBitSet(op.offsets))
-        })
-      } else if (op.type === 'LIVEOFFSETS') {
-        ensureOffsetIndexSync(() => {
-          cb(new TypedFastBitSet(op.offsets))
-        })
-      } else if (op.type === 'AND') {
-        if (op.data.length > 2) op = nestLargeArray(op.data, 'AND')
-
-        getBitsetForOperation(op.data[0], (op1) => {
-          getBitsetForOperation(op.data[1], (op2) => {
-            cb(op1.new_intersection(op2))
-          })
-        })
-      } else if (op.type === 'OR') {
-        if (op.data.length > 2) op = nestLargeArray(op.data, 'OR')
-
-        getBitsetForOperation(op.data[0], (op1) => {
-          getBitsetForOperation(op.data[1], (op2) => {
-            cb(op1.new_union(op2))
-          })
-        })
-      } else if (!op.type) {
-        getBitsetForOperation(
-          { type: 'GTE', data: { indexName: 'sequence', value: 0 } },
-          cb
-        )
-      } else console.error('Unknown type', op)
     }
 
     function getBitset() {
@@ -506,6 +500,10 @@ module.exports = function (log, indexesPath) {
       if (missingIndexes.length > 0) createIndexes(missingIndexes, getBitset)
       else getBitset()
     }
+
+    detectMissingAndLazyIndexes([operation])
+
+    if (missingIndexes.length > 0) debug('missing indexes: %o', missingIndexes)
 
     if (lazyIndexes.length > 0)
       loadLazyIndexes(lazyIndexes, createMissingIndexes)
@@ -529,8 +527,8 @@ module.exports = function (log, indexesPath) {
     else return true
   }
 
-  function getValue(offset, cb) {
-    var seq = indexes['offset'].tarr[offset]
+  function getMessage(offset, cb) {
+    const seq = indexes['offset'].tarr[offset]
     log.get(seq, (err, res) => {
       if (err && err.code === 'flumelog:deleted') cb()
       else cb(err, bipf.decode(res, 0))
@@ -538,29 +536,27 @@ module.exports = function (log, indexesPath) {
   }
 
   function getRecord(offset, cb) {
-    let seq = indexes['offset'].tarr[offset]
+    const seq = indexes['offset'].tarr[offset]
     log.get(seq, (err, res) => {
       if (err && err.code === 'flumelog:deleted') cb()
       else cb(err, { seq, value: res })
     })
   }
 
-  function getValuesFromBitsetSlice(bitset, offset, limit, descending, cb) {
+  function getMessagesFromBitsetSlice(bitset, offset, limit, descending, cb) {
     offset = offset || 0
-    var start = Date.now()
+    const start = Date.now()
 
-    function s(x) {
+    const timestamped = bitset.array().map((o) => {
       return {
-        val: x,
-        timestamp: indexes['timestamp'].tarr[x],
+        offset: o,
+        timestamp: indexes['timestamp'].tarr[o],
       }
-    }
-    var timestamped = bitset.array().map(s)
-    var sorted = timestamped.sort((a, b) => {
+    })
+    const sorted = timestamped.sort((a, b) => {
       if (descending) return b.timestamp - a.timestamp
       else return a.timestamp - b.timestamp
     })
-
     const sliced =
       limit != null
         ? sorted.slice(offset, offset + limit)
@@ -570,10 +566,10 @@ module.exports = function (log, indexesPath) {
 
     push(
       push.values(sliced),
-      push.asyncMap((s, cb) => getValue(s.val, cb)),
-      push.filter((x) => x), // deleted messages
+      push.asyncMap(({ offset }, cb) => getMessage(offset, cb)),
+      push.filter((x) => x), // removes deleted messages
       push.collect((err, results) => {
-        cb(null, {
+        cb(err, {
           results: results,
           total: timestamped.length,
           duration: Date.now() - start,
@@ -582,28 +578,27 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function getLargerThanSeq(bitset, dbSeq, cb) {
-    var start = Date.now()
+  function getMessagesFromBitsetLargerThanSeq(bitset, seq, cb) {
+    const start = Date.now()
     return push(
       push.values(bitset.array()),
-      push.filter((val) => {
-        return indexes['offset'].tarr[val] > dbSeq
-      }),
-      push.asyncMap(getValue),
-      push.filter((x) => x), // deleted messages
+      push.filter((offset) => indexes['offset'].tarr[offset] > seq),
+      push.asyncMap(getMessage),
+      push.filter((x) => x), // removes deleted messages
       push.collect((err, results) => {
-        debug(
-          `get all: ${Date.now() - start}ms, total items: ${results.length}`
-        )
-        cb(err, results)
+        cb(err, {
+          results: results,
+          total: results.length,
+          duration: Date.now() - start,
+        })
       })
     )
   }
 
   function paginate(operation, offset, limit, descending, cb) {
     onReady(() => {
-      indexSync(operation, (bitset) => {
-        getValuesFromBitsetSlice(
+      executeOperation(operation, (bitset) => {
+        getMessagesFromBitsetSlice(
           bitset,
           offset,
           limit,
@@ -611,7 +606,9 @@ module.exports = function (log, indexesPath) {
           (err, answer) => {
             if (err) cb(err)
             else {
-              debug(`getTop: ${answer.duration}ms, items: ${answer.length}`)
+              debug(
+                `paginate(): ${answer.duration}ms, total messages: ${answer.total}`
+              )
               cb(err, answer)
             }
           }
@@ -622,8 +619,8 @@ module.exports = function (log, indexesPath) {
 
   function all(operation, offset, descending, cb) {
     onReady(() => {
-      indexSync(operation, (bitset) => {
-        getValuesFromBitsetSlice(
+      executeOperation(operation, (bitset) => {
+        getMessagesFromBitsetSlice(
           bitset,
           offset,
           null,
@@ -632,7 +629,7 @@ module.exports = function (log, indexesPath) {
             if (err) cb(err)
             else {
               debug(
-                `getAll: ${answer.duration}ms, total items: ${answer.length}`
+                `all(): ${answer.duration}ms, total messages: ${answer.total}`
               )
               cb(err, answer.results)
             }
@@ -644,8 +641,16 @@ module.exports = function (log, indexesPath) {
 
   function querySeq(operation, seq, cb) {
     onReady(() => {
-      indexSync(operation, (bitset) => {
-        getLargerThanSeq(bitset, seq, cb)
+      executeOperation(operation, (bitset) => {
+        getMessagesFromBitsetLargerThanSeq(bitset, seq, (err, answer) => {
+          if (err) cb(err)
+          else {
+            debug(
+              `querySeq(): ${answer.duration}ms, total messages: ${answer.total}`
+            )
+            cb(err, answer.results)
+          }
+        })
       })
     })
   }
@@ -656,51 +661,51 @@ module.exports = function (log, indexesPath) {
     return pull(
       pullAsync((cb) =>
         onReady(() => {
-          indexSync(op, (bitset) => {
+          executeOperation(op, (bitset) => {
             cb()
           })
         })
       ),
       pull.map(() => {
         let seq = -1
-        let recordStream
+        let offsetStream
 
-        function setupOps(ops) {
+        function detectSeqAndOffsetStream(ops) {
           ops.forEach((op) => {
             if (op.type === 'EQUAL') {
               sanitizeOpData(op)
               if (!indexes[op.data.indexName]) seq = -1
               else seq = indexes[op.data.indexName].seq
-            } else if (op.type === 'AND' || op.type === 'OR') setupOps(op.data)
-            else if (op.type === 'LIVEOFFSETS') {
-              if (recordStream)
-                throw new Error('Only one deferred in live supported')
-              recordStream = op.stream
+            } else if (op.type === 'AND' || op.type === 'OR') {
+              detectSeqAndOffsetStream(op.data)
+            } else if (op.type === 'LIVEOFFSETS') {
+              if (offsetStream)
+                throw new Error('Only one offset stream in live supported')
+              offsetStream = op.stream
             }
           })
         }
 
-        setupOps([op])
+        detectSeqAndOffsetStream([op])
 
-        // there are two cases here:
+        // There are two cases here:
+        // - op contains a live offset stream, in which case we let the
+        //   offset stream drive new values
+        // - op doesn't, in which we let the log stream drive new values
 
-        // - op contains a live deferred, in which case we let the
-        //   deferred stream drive new values
-        // - op doesn't, in which we let the log stream drive new
-        //   values
-
-        if (!recordStream) {
-          let opts = { live: true, gt: seq }
-          recordStream = toPull(log.stream(opts))
-        } else {
+        let recordStream
+        if (offsetStream) {
           recordStream = pull(
-            recordStream,
-            pull.asyncMap((i, cb) => {
+            offsetStream,
+            pull.asyncMap((o, cb) => {
               ensureOffsetIndexSync(() => {
-                getRecord(i, cb)
+                getRecord(o, cb)
               })
             })
           )
+        } else {
+          const opts = { live: true, gt: seq }
+          recordStream = toPull(log.stream(opts))
         }
 
         return recordStream
@@ -711,6 +716,7 @@ module.exports = function (log, indexesPath) {
     )
   }
 
+  // FIXME: why do we need to export this? It's simple and only used in 1 test
   function getSeq(op) {
     return indexes[op.data.indexName].seq
   }
