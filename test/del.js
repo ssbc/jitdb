@@ -18,8 +18,8 @@ prepareAndRunTest('Delete', dir, (t, db, raf) => {
   const msg3 = { type: 'post', text: 'Testing 3' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const typeQuery = {
     type: 'EQUAL',

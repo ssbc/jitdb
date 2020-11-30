@@ -19,8 +19,8 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -154,7 +154,7 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -298,8 +298,8 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const dataQuery = {
     type: 'AND',
@@ -339,8 +339,8 @@ prepareAndRunTest('Data offsets simple', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const dataQuery = {
     type: 'OFFSETS',
@@ -368,8 +368,8 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const dataQuery = {
     type: 'AND',
@@ -409,8 +409,8 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -463,8 +463,8 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now())
-  state = validate.appendNew(state, null, keys, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const typeQuery = {
     type: 'EQUAL',

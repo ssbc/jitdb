@@ -19,7 +19,7 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg, Date.now())
+  state = validate.appendNew(state, null, keys2, msg, Date.now() + 1)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -54,7 +54,7 @@ prepareAndRunTest('Live and', dir, (t, db, raf) => {
   const msg2 = { type: 'post', text: 'Testing ' + keys2.id }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg2, Date.now())
+  state = validate.appendNew(state, null, keys2, msg2, Date.now() + 1)
 
   const filterQuery = {
     type: 'AND',
@@ -106,8 +106,8 @@ prepareAndRunTest('Live or', dir, (t, db, raf) => {
   const msg3 = { type: 'post', text: 'Testing ' + keys3.id }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg2, Date.now())
-  state = validate.appendNew(state, null, keys3, msg3, Date.now())
+  state = validate.appendNew(state, null, keys2, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys3, msg3, Date.now() + 2)
 
   const authorQuery = {
     type: 'OR',
@@ -177,7 +177,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg, Date.now())
+  state = validate.appendNew(state, null, keys2, msg, Date.now() + 1)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -276,7 +276,7 @@ prepareAndRunTest('Live with cleanup', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg, Date.now())
+  state = validate.appendNew(state, null, keys2, msg, Date.now() + 1)
 
   const typeQuery = {
     type: 'EQUAL',

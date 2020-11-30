@@ -19,7 +19,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg, Date.now())
+  state = validate.appendNew(state, null, keys2, msg, Date.now() + 1)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -116,7 +116,7 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys2, msg, Date.now())
+  state = validate.appendNew(state, null, keys2, msg, Date.now() + 1)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -147,7 +147,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
   let state = validate.initial()
   for (var i = 0; i < 32 * 1000; ++i) {
     msg.text = 'Testing ' + i
-    state = validate.appendNew(state, null, keys, msg, Date.now())
+    state = validate.appendNew(state, null, keys, msg, Date.now() + i)
   }
 
   const typeQuery = {
@@ -181,9 +181,9 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
   const msg3 = { type: 'post', text: 'Testing 3' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys, msgContact, Date.now())
-  state = validate.appendNew(state, null, keys2, msg2, Date.now())
-  state = validate.appendNew(state, null, keys3, msg3, Date.now())
+  state = validate.appendNew(state, null, keys, msgContact, Date.now() + 1)
+  state = validate.appendNew(state, null, keys2, msg2, Date.now() + 2)
+  state = validate.appendNew(state, null, keys3, msg3, Date.now() + 3)
 
   const authorQuery = {
     type: 'AND',
@@ -231,9 +231,9 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
   const msgAbout = { type: 'about' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
-  state = validate.appendNew(state, null, keys, msgContact, Date.now())
-  state = validate.appendNew(state, null, keys2, msg2, Date.now())
-  state = validate.appendNew(state, null, keys3, msgAbout, Date.now())
+  state = validate.appendNew(state, null, keys, msgContact, Date.now() + 1)
+  state = validate.appendNew(state, null, keys2, msg2, Date.now() + 2)
+  state = validate.appendNew(state, null, keys3, msgAbout, Date.now() + 3)
 
   function typeQuery(value) {
     return {
