@@ -230,13 +230,14 @@ function paginate(pageSize) {
 async function executeDeferredOps(ops, meta) {
   // Collect all deferred tasks and their object-traversal paths
   const allDeferred = []
-  traverse(ops).forEach(function (val) {
+  traverse.forEach(ops, function (val) {
     if (!val) return
     // this.block() means don't traverse inside these, they won't have DEFERRED
-    if (this.path.length === 1 && this.key === 'meta') return this.block()
-    if (val.type === 'Buffer' && Array.isArray(val.data)) return this.block()
+    if (this.key === 'meta' && val.db) return this.block()
     if (val.type === 'DEFERRED' && val.task) allDeferred.push([this.path, val])
-    if (val.type !== 'AND' && val.type !== 'OR') this.block()
+    if (!(Array.isArray(val) || val.type === 'AND' || val.type === 'OR')) {
+      this.block()
+    }
   })
   if (allDeferred.length === 0) return ops
 
@@ -251,7 +252,7 @@ async function executeDeferredOps(ops, meta) {
   allResults.forEach(([path, result]) => {
     result.meta = meta
     if (path.length === 0) ops = result
-    else traverse(ops).set(path, result)
+    else traverse.set(ops, path, result)
   })
 
   return ops
