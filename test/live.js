@@ -263,7 +263,9 @@ prepareAndRunTest('Live with offset values', dir, (t, db, raf) => {
       pull(
         db.live(typeQuery),
         pull.drain((result) => {
-          t.equal(result.key, state.queue[liveI].key)
+          if (result.key !== state.queue[liveI].key) {
+            t.fail('result.key did not match state.queue[liveI].key')
+          }
           liveI += 2
           if (liveI == n) t.end()
         })
