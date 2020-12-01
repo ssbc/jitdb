@@ -1,7 +1,7 @@
 const jsesc = require('jsesc')
 const sanitize = require('sanitize-filename')
 const TypedFastBitSet = require('typedfastbitset')
-const AtomicFile = require('atomic-file/buffer')
+const { readFile, writeFile } = require('atomically-universal')
 const toBuffer = require('typedarray-to-buffer')
 
 function saveTypedArrayFile(filename, seq, count, tarr, cb) {
@@ -13,29 +13,27 @@ function saveTypedArrayFile(filename, seq, count, tarr, cb) {
   b.writeInt32LE(count, 4)
   dataBuffer.copy(b, 8)
 
-  const f = AtomicFile(filename)
-  f.set(b, cb)
+  writeFile(filename, b).then(cb).catch(cb)
 }
 
 function loadTypedArrayFile(filename, Type, cb) {
-  const f = AtomicFile(filename)
-  f.get((err, buf) => {
-    if (err) return cb(err)
+  readFile(filename)
+    .then((buf) => {
+      const seq = buf.readInt32LE(0)
+      const count = buf.readInt32LE(4)
+      const body = buf.slice(8)
 
-    const seq = buf.readInt32LE(0)
-    const count = buf.readInt32LE(4)
-    const body = buf.slice(8)
-
-    cb(null, {
-      seq,
-      count,
-      tarr: new Type(
-        body.buffer,
-        body.offset,
-        body.byteLength / (Type === Float64Array ? 8 : 4)
-      ),
+      cb(null, {
+        seq,
+        count,
+        tarr: new Type(
+          body.buffer,
+          body.offset,
+          body.byteLength / (Type === Float64Array ? 8 : 4)
+        ),
+      })
     })
-  })
+    .catch(cb)
 }
 
 function saveBitsetFile(filename, seq, bitset, cb) {
