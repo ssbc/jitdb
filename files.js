@@ -13,7 +13,9 @@ function saveTypedArrayFile(filename, seq, count, tarr, cb) {
   b.writeInt32LE(count, 4)
   dataBuffer.copy(b, 8)
 
-  writeFile(filename, b).then(cb).catch(cb)
+  writeFile(filename, b)
+    .then(() => cb())
+    .catch(cb)
 }
 
 function loadTypedArrayFile(filename, Type, cb) {
