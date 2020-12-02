@@ -1,6 +1,8 @@
 const bipf = require('bipf')
 
 const bValue = Buffer.from('value')
+const bVote = Buffer.from('vote')
+const bLink = Buffer.from('link')
 const bAuthor = Buffer.from('author')
 const bContent = Buffer.from('content')
 const bType = Buffer.from('type')
@@ -15,6 +17,17 @@ module.exports = {
     p = bipf.seekKey(buffer, p, bValue)
 
     if (~p) return bipf.seekKey(buffer, p, bAuthor)
+  },
+
+  seekVoteLink: function (buffer) {
+    var p = 0 // note you pass in p!
+    p = bipf.seekKey(buffer, p, bValue)
+    if (!~p) return
+    p = bipf.seekKey(buffer, p, bContent)
+    if (!~p) return
+    p = bipf.seekKey(buffer, p, bVote)
+    if (!~p) return
+    return bipf.seekKey(buffer, p, bLink)
   },
 
   seekType: function (buffer) {

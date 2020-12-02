@@ -62,7 +62,7 @@ function slowEqual(seekDesc, value, indexAll) {
   return {
     type: 'EQUAL',
     data: {
-      seek: seek,
+      seek,
       value: toBuffer(value),
       indexType,
       indexAll,
@@ -74,10 +74,36 @@ function equal(seek, value, indexType, indexAll) {
   return {
     type: 'EQUAL',
     data: {
-      seek: seek,
+      seek,
       value: toBuffer(value),
       indexType,
       indexAll,
+    },
+  }
+}
+
+function slowEqualViaPrefix(seekDesc, value, indexAll) {
+  const indexType = seekDesc.replace(/\./g, '_')
+  const seek = seekFromDesc(seekDesc)
+  return {
+    type: 'EQUAL',
+    data: {
+      seek,
+      value: toBuffer(value),
+      indexType,
+      prefix: 32,
+    },
+  }
+}
+
+function equalViaPrefix(seek, value, indexType, indexAll) {
+  return {
+    type: 'EQUAL',
+    data: {
+      seek,
+      value: toBuffer(value),
+      indexType,
+      prefix: 32,
     },
   }
 }
@@ -332,6 +358,8 @@ module.exports = {
   live,
   slowEqual,
   equal,
+  equalViaPrefix,
+  slowEqualViaPrefix,
   gt,
   gte,
   lt,

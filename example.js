@@ -1,3 +1,4 @@
+const bipf = require('bipf')
 const FlumeLog = require('async-flumelog')
 const pull = require('pull-stream')
 const JITDB = require('./index')
@@ -7,7 +8,8 @@ const {
   and,
   or,
   slowEqual,
-  type,
+  equal,
+  slowEqualViaPrefix,
   debug,
   author,
   paginate,
@@ -15,7 +17,10 @@ const {
   toPromise,
   toPullStream,
   toAsyncIter,
+  descending,
+  equalViaPrefix,
 } = require('./operators')
+const { seekType, seekAuthor, seekVoteLink } = require('./test/helpers')
 
 var raf = FlumeLog(process.argv[2], { blockSize: 64 * 1024 })
 
@@ -27,54 +32,79 @@ db.onReady(async () => {
   const mix = '@ye+QM09iPcDJD6YvQYjoQc7sLF/IFhmNbEqgdzQo3lQ=.ed25519'
   const mixy = '@G98XybiXD/amO9S/UyBKnWTWZnSKYS3YVB/5osSRHvY=.ed25519'
   const arj = '@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'
+  const myroot = '%0cwmRpJFo5qtsesZYrf2TkufWIaxTzLiNhKUZdWNeJM=.sha256'
 
-  if (true)
+  if (false)
     query(
       fromDB(db),
-      // debug(),
-      and(slowEqual('value.content.type', 'vote')),
-      // debug(),
-      and(slowEqual('value.content.vote.expression', '⛵')),
-      // debug(),
-      and(slowEqual('value.author', staltzp)),
+      and(votes(mid)),
       // debug(),
       toCallback((err, results) => {
-        console.log(results)
+        console.log(JSON.stringify(results))
       })
     )
 
   if (false) {
+    const before = Date.now()
     const results = await query(
       fromDB(db),
       // debug(),
-      and(type('post')),
+      and(equal(seekType, 'blog', 'type')),
       // debug(),
-      and(or(author(mix), author(mixy), author(arj))),
+      and(
+        or(equal(seekAuthor, mix, 'author'), equal(seekAuthor, mixy, 'author'))
+      ),
       // debug(),
       toPromise()
     )
+    const duration = Date.now() - before
+    console.log(`duration = ${duration}ms`)
     console.log(results.length)
   }
 
   var i = 0
+  if (true) {
+    const before = Date.now()
+    const results = await query(
+      fromDB(db),
+      or(
+        // slowEqualViaPrefix('value.content.vote.link', fdroidstress),
+        equalViaPrefix(seekVoteLink, myroot, 'vote_link')
+        // slowEqual('value.content.vote.link', fdroidstress)
+      ),
+      toPromise()
+    )
+    const duration = Date.now() - before
+    console.log(`duration = ${duration}ms`)
+    console.log(results.length)
+  }
+
+  var i = 0
+  // const before = Date.now()
   if (false)
     pull(
       query(
         fromDB(db),
-        // debug(),
-        and(type('blog')),
-        // debug(),
-        and(or(author(mix), author(mixy), author(arj))),
-        // debug(),
-        paginate(3),
-        // debug(),
+        or(
+          slowStartsWith('value.content.vote.link', myroot)
+          // slowEqual('value.content.vote.link', fdroidstress)
+        ),
+        // and(equal(seek, [0], 'bit')),
+        descending(),
         toPullStream()
       ),
-      pull.drain((msgs) => {
-        console.log('page #' + i++)
-        console.log(msgs)
+      // pull.take(4),
+      pull.collect((err, results) => {
+        const duration = Date.now() - before
+        console.log(`duration = ${duration}ms`)
+        console.log(results.length)
       })
+      // pull.drain((msg) => {
+      // console.log(JSON.stringify(msg) + '\n\n')
+      // })
     )
+  // const msgKeyBin = tobin(Buffer.from(msg.key, 'base64'))
+  // console.log(msg.key + ' ' + msgKeyBin + '\n')
 
   var i = 0
   if (false) {
