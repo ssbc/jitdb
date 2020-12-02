@@ -495,7 +495,7 @@ module.exports = function (log, indexesPath) {
     const target = op.data.value
     const targetPrefix = target.readUInt32LE(0)
     const prefixIndex = indexes[op.data.indexName]
-    for (let i = 0, len = prefixIndex.tarr.length; i < len; ++i) {
+    for (let i = 0; i < prefixIndex.count; ++i) {
       if (prefixIndex.tarr[i] === targetPrefix) bitset.add(i)
     }
     const getRec = promisify(getRecord)
