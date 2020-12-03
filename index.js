@@ -5,8 +5,8 @@ const pull = require('pull-stream')
 const toPull = require('push-stream-to-pull-stream')
 const pullAsync = require('pull-async')
 const TypedFastBitSet = require('typedfastbitset')
-const promisify = require('promisify-4loc')
 const bsb = require('binary-search-bounds')
+const multicb = require('multicb')
 const debug = require('debug')('jitdb')
 const {
   saveTypedArrayFile,
@@ -498,16 +498,24 @@ module.exports = function (log, indexesPath) {
     const target = op.data.value
     const targetPrefix = target.readUInt32LE(0)
     const prefixIndex = indexes[op.data.indexName]
-    for (let i = 0; i < prefixIndex.count; ++i) {
-      if (prefixIndex.tarr[i] === targetPrefix) bitset.add(i)
+    const count = prefixIndex.count
+    const tarr = prefixIndex.tarr
+    const done = multicb()
+    for (let o = 0; o < count; ++o) {
+      if (tarr[o] === targetPrefix) {
+        bitset.add(o)
+        getRecord(o, done())
+      }
     }
-    const getRec = promisify(getRecord)
-    const recs = await Promise.all(bitset.array().map((o) => getRec(o)))
-    recs.forEach((rec) => {
-      const candidate = bipf.slice(rec.value, op.data.seek(rec.value))
-      if (Buffer.compare(candidate, target)) bitset.remove(rec.offset)
+    done((err, recs) => {
+      if (err) return cb(err)
+      for (let i = 0, len = recs.length; i < len; ++i) {
+        const rec = recs[i][1]
+        const candidate = bipf.slice(rec.value, op.data.seek(rec.value))
+        if (Buffer.compare(candidate, target)) bitset.remove(rec.offset)
+      }
+      cb(bitset)
     })
-    cb(bitset)
   }
 
   function nestLargeOpsArray(ops, type) {
