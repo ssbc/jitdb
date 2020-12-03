@@ -241,8 +241,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function updateIndexValue(opData, index, buffer, offset) {
-    const status = checkValue(opData, buffer)
-    if (status) index.bitset.add(offset)
+    if (checkValue(opData, buffer)) index.bitset.add(offset)
   }
 
   function updateAllIndexValue(opData, newIndexes, buffer, offset) {
