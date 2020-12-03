@@ -461,8 +461,12 @@ module.exports = function (log, indexesPath) {
   }
 
   function ensureIndexSync(op, cb) {
-    if (log.since.value > indexes[op.data.indexName].seq) updateIndex(op, cb)
-    else cb()
+    if (log.since.value > indexes[op.data.indexName].seq) {
+      updateIndex(op, cb)
+    } else {
+      debug('ensureIndexSync %s is already synced', op.data.indexName)
+      cb()
+    }
   }
 
   function ensureOffsetIndexSync(cb) {
