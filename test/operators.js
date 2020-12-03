@@ -12,6 +12,8 @@ const {
   or,
   equal,
   slowEqual,
+  equalViaPrefix,
+  slowEqualViaPrefix,
   gt,
   gte,
   lt,
@@ -93,6 +95,36 @@ prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
   t.equal(queryTree.data.indexAll, true)
   t.deepEqual(queryTree.data.value, Buffer.from('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+
+  t.end()
+})
+
+prepareAndRunTest('equalViaPrefix', dir, (t, db, raf) => {
+  const queryTree = equalViaPrefix(helpers.seekType, 'post', 'type')
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'EQUAL')
+
+  t.equal(queryTree.data.indexType, 'type')
+  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+  t.equal(queryTree.data.prefix, 32)
+
+  t.end()
+})
+
+prepareAndRunTest('slowEqualViaPrefix', dir, (t, db, raf) => {
+  const queryTree = slowEqualViaPrefix('value.content.type', 'post', 'type')
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'EQUAL')
+
+  t.equal(queryTree.data.indexType, 'value_content_type')
+  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+  t.equal(queryTree.data.prefix, 32)
 
   t.end()
 })
