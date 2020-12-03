@@ -8,7 +8,7 @@ function saveTypedArrayFile(filename, seq, count, tarr, cb) {
   if (!cb) cb = () => {}
 
   const dataBuffer = toBuffer(tarr)
-  const b = Buffer.alloc(8 + dataBuffer.length)
+  const b = Buffer.alloc(8 + count * tarr.BYTES_PER_ELEMENT)
   b.writeInt32LE(seq, 0)
   b.writeInt32LE(count, 4)
   dataBuffer.copy(b, 8)
