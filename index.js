@@ -153,13 +153,8 @@ module.exports = function (log, indexesPath) {
   }
 
   function growTarrIndex(index, Type) {
-    let newLength = index.tarr.length * 2
-    // FIXME: even better would be to bring back the exponential jumps, but
-    // when reaching the end of the log stream, cut off all the empty space
-    const diff = Math.min(newLength - index.tarr.length, 64000)
-    newLength = index.tarr.length + diff
-    debug('growing index by +%d', diff)
-    const newArray = new Type(newLength)
+    debug('growing index')
+    const newArray = new Type(index.tarr.length * 2)
     newArray.set(index.tarr)
     index.tarr = newArray
   }
