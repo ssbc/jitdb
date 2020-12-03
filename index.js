@@ -588,14 +588,14 @@ module.exports = function (log, indexesPath) {
   }
 
   function executeOperation(operation, cb) {
-    const orphanOps = []
+    const opsMissingIndexes = []
     const lazyIndexes = []
 
     function detectMissingAndLazyIndexes(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL') {
           sanitizeOpData(op)
-          if (!indexes[op.data.indexName]) orphanOps.push(op)
+          if (!indexes[op.data.indexName]) opsMissingIndexes.push(op)
           else if (indexes[op.data.indexName].lazy)
             lazyIndexes.push(op.data.indexName)
         } else if (op.type === 'AND' || op.type === 'OR')
@@ -614,13 +614,15 @@ module.exports = function (log, indexesPath) {
     }
 
     function createMissingIndexes() {
-      if (orphanOps.length > 0) createIndexes(orphanOps, getBitset)
+      if (opsMissingIndexes.length > 0)
+        createIndexes(opsMissingIndexes, getBitset)
       else getBitset()
     }
 
     detectMissingAndLazyIndexes([operation])
 
-    if (orphanOps.length > 0) debug('missing indexes: %o', orphanOps)
+    if (opsMissingIndexes.length > 0)
+      debug('missing indexes: %o', opsMissingIndexes)
 
     if (lazyIndexes.length > 0)
       loadLazyIndexes(lazyIndexes, createMissingIndexes)
