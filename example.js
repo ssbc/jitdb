@@ -1,4 +1,3 @@
-const bipf = require('bipf')
 const FlumeLog = require('async-flumelog')
 const pull = require('pull-stream')
 const JITDB = require('./index')
@@ -17,7 +16,6 @@ const {
   toPullStream,
   toAsyncIter,
   descending,
-  equalViaPrefix,
 } = require('./operators')
 const { seekType, seekAuthor, seekVoteLink } = require('./test/helpers')
 
@@ -36,10 +34,15 @@ db.onReady(async () => {
   if (false)
     query(
       fromDB(db),
-      and(votes(mid)),
+      // debug(),
+      and(slowEqual('value.content.type', 'vote')),
+      // debug(),
+      and(slowEqual('value.content.vote.expression', '⛵')),
+      // debug(),
+      and(slowEqual('value.author', staltzp)),
       // debug(),
       toCallback((err, results) => {
-        console.log(JSON.stringify(results))
+        console.log(results)
       })
     )
 
@@ -69,9 +72,8 @@ db.onReady(async () => {
     const results = await query(
       fromDB(db),
       or(
-        // slowEqualViaPrefix('value.content.vote.link', fdroidstress),
+        // slowEqual('value.content.vote.link', myroot, { prefix: 32 })
         equal(seekVoteLink, myroot, { prefix: 32, indexType: 'vote_link' })
-        // slowEqual('value.content.vote.link', fdroidstress)
       ),
       toPromise()
     )
@@ -79,50 +81,6 @@ db.onReady(async () => {
     console.log(`duration = ${duration}ms`)
     console.log(results.length)
   }
-
-  var i = 0
-  if (true) {
-    const before = Date.now()
-    const results = await query(
-      fromDB(db),
-      or(
-        // slowEqualViaPrefix('value.content.vote.link', fdroidstress),
-        equalViaPrefix(seekVoteLink, myroot, 'vote_link')
-        // slowEqual('value.content.vote.link', fdroidstress)
-      ),
-      toPromise()
-    )
-    const duration = Date.now() - before
-    console.log(`duration = ${duration}ms`)
-    console.log(results.length)
-  }
-
-  var i = 0
-  // const before = Date.now()
-  if (false)
-    pull(
-      query(
-        fromDB(db),
-        or(
-          slowStartsWith('value.content.vote.link', myroot)
-          // slowEqual('value.content.vote.link', fdroidstress)
-        ),
-        // and(equal(seek, [0], 'bit')),
-        descending(),
-        toPullStream()
-      ),
-      // pull.take(4),
-      pull.collect((err, results) => {
-        const duration = Date.now() - before
-        console.log(`duration = ${duration}ms`)
-        console.log(results.length)
-      })
-      // pull.drain((msg) => {
-      // console.log(JSON.stringify(msg) + '\n\n')
-      // })
-    )
-  // const msgKeyBin = tobin(Buffer.from(msg.key, 'base64'))
-  // console.log(msg.key + ' ' + msgKeyBin + '\n')
 
   var i = 0
   if (false) {
