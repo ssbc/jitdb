@@ -56,28 +56,32 @@ function seekFromDesc(desc) {
   }
 }
 
-function slowEqual(seekDesc, value, indexAll) {
+function slowEqual(seekDesc, value, opts) {
+  opts = opts || {}
   const indexType = seekDesc.replace(/\./g, '_')
   const seek = seekFromDesc(seekDesc)
   return {
     type: 'EQUAL',
     data: {
-      seek: seek,
+      seek,
       value: toBuffer(value),
       indexType,
-      indexAll,
+      indexAll: opts.indexAll,
+      prefix: opts.prefix,
     },
   }
 }
 
-function equal(seek, value, indexType, indexAll) {
+function equal(seek, value, opts) {
+  opts = opts || {}
   return {
     type: 'EQUAL',
     data: {
-      seek: seek,
+      seek,
       value: toBuffer(value),
-      indexType,
-      indexAll,
+      indexType: opts.indexType,
+      indexAll: opts.indexAll,
+      prefix: opts.prefix,
     },
   }
 }

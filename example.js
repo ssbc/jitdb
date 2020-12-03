@@ -7,7 +7,7 @@ const {
   and,
   or,
   slowEqual,
-  type,
+  equal,
   debug,
   author,
   paginate,
@@ -15,7 +15,9 @@ const {
   toPromise,
   toPullStream,
   toAsyncIter,
+  descending,
 } = require('./operators')
+const { seekType, seekAuthor, seekVoteLink } = require('./test/helpers')
 
 var raf = FlumeLog(process.argv[2], { blockSize: 64 * 1024 })
 
@@ -27,8 +29,9 @@ db.onReady(async () => {
   const mix = '@ye+QM09iPcDJD6YvQYjoQc7sLF/IFhmNbEqgdzQo3lQ=.ed25519'
   const mixy = '@G98XybiXD/amO9S/UyBKnWTWZnSKYS3YVB/5osSRHvY=.ed25519'
   const arj = '@6CAxOI3f+LUOVrbAl0IemqiS7ATpQvr9Mdw9LC4+Uv0=.ed25519'
+  const myroot = '%0cwmRpJFo5qtsesZYrf2TkufWIaxTzLiNhKUZdWNeJM=.sha256'
 
-  if (true)
+  if (false)
     query(
       fromDB(db),
       // debug(),
@@ -44,37 +47,40 @@ db.onReady(async () => {
     )
 
   if (false) {
+    const before = Date.now()
     const results = await query(
       fromDB(db),
       // debug(),
-      and(type('post')),
+      and(equal(seekType, 'blog', { indexType: 'type' })),
       // debug(),
-      and(or(author(mix), author(mixy), author(arj))),
+      and(
+        or(
+          equal(seekAuthor, mix, { indexType: 'author' }),
+          equal(seekAuthor, mixy, { indexType: 'author' })
+        )
+      ),
       // debug(),
       toPromise()
     )
+    const duration = Date.now() - before
+    console.log(`duration = ${duration}ms`)
     console.log(results.length)
   }
 
-  var i = 0
-  if (false)
-    pull(
-      query(
-        fromDB(db),
-        // debug(),
-        and(type('blog')),
-        // debug(),
-        and(or(author(mix), author(mixy), author(arj))),
-        // debug(),
-        paginate(3),
-        // debug(),
-        toPullStream()
+  if (true) {
+    const before = Date.now()
+    const results = await query(
+      fromDB(db),
+      or(
+        // slowEqual('value.content.vote.link', myroot, { prefix: 32 })
+        equal(seekVoteLink, myroot, { prefix: 32, indexType: 'vote_link' })
       ),
-      pull.drain((msgs) => {
-        console.log('page #' + i++)
-        console.log(msgs)
-      })
+      toPromise()
     )
+    const duration = Date.now() - before
+    console.log(`duration = ${duration}ms`)
+    console.log(results.length)
+  }
 
   var i = 0
   if (false) {

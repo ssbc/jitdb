@@ -4,9 +4,10 @@ A database on top of a [flumelog] (the recommended being
 [async-flumelog]) with automatic index generation and maintenance.
 
 The motivation for this database is that it should be:
- - fast
- - easy to understand
- - run in the browser and in node
+
+- fast
+- easy to understand
+- run in the browser and in node
 
 Async flumelog takes care of persistance of the main log. It is
 expected to use [bipf] to encode data. On top of this, JITDB lazily
@@ -38,7 +39,9 @@ requires a **path to the directory where the indexes** will live.
 const FlumeLog = require('async-flumelog')
 const JITDB = require('jitdb')
 
-const raf = FlumeLog('/home/me/path/to/async-flumelog', {blockSize: 64*1024})
+const raf = FlumeLog('/home/me/path/to/async-flumelog', {
+  blockSize: 64 * 1024,
+})
 const db = JITDB(raf, '/home/me/path/to/indexes')
 
 db.onReady(() => {
@@ -55,9 +58,11 @@ query the database. You can load these operators from
 ```js
 const FlumeLog = require('async-flumelog')
 const JITDB = require('jitdb')
-const {query, fromDB, and, slowEqual, toCallback} = require('jitdb/operators')
+const { query, fromDB, and, slowEqual, toCallback } = require('jitdb/operators')
 
-const raf = FlumeLog('/home/me/path/to/async-flumelog', {blockSize: 64*1024})
+const raf = FlumeLog('/home/me/path/to/async-flumelog', {
+  blockSize: 64 * 1024,
+})
 const db = JITDB(raf, '/home/me/path/to/indexes')
 
 db.onReady(() => {
@@ -82,14 +87,17 @@ desired set of messages: `and`, `or`, `equal`, `slowEqual`.
 
 - **and** filters for messages that satisfy **all** of the arguments provided
 - **or** filters for messages that satisfy **at least one** of the arguments provided
-- **equal** filters for messages that have a specific *field*, arguments are:
+- **equal** filters for messages that have a specific _field_, arguments are:
   - `seek` is a function that takes a [bipf] buffer as input and uses
-    `bipf.seekKey` to return a pointer to the *field*
-  - `value` is a string or buffer which is the value we want the *field*'s value to match
-  - `indexType` is a name used to identify the index produced by this query
+    `bipf.seekKey` to return a pointer to the _field_
+  - `value` is a string or buffer which is the value we want the _field_'s value to match
+  - `opts` are additional configurations:
+    - `indexType` is a name used to identify the index produced by this query
+    - `prefix` boolean or number `32` that tells this query to use [prefix indexes](#prefix-indexes)
 - **slowEqual** is a more ergonomic (but slower) way of performing `equal`, the arguments are:
   - `seekDescriptor` a string in the shape `"foo.bar.baz"` which specifies the nested field `"baz"`
   - `value` is the same as `value` in the `equal` operator
+  - `opts` same as the opts for `equal()`
 
 Some examples:
 
@@ -110,7 +118,7 @@ query(
 ```js
 query(
   fromDB(db),
-  and(equal(seekType, 'post', 'type')),
+  and(equal(seekType, 'post', { indexType: 'type' })),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages of type "post"')
   })
@@ -150,7 +158,12 @@ query(
 query(
   fromDB(db),
   and(equal(seekType, 'contact', 'type')),
-  and(or(equal(seekAuthor, aliceId, 'author'), equal(seekAuthor, bobId, 'author'))),
+  and(
+    or(
+      equal(seekAuthor, aliceId, { indexType: 'author' }),
+      equal(seekAuthor, bobId, { indexType: 'author' })
+    )
+  ),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages')
   })
@@ -195,7 +208,7 @@ const source = query(
 
 pull(
   source,
-  pull.drain(msgs => {
+  pull.drain((msgs) => {
     console.log('next page')
     console.log(msgs)
   })
@@ -221,7 +234,7 @@ const source = query(
 
 pull(
   source,
-  pull.drain(msgs => {
+  pull.drain((msgs) => {
     console.log('next page:')
     console.log(msgs)
   })
@@ -303,7 +316,7 @@ query(
   and(slowEqual('value.author', aliceId)),
   toCallback((err, results) => {
     console.log(results)
-  }),
+  })
 )
 ```
 
@@ -333,9 +346,21 @@ const {
   toCallback,
   toPullStream,
   toPromise,
-  toAsyncIter
+  toAsyncIter,
 } = require('jitdb/operators')
 ```
+
+## Prefix indexes
+
+Most indexes in JITDB are bitvectors, which are suitable for answering boolean queries such as "is this msg a post?" or "is this msg from author A?". For each of these queries, JITDB creates one file.
+
+This is fine for several cases, but some queries are not boolean. Queries on bitvectors such as "is this msg a reply to msg X?" can end up generating `N` files if the "msg X" can have N different values. The creation of indexes is this case becomes the overhead.
+
+**Prefix indexes** help in that case because they can answer non-boolean queries with multiple different values but using just one index file. For example, for N different values of "msg X", just one prefix index is enough for answering "is this msg a reply to msg X?".
+
+The way prefix indexes work is that for each message in the log, it picks the first 32 bits of a field in the message (hence 'prefix') and then compares your desired value with all of these prefixes. It doesn't store the whole value because that could turn out wasteful in storage and memory as the log scales (to 1 million or more messages). Storing just a prefix is not enough for uniqueness, though, as different values will have the same prefix, so queries on prefix indexes will create false positives, but JITDB does an additional check so in the resulting query, **you will not get false positives**.
+
+_Rule of thumb_: use prefix indexes in an EQUAL operation only when the target `value` of your EQUAL can dynamically assume many (more than a dozen) possible values.
 
 ## Low-level API
 
@@ -345,34 +370,22 @@ Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
 query is run. The result is an object with the fields:
 
- - `data`: the actual messages
- - `total`: the total number of messages
- - `duration`: the number of ms the query took
+- `data`: the actual messages
+- `total`: the total number of messages
+- `duration`: the number of ms the query took
 
 Operation can be of the following types:
 
-| type          | data |
-| ------------- | ---- |
-| EQUAL         | { seek, value, indexType, indexAll } |
-| GT,GTE,LT,LTE | { indexName, value } |
-| SEQS          | { seqs } |
-| OFFSETS       | { offsets } |
-| AND           | [operation, operation] |
-| OR            | [operation, operation] |
+| type          | data                                         |
+| ------------- | -------------------------------------------- |
+| EQUAL         | { seek, value, indexType, indexAll, prefix } |
+| GT,GTE,LT,LTE | { indexName, value }                         |
+| SEQS          | { seqs }                                     |
+| OFFSETS       | { offsets }                                  |
+| AND           | [operation, operation]                       |
+| OR            | [operation, operation]                       |
 
-`seek` is a function that takes a buffer from the database as input
-and returns an index in the buffer from where a value can be compared
-to the `value` given. If value is `undefined` it corresponds to the
-field not being defined at that point in the buffer. `indexType` is
-used to group indexes of the same type. If `indexAll` is specified and
-no index of the type and value exists, then instead of only this index
-being created, missing indexes for all possible values given the seek
-pointer will be created. This can be particular useful for data where
-there number of different values are rather small, but still larger
-than a few. One example is author or feeds in SSB, a typical database
-of 1 million records will have roughly 700 authors. The biggest cost
-in creating the indexes is traversing the database, so creating all
-indexes in one go instead of several hundreds is a lot faster.
+`seek` is a function that takes a buffer from the database as input and returns an index in the buffer from where a value can be compared to the `value` given. If value is `undefined` it corresponds to the field not being defined at that point in the buffer. `prefix` enables the use of prefix indexes for this operation. `indexType` is used to group indexes of the same type. If `indexAll` is specified and no index of the type and value exists, then instead of only this index being created, missing indexes for all possible values given the seek pointer will be created. This can be particular useful for data where there number of different values are rather small, but still larger than a few. One example is author or feeds in SSB, a typical database of 1 million records will have roughly 700 authors. The biggest cost in creating the indexes is traversing the database, so creating all indexes in one go instead of several hundreds is a lot faster.
 
 For `GT`, `GTE`, `LT` and `LTE`, `indexName` can be either `sequence`
 or `timestamp`.
@@ -409,7 +422,7 @@ Will setup a pull stream and this in `cb`. The pull stream will emit
 new values as they are added to the underlying log. This is meant to
 run after `paginate` or `all`.
 
-Please note the index is *not* updated when using this method and only
+Please note the index is _not_ updated when using this method and only
 one live offsets stream is supported.
 
 ### onReady(cb)

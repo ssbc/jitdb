@@ -6,6 +6,7 @@ const toPull = require('push-stream-to-pull-stream')
 const pullAsync = require('pull-async')
 const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
+const multicb = require('multicb')
 const debug = require('debug')('jitdb')
 const {
   saveTypedArrayFile,
@@ -97,6 +98,17 @@ module.exports = function (log, indexesPath) {
                 cb()
               }
             )
+          } else if (file.endsWith('.32prefix')) {
+            // Don't load it yet, just tag it `lazy`
+            indexes[indexName] = {
+              seq: -1,
+              count: 0,
+              tarr: new Uint32Array(16 * 1000),
+              lazy: true,
+              prefix: 32,
+              filepath: path.join(indexesPath, file),
+            }
+            cb()
           } else if (file.endsWith('.index')) {
             // Don't load it yet, just tag it `lazy`
             indexes[indexName] = {
@@ -133,17 +145,24 @@ module.exports = function (log, indexesPath) {
     saveBitsetFile(filename, index.seq, index.bitset, cb)
   }
 
-  function growCoreIndex(coreIndex, Type) {
+  function savePrefixIndex(name, prefixIndex, count, cb) {
+    debug('saving prefix index: %s', name)
+    const num = prefixIndex.prefix
+    const filename = path.join(indexesPath, name + `.${num}prefix`)
+    saveTypedArrayFile(filename, prefixIndex.seq, count, prefixIndex.tarr, cb)
+  }
+
+  function growTarrIndex(index, Type) {
     debug('growing index')
-    const newArray = new Type(coreIndex.tarr.length * 2)
-    newArray.set(coreIndex.tarr)
-    coreIndex.tarr = newArray
+    const newArray = new Type(index.tarr.length * 2)
+    newArray.set(index.tarr)
+    index.tarr = newArray
   }
 
   function updateOffsetIndex(offset, seq) {
     if (offset > indexes['offset'].count - 1) {
       if (offset > indexes['offset'].tarr.length)
-        growCoreIndex(indexes['offset'], Uint32Array)
+        growTarrIndex(indexes['offset'], Uint32Array)
 
       indexes['offset'].seq = seq
       indexes['offset'].tarr[offset] = seq
@@ -155,7 +174,7 @@ module.exports = function (log, indexesPath) {
   function updateTimestampIndex(offset, seq, buffer) {
     if (offset > indexes['timestamp'].count - 1) {
       if (offset > indexes['timestamp'].tarr.length)
-        growCoreIndex(indexes['timestamp'], Float64Array)
+        growTarrIndex(indexes['timestamp'], Float64Array)
 
       indexes['timestamp'].seq = seq
 
@@ -174,7 +193,7 @@ module.exports = function (log, indexesPath) {
   function updateSequenceIndex(offset, seq, buffer) {
     if (offset > indexes['sequence'].count - 1) {
       if (offset > indexes['sequence'].tarr.length)
-        growCoreIndex(indexes['sequence'], Uint32Array)
+        growTarrIndex(indexes['sequence'], Uint32Array)
 
       indexes['sequence'].seq = seq
 
@@ -199,11 +218,24 @@ module.exports = function (log, indexesPath) {
     else return false
   }
 
-  function updateIndexValue(opData, index, buffer, offset) {
-    const status = checkValue(opData, buffer)
-    if (status) index.bitset.add(offset)
+  function updatePrefixIndex(opData, index, buffer, offset, seq) {
+    if (offset > index.count - 1) {
+      if (offset > index.tarr.length) growTarrIndex(index, Uint32Array)
 
-    return status
+      const seekedField = opData.seek(buffer)
+      if (seekedField) {
+        const buf = bipf.slice(buffer, seekedField)
+        index.tarr[offset] = buf.length ? buf.readUInt32LE(0) : 0
+      } else {
+        index.tarr[offset] = 0
+      }
+      index.seq = seq
+      index.count = offset + 1
+    }
+  }
+
+  function updateIndexValue(opData, index, buffer, offset) {
+    if (checkValue(opData, buffer)) index.bitset.add(offset)
   }
 
   function updateAllIndexValue(opData, newIndexes, buffer, offset) {
@@ -255,8 +287,11 @@ module.exports = function (log, indexesPath) {
         if (updateSequenceIndex(offset, record.seq, record.value))
           updatedSequenceIndex = true
 
-        if (indexNeedsUpdate)
-          updateIndexValue(op.data, index, record.value, offset)
+        if (indexNeedsUpdate) {
+          if (op.data.prefix)
+            updatePrefixIndex(op.data, index, record.value, offset, record.seq)
+          else updateIndexValue(op.data, index, record.value, offset)
+        }
 
         offset++
       },
@@ -274,20 +309,31 @@ module.exports = function (log, indexesPath) {
           saveCoreIndex('sequence', indexes['sequence'], count)
 
         index.seq = indexes['offset'].seq
-        if (indexNeedsUpdate) saveIndex(op.data.indexName, index)
+        if (indexNeedsUpdate) {
+          if (index.prefix) savePrefixIndex(op.data.indexName, index, count)
+          else saveIndex(op.data.indexName, index)
+        }
 
         cb()
       },
     })
   }
 
-  function createIndexes(missingIndexes, cb) {
+  function createIndexes(opsMissingIndexes, cb) {
     const newIndexes = {}
-    missingIndexes.forEach((m) => {
-      newIndexes[m.indexName] = {
-        seq: 0,
-        bitset: new TypedFastBitSet(),
-      }
+    opsMissingIndexes.forEach((op) => {
+      if (op.data.prefix)
+        newIndexes[op.data.indexName] = {
+          seq: 0,
+          count: 0,
+          tarr: new Uint32Array(16 * 1000),
+          prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
+        }
+      else
+        newIndexes[op.data.indexName] = {
+          seq: 0,
+          bitset: new TypedFastBitSet(),
+        }
     })
 
     let offset = 0
@@ -311,9 +357,24 @@ module.exports = function (log, indexesPath) {
         if (updateSequenceIndex(offset, record.seq, buffer))
           updatedSequenceIndex = true
 
-        missingIndexes.forEach((m) => {
-          if (m.indexAll) updateAllIndexValue(m, newIndexes, buffer, offset)
-          else updateIndexValue(m, newIndexes[m.indexName], buffer, offset)
+        opsMissingIndexes.forEach((op) => {
+          if (op.data.prefix)
+            updatePrefixIndex(
+              op.data,
+              newIndexes[op.data.indexName],
+              buffer,
+              offset,
+              seq
+            )
+          else if (op.data.indexAll)
+            updateAllIndexValue(op.data, newIndexes, buffer, offset)
+          else
+            updateIndexValue(
+              op.data,
+              newIndexes[op.data.indexName],
+              buffer,
+              offset
+            )
         })
 
         offset++
@@ -334,7 +395,8 @@ module.exports = function (log, indexesPath) {
         for (var indexName in newIndexes) {
           const index = (indexes[indexName] = newIndexes[indexName])
           index.seq = indexes['offset'].seq
-          saveIndex(indexName, index)
+          if (index.prefix) savePrefixIndex(indexName, index, count)
+          else saveIndex(indexName, index)
         }
 
         cb()
@@ -345,13 +407,28 @@ module.exports = function (log, indexesPath) {
   function loadLazyIndex(indexName, cb) {
     debug('lazy loading %s', indexName)
     let index = indexes[indexName]
-    // FIXME: handle error
-    loadBitsetFile(index.filepath, (err, { seq, bitset }) => {
-      index.seq = seq
-      index.bitset = bitset
-      index.lazy = false
-      cb()
-    })
+    if (index.prefix) {
+      loadTypedArrayFile(
+        index.filepath,
+        Uint32Array,
+        (err, { seq, tarr, count }) => {
+          // FIXME: handle error
+          index.seq = seq
+          index.tarr = tarr
+          index.count = count
+          index.lazy = false
+          cb()
+        }
+      )
+    } else {
+      loadBitsetFile(index.filepath, (err, { seq, bitset }) => {
+        // FIXME: handle error
+        index.seq = seq
+        index.bitset = bitset
+        index.lazy = false
+        cb()
+      })
+    }
   }
 
   function loadLazyIndexes(indexNames, cb) {
@@ -364,8 +441,12 @@ module.exports = function (log, indexesPath) {
 
   function sanitizeOpData(op) {
     if (!op.data.indexName) {
-      const name = op.data.value === undefined ? '' : op.data.value.toString()
-      op.data.indexName = safeFilename(op.data.indexType + '_' + name)
+      if (op.data.prefix) {
+        op.data.indexName = safeFilename(op.data.indexType)
+      } else {
+        const name = op.data.value === undefined ? '' : op.data.value.toString()
+        op.data.indexName = safeFilename(op.data.indexType + '_' + name)
+      }
     }
     if (op.data.value !== undefined)
       op.data.value = Buffer.isBuffer(op.data.value)
@@ -374,8 +455,12 @@ module.exports = function (log, indexesPath) {
   }
 
   function ensureIndexSync(op, cb) {
-    if (log.since.value > indexes[op.data.indexName].seq) updateIndex(op, cb)
-    else cb()
+    if (log.since.value > indexes[op.data.indexName].seq) {
+      updateIndex(op, cb)
+    } else {
+      debug('ensureIndexSync %s is already synced', op.data.indexName)
+      cb()
+    }
   }
 
   function ensureOffsetIndexSync(cb) {
@@ -402,6 +487,31 @@ module.exports = function (log, indexesPath) {
     })
   }
 
+  function matchAgainstPrefix(op, prefixIndex, cb) {
+    const target = op.data.value
+    const targetPrefix = target.readUInt32LE(0)
+    const count = prefixIndex.count
+    const tarr = prefixIndex.tarr
+    const bitset = new TypedFastBitSet()
+    const done = multicb({ pluck: 1 })
+    for (let o = 0; o < count; ++o) {
+      if (tarr[o] === targetPrefix) {
+        bitset.add(o)
+        getRecord(o, done())
+      }
+    }
+    done((err, recs) => {
+      // FIXME: handle error better, this cb() should support 2 args
+      if (err) return console.error(err)
+      for (let i = 0, len = recs.length; i < len; ++i) {
+        const rec = recs[i]
+        const candidate = bipf.slice(rec.value, op.data.seek(rec.value))
+        if (Buffer.compare(candidate, target)) bitset.remove(rec.offset)
+      }
+      cb(bitset)
+    })
+  }
+
   function nestLargeOpsArray(ops, type) {
     let op = ops[0]
     ops.slice(1).forEach((rest) => {
@@ -415,9 +525,15 @@ module.exports = function (log, indexesPath) {
 
   function getBitsetForOperation(op, cb) {
     if (op.type === 'EQUAL') {
-      ensureIndexSync(op, () => {
-        cb(indexes[op.data.indexName].bitset)
-      })
+      if (op.data.prefix) {
+        ensureIndexSync(op, () => {
+          matchAgainstPrefix(op, indexes[op.data.indexName], cb)
+        })
+      } else {
+        ensureIndexSync(op, () => {
+          cb(indexes[op.data.indexName].bitset)
+        })
+      }
     } else if (op.type === 'GT') {
       filterIndex(op, (num, op) => num > op.data.value, cb)
     } else if (op.type === 'GTE') {
@@ -471,14 +587,14 @@ module.exports = function (log, indexesPath) {
   }
 
   function executeOperation(operation, cb) {
-    const missingIndexes = []
+    const opsMissingIndexes = []
     const lazyIndexes = []
 
     function detectMissingAndLazyIndexes(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL') {
           sanitizeOpData(op)
-          if (!indexes[op.data.indexName]) missingIndexes.push(op.data)
+          if (!indexes[op.data.indexName]) opsMissingIndexes.push(op)
           else if (indexes[op.data.indexName].lazy)
             lazyIndexes.push(op.data.indexName)
         } else if (op.type === 'AND' || op.type === 'OR')
@@ -497,13 +613,15 @@ module.exports = function (log, indexesPath) {
     }
 
     function createMissingIndexes() {
-      if (missingIndexes.length > 0) createIndexes(missingIndexes, getBitset)
+      if (opsMissingIndexes.length > 0)
+        createIndexes(opsMissingIndexes, getBitset)
       else getBitset()
     }
 
     detectMissingAndLazyIndexes([operation])
 
-    if (missingIndexes.length > 0) debug('missing indexes: %o', missingIndexes)
+    if (opsMissingIndexes.length > 0)
+      debug('missing indexes: %o', opsMissingIndexes)
 
     if (lazyIndexes.length > 0)
       loadLazyIndexes(lazyIndexes, createMissingIndexes)
@@ -539,7 +657,7 @@ module.exports = function (log, indexesPath) {
     const seq = indexes['offset'].tarr[offset]
     log.get(seq, (err, res) => {
       if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, { seq, value: res })
+      else cb(err, { seq, value: res, offset })
     })
   }
 
