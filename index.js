@@ -493,7 +493,7 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  async function matchAgainstPrefix(op, cb) {
+  function matchAgainstPrefix(op, cb) {
     const bitset = new TypedFastBitSet()
     const target = op.data.value
     const targetPrefix = target.readUInt32LE(0)
