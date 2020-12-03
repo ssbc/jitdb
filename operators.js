@@ -56,7 +56,8 @@ function seekFromDesc(desc) {
   }
 }
 
-function slowEqual(seekDesc, value, indexAll) {
+function slowEqual(seekDesc, value, opts) {
+  opts = opts || {}
   const indexType = seekDesc.replace(/\./g, '_')
   const seek = seekFromDesc(seekDesc)
   return {
@@ -65,45 +66,22 @@ function slowEqual(seekDesc, value, indexAll) {
       seek,
       value: toBuffer(value),
       indexType,
-      indexAll,
+      indexAll: opts.indexAll,
+      prefix: opts.prefix,
     },
   }
 }
 
-function equal(seek, value, indexType, indexAll) {
+function equal(seek, value, opts) {
+  opts = opts || {}
   return {
     type: 'EQUAL',
     data: {
       seek,
       value: toBuffer(value),
-      indexType,
-      indexAll,
-    },
-  }
-}
-
-function slowEqualViaPrefix(seekDesc, value, indexAll) {
-  const indexType = seekDesc.replace(/\./g, '_')
-  const seek = seekFromDesc(seekDesc)
-  return {
-    type: 'EQUAL',
-    data: {
-      seek,
-      value: toBuffer(value),
-      indexType,
-      prefix: 32,
-    },
-  }
-}
-
-function equalViaPrefix(seek, value, indexType, indexAll) {
-  return {
-    type: 'EQUAL',
-    data: {
-      seek,
-      value: toBuffer(value),
-      indexType,
-      prefix: 32,
+      indexType: opts.indexType,
+      indexAll: opts.indexAll,
+      prefix: opts.prefix,
     },
   }
 }
@@ -358,8 +336,6 @@ module.exports = {
   live,
   slowEqual,
   equal,
-  equalViaPrefix,
-  slowEqualViaPrefix,
   gt,
   gte,
   lt,

@@ -12,8 +12,6 @@ const {
   or,
   equal,
   slowEqual,
-  equalViaPrefix,
-  slowEqualViaPrefix,
   gt,
   gte,
   lt,
@@ -43,7 +41,7 @@ const bob = ssbKeys.generate('ed25519', Buffer.alloc(32, 'b'))
 prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(helpers.seekType, 'post', 'type', true))
+    and(equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true }))
   )
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
@@ -85,7 +83,7 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
-  const queryTree = slowEqual('value.content.type', 'post', true)
+  const queryTree = slowEqual('value.content.type', 'post', { indexAll: true })
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
 
@@ -99,8 +97,11 @@ prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
   t.end()
 })
 
-prepareAndRunTest('equalViaPrefix', dir, (t, db, raf) => {
-  const queryTree = equalViaPrefix(helpers.seekType, 'post', 'type')
+prepareAndRunTest('equal with prefix', dir, (t, db, raf) => {
+  const queryTree = equal(helpers.seekType, 'post', {
+    prefix: 32,
+    indexType: 'type',
+  })
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
 
@@ -114,8 +115,11 @@ prepareAndRunTest('equalViaPrefix', dir, (t, db, raf) => {
   t.end()
 })
 
-prepareAndRunTest('slowEqualViaPrefix', dir, (t, db, raf) => {
-  const queryTree = slowEqualViaPrefix('value.content.type', 'post', 'type')
+prepareAndRunTest('slowEqual with prefix', dir, (t, db, raf) => {
+  const queryTree = slowEqual('value.content.type', 'post', {
+    prefix: 32,
+    indexType: 'type',
+  })
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
 
@@ -256,7 +260,10 @@ prepareAndRunTest(
 prepareAndRunTest('operator gt', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(helpers.seekAuthor, alice.id, 'author'), gt(2, 'sequence'))
+    and(
+      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+      gt(2, 'sequence')
+    )
   )
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
@@ -279,7 +286,10 @@ prepareAndRunTest('operator gt', dir, (t, db, raf) => {
 prepareAndRunTest('operator gte', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(helpers.seekAuthor, alice.id, 'author'), gte(2, 'sequence'))
+    and(
+      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+      gte(2, 'sequence')
+    )
   )
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
@@ -299,7 +309,10 @@ prepareAndRunTest('operator gte', dir, (t, db, raf) => {
 prepareAndRunTest('operator lt', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(helpers.seekAuthor, alice.id, 'author'), lt(2, 'sequence'))
+    and(
+      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+      lt(2, 'sequence')
+    )
   )
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
@@ -319,7 +332,10 @@ prepareAndRunTest('operator lt', dir, (t, db, raf) => {
 prepareAndRunTest('operator lte', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(helpers.seekAuthor, alice.id, 'author'), lte(2, 'sequence'))
+    and(
+      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+      lte(2, 'sequence')
+    )
   )
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')

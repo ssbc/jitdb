@@ -9,7 +9,6 @@ const {
   or,
   slowEqual,
   equal,
-  slowEqualViaPrefix,
   debug,
   author,
   paginate,
@@ -49,12 +48,31 @@ db.onReady(async () => {
     const results = await query(
       fromDB(db),
       // debug(),
-      and(equal(seekType, 'blog', 'type')),
+      and(equal(seekType, 'blog', { indexType: 'type' })),
       // debug(),
       and(
-        or(equal(seekAuthor, mix, 'author'), equal(seekAuthor, mixy, 'author'))
+        or(
+          equal(seekAuthor, mix, { indexType: 'author' }),
+          equal(seekAuthor, mixy, { indexType: 'author' })
+        )
       ),
       // debug(),
+      toPromise()
+    )
+    const duration = Date.now() - before
+    console.log(`duration = ${duration}ms`)
+    console.log(results.length)
+  }
+
+  if (true) {
+    const before = Date.now()
+    const results = await query(
+      fromDB(db),
+      or(
+        // slowEqualViaPrefix('value.content.vote.link', fdroidstress),
+        equal(seekVoteLink, myroot, { prefix: 32, indexType: 'vote_link' })
+        // slowEqual('value.content.vote.link', fdroidstress)
+      ),
       toPromise()
     )
     const duration = Date.now() - before
