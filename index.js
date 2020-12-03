@@ -231,7 +231,6 @@ module.exports = function (log, indexesPath) {
       }
       index.seq = seq
       index.count = offset + 1
-      return true
     }
   }
 
@@ -320,15 +319,15 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function createIndexes(orphanOps, cb) {
+  function createIndexes(opsMissingIndexes, cb) {
     const newIndexes = {}
-    orphanOps.forEach((op) => {
+    opsMissingIndexes.forEach((op) => {
       if (op.data.prefix)
         newIndexes[op.data.indexName] = {
           seq: 0,
           count: 0,
           tarr: new Uint32Array(16 * 1000),
-          prefix: op.data.prefix,
+          prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
         }
       else
         newIndexes[op.data.indexName] = {
@@ -358,7 +357,7 @@ module.exports = function (log, indexesPath) {
         if (updateSequenceIndex(offset, record.seq, buffer))
           updatedSequenceIndex = true
 
-        orphanOps.forEach((op) => {
+        opsMissingIndexes.forEach((op) => {
           if (op.data.prefix)
             updatePrefixIndex(
               op.data,
@@ -488,14 +487,13 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function matchAgainstPrefix(op, cb) {
-    const bitset = new TypedFastBitSet()
+  function matchAgainstPrefix(op, prefixIndex, cb) {
     const target = op.data.value
     const targetPrefix = target.readUInt32LE(0)
-    const prefixIndex = indexes[op.data.indexName]
     const count = prefixIndex.count
     const tarr = prefixIndex.tarr
-    const done = multicb()
+    const bitset = new TypedFastBitSet()
+    const done = multicb({ pluck: 1 })
     for (let o = 0; o < count; ++o) {
       if (tarr[o] === targetPrefix) {
         bitset.add(o)
@@ -503,9 +501,10 @@ module.exports = function (log, indexesPath) {
       }
     }
     done((err, recs) => {
-      if (err) return cb(err)
+      // FIXME: handle error better, this cb() should support 2 args
+      if (err) return console.error(err)
       for (let i = 0, len = recs.length; i < len; ++i) {
-        const rec = recs[i][1]
+        const rec = recs[i]
         const candidate = bipf.slice(rec.value, op.data.seek(rec.value))
         if (Buffer.compare(candidate, target)) bitset.remove(rec.offset)
       }
@@ -528,7 +527,7 @@ module.exports = function (log, indexesPath) {
     if (op.type === 'EQUAL') {
       if (op.data.prefix) {
         ensureIndexSync(op, () => {
-          matchAgainstPrefix(op, cb)
+          matchAgainstPrefix(op, indexes[op.data.indexName], cb)
         })
       } else {
         ensureIndexSync(op, () => {
