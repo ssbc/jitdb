@@ -14,12 +14,6 @@ const dir = '/tmp/jitdb-save-load'
 rimraf.sync(dir)
 mkdirp.sync(dir)
 
-function growTarrIndex(index, Type) {
-  const newArray = new Type(index.tarr.length * 2)
-  newArray.set(index.tarr)
-  index.tarr = newArray
-}
-
 test('save and load bitsets', (t) => {
   const idxDir = path.join(dir, 'test-bitsets')
   mkdirp.sync(idxDir)
@@ -57,12 +51,10 @@ test('save and load TypedArray for offset', (t) => {
 
   saveTypedArrayFile(filename, 123, 10, tarr, (err) => {
     loadTypedArrayFile(filename, Uint32Array, (err, loadedIdx) => {
-      t.equal(loadedIdx.tarr.length, 10, 'file trimmed')
+      t.equal(loadedIdx.tarr.length, 10 * 1.1, 'file trimmed')
 
       for (var i = 0; i < 10; i += 1) t.equal(tarr[i], loadedIdx.tarr[i])
 
-      // we need some more space
-      growTarrIndex(loadedIdx, Uint32Array)
       loadedIdx.tarr[10] = 10
 
       saveTypedArrayFile(filename, 1234, 11, loadedIdx.tarr, (err) => {
@@ -88,7 +80,6 @@ test('save and load TypedArray for timestamp', (t) => {
     loadTypedArrayFile(filename, Float64Array, (err, loadedIdx) => {
       for (var i = 0; i < 10; i += 1) t.equal(tarr[i], loadedIdx.tarr[i])
 
-      growTarrIndex(loadedIdx, Float64Array)
       loadedIdx.tarr[10] = 10 * 1000000
 
       saveTypedArrayFile(filename, 1234, 11, loadedIdx.tarr, (err) => {
