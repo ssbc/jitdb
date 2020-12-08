@@ -29,7 +29,7 @@
     "typedfastbitset": "^0.1.5"
   },
   "devDependencies": {
-    "async-flumelog": "^1.0.9",
+    "async-flumelog": "^1.0.11",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
     "husky": "^4.3.0",
@@ -38,6 +38,7 @@
     "pretty-quick": "^3.1.0",
     "pull-pushable": "^2.2.0",
     "rimraf": "^3.0.2",
+    "ssb-fixtures": "2.2.0",
     "ssb-keys": "^7.2.2",
     "ssb-ref": "^2.14.0",
     "ssb-validate": "^4.1.1",
@@ -47,7 +48,8 @@
   "scripts": {
     "test": "tape test/*.js | tap-spec",
     "format-code": "prettier --write \"*.js\" \"test/*.js\"",
-    "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\""
+    "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\"",
+    "benchmark": "node benchmark/index.js | tap-spec"
   },
   "husky": {
     "hooks": {
