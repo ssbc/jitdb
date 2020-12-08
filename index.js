@@ -208,11 +208,11 @@ module.exports = function (log, indexesPath) {
   }
 
   function checkValue(opData, buffer) {
-    const seekKey = opData.seek(buffer)
-    if (opData.value === undefined) return seekKey === -1
+    const fieldStart = opData.seek(buffer)
+    if (!opData.value) return fieldStart === -1
     else if (
-      ~seekKey &&
-      bipf.compareString(buffer, seekKey, opData.value) === 0
+      ~fieldStart &&
+      bipf.compareString(buffer, fieldStart, opData.value) === 0
     )
       return true
     else return false
@@ -232,9 +232,9 @@ module.exports = function (log, indexesPath) {
     if (offset > index.count - 1) {
       if (offset > index.tarr.length) growTarrIndex(index, Uint32Array)
 
-      const seekedField = opData.seek(buffer)
-      if (seekedField) {
-        const buf = bipf.slice(buffer, seekedField)
+      const fieldStart = opData.seek(buffer)
+      if (fieldStart) {
+        const buf = bipf.slice(buffer, fieldStart)
         index.tarr[offset] = buf.length ? safeReadUint32(buf) : 0
       } else {
         index.tarr[offset] = 0
@@ -249,8 +249,8 @@ module.exports = function (log, indexesPath) {
   }
 
   function updateAllIndexValue(opData, newIndexes, buffer, offset) {
-    const seekKey = opData.seek(buffer)
-    const value = bipf.decode(buffer, seekKey)
+    const fieldStart = opData.seek(buffer)
+    const value = bipf.decode(buffer, fieldStart)
     const indexName = safeFilename(opData.indexType + '_' + value)
 
     if (!newIndexes[indexName]) {
@@ -449,21 +449,6 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function sanitizeOpData(op) {
-    if (!op.data.indexName) {
-      if (op.data.prefix) {
-        op.data.indexName = safeFilename(op.data.indexType)
-      } else {
-        const name = op.data.value === undefined ? '' : op.data.value.toString()
-        op.data.indexName = safeFilename(op.data.indexType + '_' + name)
-      }
-    }
-    if (op.data.value !== undefined)
-      op.data.value = Buffer.isBuffer(op.data.value)
-        ? op.data.value
-        : Buffer.from(op.data.value)
-  }
-
   function ensureIndexSync(op, cb) {
     if (log.since.value > indexes[op.data.indexName].seq) {
       updateIndex(op, cb)
@@ -499,7 +484,7 @@ module.exports = function (log, indexesPath) {
 
   function matchAgainstPrefix(op, prefixIndex, cb) {
     const target = op.data.value
-    const targetPrefix = safeReadUint32(target)
+    const targetPrefix = target ? safeReadUint32(target) : 0
     const count = prefixIndex.count
     const tarr = prefixIndex.tarr
     const bitset = new TypedFastBitSet()
@@ -513,10 +498,16 @@ module.exports = function (log, indexesPath) {
     done((err, recs) => {
       // FIXME: handle error better, this cb() should support 2 args
       if (err) return console.error(err)
+      const seek = op.data.seek
       for (let i = 0, len = recs.length; i < len; ++i) {
-        const rec = recs[i]
-        const candidate = bipf.slice(rec.value, op.data.seek(rec.value))
-        if (Buffer.compare(candidate, target)) bitset.remove(rec.offset)
+        const { value, offset } = recs[i]
+        const fieldStart = seek(value)
+        const candidate = bipf.slice(value, fieldStart)
+        if (target) {
+          if (Buffer.compare(candidate, target)) bitset.remove(offset)
+        } else {
+          if (~fieldStart) bitset.remove(offset)
+        }
       }
       cb(bitset)
     })
@@ -603,7 +594,6 @@ module.exports = function (log, indexesPath) {
     function detectMissingAndLazyIndexes(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL') {
-          sanitizeOpData(op)
           if (!indexes[op.data.indexName]) opsMissingIndexes.push(op)
           else if (indexes[op.data.indexName].lazy)
             lazyIndexes.push(op.data.indexName)
@@ -768,7 +758,6 @@ module.exports = function (log, indexesPath) {
         function detectSeqAndOffsetStream(ops) {
           ops.forEach((op) => {
             if (op.type === 'EQUAL') {
-              sanitizeOpData(op)
               if (!indexes[op.data.indexName]) seq = -1
               else seq = indexes[op.data.indexName].seq
             } else if (op.type === 'AND' || op.type === 'OR') {

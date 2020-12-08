@@ -5,6 +5,7 @@ const path = require('path')
 const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const { safeFilename } = require('../files')
 
 const dir = '/tmp/jitdb-query'
 rimraf.sync(dir)
@@ -26,8 +27,9 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -35,8 +37,9 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'contact',
+      value: Buffer.from('contact'),
       indexType: 'type',
+      indexName: 'type_contact',
     },
   }
 
@@ -74,8 +77,9 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -106,8 +110,9 @@ prepareAndRunTest('Offset', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -136,6 +141,7 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
       seek: helpers.seekType,
       value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -162,6 +168,36 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
       seek: helpers.seekRoot,
       value: undefined,
       indexType: 'root',
+      indexName: 'root_',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      db.paginate(typeQuery, 0, 1, true, (err, { results }) => {
+        t.equal(results.length, 1)
+        t.equal(results[0].value.content.text, 'Testing no root')
+        t.end()
+      })
+    })
+  })
+})
+
+prepareAndRunTest('Null', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing root', root: '1' }
+  const msg2 = { type: 'post', text: 'Testing no root' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekRoot,
+      value: null,
+      indexType: 'root',
+      indexName: 'root_',
     },
   }
 
@@ -202,9 +238,10 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: keys.id,
+          value: Buffer.from(keys.id),
           indexType: 'author',
           indexAll: true,
+          indexName: safeFilename('author_' + keys.id),
         },
       },
     ],
@@ -215,6 +252,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
       addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
         addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
           db.all(filterQuery, 0, false, (err, results) => {
+            t.error(err, 'no err')
             t.equal(results.length, 3)
             t.equal(results[0].value.content.text, '2')
 
@@ -308,8 +346,9 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: 'post',
+          value: Buffer.from('post'),
           indexType: 'type',
+          indexName: 'type_post',
         },
       },
       {
@@ -378,8 +417,9 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: 'post',
+          value: Buffer.from('post'),
           indexType: 'type',
+          indexName: 'type_post',
         },
       },
       {
@@ -416,8 +456,9 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -425,8 +466,9 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: keys.id,
+      value: Buffer.from(keys.id),
       indexType: 'author',
+      indexName: 'author_' + keys.id,
     },
   }
 
@@ -470,8 +512,9 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -479,8 +522,9 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: 'random',
+      value: Buffer.from('random'),
       indexType: 'author',
+      indexName: 'author_random',
     },
   }
 
@@ -488,8 +532,9 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: 'random2',
+      value: Buffer.from('random2'),
       indexType: 'author',
+      indexName: 'author_random2',
     },
   }
 
@@ -497,8 +542,9 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: keys.id,
+      value: Buffer.from(keys.id),
       indexType: 'author',
+      indexName: 'author_' + keys.id,
     },
   }
 

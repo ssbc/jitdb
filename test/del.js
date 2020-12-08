@@ -25,8 +25,9 @@ prepareAndRunTest('Delete', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
