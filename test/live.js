@@ -25,8 +25,9 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -63,16 +64,18 @@ prepareAndRunTest('Live and', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: keys.id,
+          value: Buffer.from(keys.id),
           indexType: 'author',
+          indexName: 'author_' + keys.id,
         },
       },
       {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: 'post',
+          value: Buffer.from('post'),
           indexType: 'type',
+          indexName: 'type_post',
         },
       },
     ],
@@ -116,16 +119,18 @@ prepareAndRunTest('Live or', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: keys.id,
+          value: Buffer.from(keys.id),
           indexType: 'author',
+          indexName: 'author_' + keys.id,
         },
       },
       {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: keys2.id,
+          value: Buffer.from(keys2.id),
           indexType: 'author',
+          indexName: 'author_' + keys2.id,
         },
       },
     ],
@@ -139,8 +144,9 @@ prepareAndRunTest('Live or', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: 'post',
+          value: Buffer.from('post'),
           indexType: 'type',
+          indexName: 'type_post',
         },
       },
     ],
@@ -183,8 +189,9 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -242,8 +249,9 @@ prepareAndRunTest('Live with offset values', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: 'post',
+          value: Buffer.from('post'),
           indexType: 'type',
+          indexName: 'type_post',
         },
       },
       {
@@ -284,8 +292,9 @@ prepareAndRunTest('Live with cleanup', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 

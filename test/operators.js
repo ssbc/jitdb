@@ -97,6 +97,38 @@ prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
   t.end()
 })
 
+prepareAndRunTest('equal with null value', dir, (t, db, raf) => {
+  const queryTree = equal(helpers.seekChannel, null, {
+    indexType: 'channel',
+  })
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'EQUAL')
+
+  t.equal(queryTree.data.indexType, 'channel')
+  t.notOk(queryTree.data.value)
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+
+  t.end()
+})
+
+prepareAndRunTest('equal with undefined value', dir, (t, db, raf) => {
+  const queryTree = equal(helpers.seekChannel, undefined, {
+    indexType: 'channel',
+  })
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'EQUAL')
+
+  t.equal(queryTree.data.indexType, 'channel')
+  t.notOk(queryTree.data.value)
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+
+  t.end()
+})
+
 prepareAndRunTest('equal with prefix', dir, (t, db, raf) => {
   const queryTree = equal(helpers.seekType, 'post', {
     prefix: 32,

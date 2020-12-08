@@ -5,6 +5,7 @@ const pull = require('pull-stream')
 const pullAsync = require('pull-async')
 const pullAwaitable = require('pull-awaitable')
 const cat = require('pull-cat')
+const { safeFilename } = require('./files')
 
 function query(...cbs) {
   let res = cbs[0]
@@ -18,7 +19,8 @@ function fromDB(db) {
   }
 }
 
-function toBuffer(value) {
+function toBufferOrFalsy(value) {
+  if (!value) return value
   return Buffer.isBuffer(value) ? value : Buffer.from(value)
 }
 
@@ -56,30 +58,45 @@ function seekFromDesc(desc) {
   }
 }
 
-function slowEqual(seekDesc, value, opts) {
+function slowEqual(seekDesc, target, opts) {
   opts = opts || {}
-  const indexType = seekDesc.replace(/\./g, '_')
   const seek = seekFromDesc(seekDesc)
+  const value = toBufferOrFalsy(target)
+  const valueName = !value ? '' : value.toString()
+  const indexType = seekDesc.replace(/\./g, '_')
+  const indexName = opts.prefix
+    ? safeFilename(indexType)
+    : safeFilename(indexType + '_' + valueName)
   return {
     type: 'EQUAL',
     data: {
       seek,
-      value: toBuffer(value),
+      value,
       indexType,
+      indexName,
       indexAll: opts.indexAll,
       prefix: opts.prefix,
     },
   }
 }
 
-function equal(seek, value, opts) {
+function equal(seek, target, opts) {
   opts = opts || {}
+  if (!opts.indexType)
+    throw new Error('equal() operator needs an indexType in the 3rd arg')
+  const value = toBufferOrFalsy(target)
+  const valueName = !value ? '' : value.toString()
+  const indexType = opts.indexType
+  const indexName = opts.prefix
+    ? safeFilename(indexType)
+    : safeFilename(indexType + '_' + valueName)
   return {
     type: 'EQUAL',
     data: {
       seek,
-      value: toBuffer(value),
-      indexType: opts.indexType,
+      value,
+      indexType,
+      indexName,
       indexAll: opts.indexAll,
       prefix: opts.prefix,
     },

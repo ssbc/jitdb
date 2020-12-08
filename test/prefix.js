@@ -25,7 +25,7 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
       prefix: 32,
     },
@@ -71,6 +71,40 @@ prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
         db.all(typeQuery, 0, false, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'First')
+          t.end()
+        })
+      })
+    })
+  })
+})
+
+prepareAndRunTest('Prefix equal falsy', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'First', channel: 'foo' }
+  const msg2 = { type: 'contact', text: 'Second' }
+  const msg3 = { type: 'post', text: 'Third' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekChannel,
+      value: null,
+      indexType: 'channel',
+      prefix: 32,
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.all(typeQuery, 0, false, (err, results) => {
+          t.equal(results.length, 2)
+          t.equal(results[0].value.content.text, 'Second')
+          t.equal(results[1].value.content.text, 'Third')
           t.end()
         })
       })

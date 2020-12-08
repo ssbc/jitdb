@@ -6,6 +6,7 @@ const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const push = require('push-stream')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const { safeFilename } = require('../files')
 
 const dir = '/tmp/jitdb-add'
 rimraf.sync(dir)
@@ -25,8 +26,9 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -48,8 +50,9 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
               type: 'EQUAL',
               data: {
                 seek: helpers.seekAuthor,
-                value: keys.id,
+                value: Buffer.from(keys.id),
                 indexType: 'author',
+                indexName: 'author_' + keys.id,
               },
             }
             db.paginate(authorQuery, 0, 10, false, (err, { results }) => {
@@ -77,8 +80,9 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                       type: 'EQUAL',
                       data: {
                         seek: helpers.seekAuthor,
-                        value: keys2.id,
+                        value: Buffer.from(keys2.id),
                         indexType: 'author',
+                        indexName: 'author_' + keys2.id,
                       },
                     }
 
@@ -122,8 +126,9 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -154,8 +159,9 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: 'post',
+      value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'type_post',
     },
   }
 
@@ -192,17 +198,19 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: 'post',
+          value: Buffer.from('post'),
           indexType: 'type',
+          indexName: 'type_post',
         },
       },
       {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: keys.id,
+          value: Buffer.from(keys.id),
           indexType: 'author',
           indexAll: true,
+          indexName: safeFilename('author_' + keys.id),
         },
       },
     ],
@@ -213,6 +221,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
         addMsg(state.queue[3].value, raf, (err, msg) => {
           db.all(authorQuery, 0, false, (err, results) => {
+            t.error(err)
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
             t.equal(Object.keys(db.indexes).length, 3 + 2 + 1 + 1)
@@ -240,9 +249,10 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
       type: 'EQUAL',
       data: {
         seek: helpers.seekType,
-        value,
+        value: Buffer.from(value),
         indexType: 'type',
         indexAll: true,
+        indexName: safeFilename('type_' + value),
       },
     }
   }
