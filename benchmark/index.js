@@ -12,42 +12,46 @@ const { seekType, seekAuthor } = require('../test/helpers')
 const copy = require('../copy-json-to-bipf-async')
 
 const dir = '/tmp/jitdb-benchmark'
-rimraf.sync(dir)
-mkdirp.sync(dir)
-
 const oldLogPath = path.join(dir, 'flume', 'log.offset')
 const newLogPath = path.join(dir, 'flume', 'log.bipf')
 const indexesDir = path.join(dir, 'indexes')
 
-const SEED = 'sloop'
-const MESSAGES = 100000
-const AUTHORS = 2000
+const skipCreate = process.argv[2] === 'noCreate'
 
-test('generate fixture with flumelog-offset', (t) => {
-  generateFixture({
-    outputDir: dir,
-    seed: SEED,
-    messages: MESSAGES,
-    authors: AUTHORS,
-    slim: true,
-  }).then(() => {
-    t.pass(`seed = ${SEED}`)
-    t.pass(`messages = ${MESSAGES}`)
-    t.pass(`authors = ${AUTHORS}`)
-    t.true(fs.existsSync(oldLogPath), 'log.offset was created')
-    t.end()
-  })
-})
+if (!skipCreate) {
+  rimraf.sync(dir)
+  mkdirp.sync(dir)
 
-test('move flumelog-offset to async-flumelog', (t) => {
-  copy(oldLogPath, newLogPath, (err) => {
-    if (err) t.fail(err)
-    setTimeout(() => {
-      t.true(fs.existsSync(newLogPath), 'log.bipf was created')
+  const SEED = 'sloop'
+  const MESSAGES = 100000
+  const AUTHORS = 2000
+
+  test('generate fixture with flumelog-offset', (t) => {
+    generateFixture({
+      outputDir: dir,
+      seed: SEED,
+      messages: MESSAGES,
+      authors: AUTHORS,
+      slim: true,
+    }).then(() => {
+      t.pass(`seed = ${SEED}`)
+      t.pass(`messages = ${MESSAGES}`)
+      t.pass(`authors = ${AUTHORS}`)
+      t.true(fs.existsSync(oldLogPath), 'log.offset was created')
       t.end()
-    }, 4000)
+    })
   })
-})
+
+  test('move flumelog-offset to async-flumelog', (t) => {
+    copy(oldLogPath, newLogPath, (err) => {
+      if (err) t.fail(err)
+      setTimeout(() => {
+        t.true(fs.existsSync(newLogPath), 'log.bipf was created')
+        t.end()
+      }, 4000)
+    })
+  })
+}
 
 let raf
 let db
