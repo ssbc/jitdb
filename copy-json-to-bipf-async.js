@@ -4,37 +4,46 @@ var AsyncFlumeLog = require('async-flumelog')
 var binary = require('bipf')
 var json = require('flumecodec/json')
 
-var block = 64 * 1024
+// copy an old (flumelog-offset) log (json) to a new async log (bipf)
+function copy(oldpath, newpath, cb) {
+  var block = 64 * 1024
+  var log = FlumeLog(oldpath, { blockSize: block, codec: json })
+  var log2 = AsyncFlumeLog(newpath, { blockSize: block })
 
-//copy an old (flumelog-offset) log (json) to a new async log (bipf)
+  var dataTransferred = 0
 
-if (process.argv[2] === process.argv[3])
-  throw new Error('input must !== output')
+  pull(
+    log.stream({ seqs: false, codec: json }),
+    pull.map(function (data) {
+      var len = binary.encodingLength(data)
+      var b = Buffer.alloc(len)
+      binary.encode(data, b, 0)
+      return b
+    }),
+    function (read) {
+      read(null, function next(err, data) {
+        if (err && err !== true) return cb(err)
+        if (err) return cb()
+        dataTransferred += data.length
+        log2.append(data, function () {})
+        if (dataTransferred % block == 0)
+          log2.onDrain(function () {
+            read(null, next)
+          })
+        else read(null, next)
+      })
+    }
+  )
+}
 
-var log = FlumeLog(process.argv[2], { blockSize: block, codec: json })
-var log2 = AsyncFlumeLog(process.argv[3], { blockSize: block })
-
-var dataTransferred = 0
-
-pull(
-  log.stream({ seqs: false, codec: json }),
-  pull.map(function (data) {
-    var len = binary.encodingLength(data)
-    var b = Buffer.alloc(len)
-    binary.encode(data, b, 0)
-    return b
-  }),
-  function (read) {
-    read(null, function next(err, data) {
-      if (err && err !== true) throw err
-      if (err) return console.error('done')
-      dataTransferred += data.length
-      log2.append(data, function () {})
-      if (dataTransferred % block == 0)
-        log2.onDrain(function () {
-          read(null, next)
-        })
-      else read(null, next)
+if (require.main === module) {
+  if (process.argv[2] === process.argv[3])
+    throw new Error('input must !== output')
+  else
+    copy(process.argv[2], process.argv[3], (err) => {
+      if (err) throw err
+      else console.log('done')
     })
-  }
-)
+} else {
+  module.exports = copy
+}
