@@ -218,6 +218,16 @@ module.exports = function (log, indexesPath) {
     else return false
   }
 
+  function safeReadUint32(buf) {
+    if (buf.length < 4) {
+      const bigger = Buffer.alloc(4)
+      buf.copy(bigger)
+      return bigger.readUInt32LE(0)
+    } else {
+      return buf.readUInt32LE(0)
+    }
+  }
+
   function updatePrefixIndex(opData, index, buffer, offset, seq) {
     if (offset > index.count - 1) {
       if (offset > index.tarr.length) growTarrIndex(index, Uint32Array)
@@ -225,7 +235,7 @@ module.exports = function (log, indexesPath) {
       const seekedField = opData.seek(buffer)
       if (seekedField) {
         const buf = bipf.slice(buffer, seekedField)
-        index.tarr[offset] = buf.length ? buf.readUInt32LE(0) : 0
+        index.tarr[offset] = buf.length ? safeReadUint32(buf) : 0
       } else {
         index.tarr[offset] = 0
       }
@@ -489,7 +499,7 @@ module.exports = function (log, indexesPath) {
 
   function matchAgainstPrefix(op, prefixIndex, cb) {
     const target = op.data.value
-    const targetPrefix = target.readUInt32LE(0)
+    const targetPrefix = safeReadUint32(target)
     const count = prefixIndex.count
     const tarr = prefixIndex.tarr
     const bitset = new TypedFastBitSet()
