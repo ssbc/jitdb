@@ -384,6 +384,23 @@ prepareAndRunTest('operator lte', dir, (t, db, raf) => {
   t.end()
 })
 
+prepareAndRunTest('operators gt lt gte lte numbers only', dir, (t, db, raf) => {
+  t.throws(() => {
+    gt('2', 'sequence')
+  })
+  t.throws(() => {
+    lt('2', 'sequence')
+  })
+  t.throws(() => {
+    gte('2', 'sequence')
+  })
+  t.throws(() => {
+    lte('2', 'sequence')
+  })
+
+  t.end()
+})
+
 prepareAndRunTest('operator offsets', dir, (t, db, raf) => {
   const queryTree = query(fromDB(db), and(offsets([10, 20])))
 

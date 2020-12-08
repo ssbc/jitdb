@@ -104,6 +104,7 @@ function equal(seek, target, opts) {
 }
 
 function gt(value, indexName) {
+  if (typeof value !== 'number') throw new Error('gt() needs a number arg')
   return {
     type: 'GT',
     data: {
@@ -114,6 +115,7 @@ function gt(value, indexName) {
 }
 
 function gte(value, indexName) {
+  if (typeof value !== 'number') throw new Error('gte() needs a number arg')
   return {
     type: 'GTE',
     data: {
@@ -124,6 +126,7 @@ function gte(value, indexName) {
 }
 
 function lt(value, indexName) {
+  if (typeof value !== 'number') throw new Error('lt() needs a number arg')
   return {
     type: 'LT',
     data: {
@@ -134,6 +137,7 @@ function lt(value, indexName) {
 }
 
 function lte(value, indexName) {
+  if (typeof value !== 'number') throw new Error('lte() needs a number arg')
   return {
     type: 'LTE',
     data: {
