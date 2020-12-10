@@ -96,6 +96,89 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Includes', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st', animals: ['cat', 'dog', 'bird'] }
+  const msg2 = { type: 'contact', text: '2nd', animals: ['bird'] }
+  const msg3 = { type: 'post', text: '3rd', animals: ['cat'] }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const typeQuery = {
+    type: 'INCLUDES',
+    data: {
+      seek: helpers.seekAnimals,
+      value: Buffer.from('bird'),
+      indexType: 'animals',
+      indexName: 'animals_bird',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err1, msg) => {
+    addMsg(state.queue[1].value, raf, (err2, msg) => {
+      addMsg(state.queue[2].value, raf, (err3, msg) => {
+        db.all(typeQuery, 0, false, (err4, results) => {
+          t.error(err4)
+          t.equal(results.length, 2)
+          t.equal(results[0].value.content.text, '1st')
+          t.equal(results[1].value.content.text, '2nd')
+          t.end()
+        })
+      })
+    })
+  })
+})
+
+prepareAndRunTest('Includes and pluck', dir, (t, db, raf) => {
+  const msg1 = {
+    type: 'post',
+    text: '1st',
+    animals: [{ word: 'cat' }, { word: 'dog' }, { word: 'bird' }],
+  }
+  const msg2 = {
+    type: 'contact',
+    text: '2nd',
+    animals: [{ word: 'bird' }],
+  }
+  const msg3 = {
+    type: 'post',
+    text: '3rd',
+    animals: [{ word: 'cat' }],
+  }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const typeQuery = {
+    type: 'INCLUDES',
+    data: {
+      seek: helpers.seekAnimals,
+      value: Buffer.from('bird'),
+      indexType: 'animals_word',
+      indexName: 'animals_word_bird',
+      pluck: helpers.pluckWord,
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err1, msg) => {
+    addMsg(state.queue[1].value, raf, (err2, msg) => {
+      addMsg(state.queue[2].value, raf, (err3, msg) => {
+        db.all(typeQuery, 0, false, (err4, results) => {
+          t.error(err4)
+          t.equal(results.length, 2)
+          t.equal(results[0].value.content.text, '1st')
+          t.equal(results[1].value.content.text, '2nd')
+          t.end()
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('Offset', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing!' }
   const msg2 = { type: 'contact', text: 'Testing!' }

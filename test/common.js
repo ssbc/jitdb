@@ -1,5 +1,5 @@
 const FlumeLog = require('async-flumelog')
-const bipf = require('bipf')
+const bipf = require('@staltz/bipf')
 const hash = require('ssb-keys/util').hash
 const path = require('path')
 const test = require('tape')

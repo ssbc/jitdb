@@ -1,5 +1,5 @@
 const path = require('path')
-const bipf = require('bipf')
+const bipf = require('@staltz/bipf')
 const push = require('push-stream')
 const pull = require('pull-stream')
 const toPull = require('push-stream-to-pull-stream')
@@ -207,7 +207,7 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function checkValue(opData, buffer) {
+  function checkEqual(opData, buffer) {
     const fieldStart = opData.seek(buffer)
     if (!opData.value) return fieldStart === -1
     else if (
@@ -216,6 +216,29 @@ module.exports = function (log, indexesPath) {
     )
       return true
     else return false
+  }
+
+  function checkIncludes(opData, buffer) {
+    const fieldStart = opData.seek(buffer)
+    if (!~fieldStart) return false
+    const type = bipf.getEncodedType(buffer, fieldStart)
+    if (type === bipf.types.string) {
+      return checkEqual(opData, buffer)
+    } else if (type === bipf.types.array) {
+      let found = false
+      bipf.iterate(buffer, fieldStart, (_, itemStart) => {
+        const valueStart = opData.pluck
+          ? opData.pluck(buffer, itemStart)
+          : itemStart
+        if (bipf.compareString(buffer, valueStart, opData.value) === 0) {
+          found = true
+          return true // abort the bipf.iterate
+        }
+      })
+      return found
+    } else {
+      return false
+    }
   }
 
   function safeReadUint32(buf) {
@@ -244,8 +267,11 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function updateIndexValue(opData, index, buffer, offset) {
-    if (checkValue(opData, buffer)) index.bitset.add(offset)
+  function updateIndexValue(op, index, buffer, offset) {
+    if (op.type === 'EQUAL' && checkEqual(op.data, buffer))
+      index.bitset.add(offset)
+    else if (op.type === 'INCLUDES' && checkIncludes(op.data, buffer))
+      index.bitset.add(offset)
   }
 
   function updateAllIndexValue(opData, newIndexes, buffer, offset) {
@@ -300,7 +326,7 @@ module.exports = function (log, indexesPath) {
         if (indexNeedsUpdate) {
           if (op.data.prefix)
             updatePrefixIndex(op.data, index, record.value, offset, record.seq)
-          else updateIndexValue(op.data, index, record.value, offset)
+          else updateIndexValue(op, index, record.value, offset)
         }
 
         offset++
@@ -379,12 +405,7 @@ module.exports = function (log, indexesPath) {
           else if (op.data.indexAll)
             updateAllIndexValue(op.data, newIndexes, buffer, offset)
           else
-            updateIndexValue(
-              op.data,
-              newIndexes[op.data.indexName],
-              buffer,
-              offset
-            )
+            updateIndexValue(op, newIndexes[op.data.indexName], buffer, offset)
         })
 
         offset++
@@ -525,7 +546,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function getBitsetForOperation(op, cb) {
-    if (op.type === 'EQUAL') {
+    if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
       if (op.data.prefix) {
         ensureIndexSync(op, () => {
           matchAgainstPrefix(op, indexes[op.data.indexName], cb)
@@ -593,10 +614,10 @@ module.exports = function (log, indexesPath) {
 
     function detectMissingAndLazyIndexes(ops) {
       ops.forEach((op) => {
-        if (op.type === 'EQUAL') {
-          if (!indexes[op.data.indexName]) opsMissingIndexes.push(op)
-          else if (indexes[op.data.indexName].lazy)
-            lazyIndexes.push(op.data.indexName)
+        if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
+          const indexName = op.data.indexName
+          if (!indexes[indexName]) opsMissingIndexes.push(op)
+          else if (indexes[indexName].lazy) lazyIndexes.push(indexName)
         } else if (op.type === 'AND' || op.type === 'OR')
           detectMissingAndLazyIndexes(op.data)
         else if (
@@ -632,7 +653,8 @@ module.exports = function (log, indexesPath) {
     for (var i = 0; i < ops.length; ++i) {
       const op = ops[i]
       let ok = false
-      if (op.type === 'EQUAL') ok = checkValue(op.data, value)
+      if (op.type === 'EQUAL') ok = checkEqual(op.data, value)
+      else if (op.type === 'INCLUDES') ok = checkIncludes(op.data, value)
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
       else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
       else if (op.type === 'LIVEOFFSETS') ok = true
@@ -757,7 +779,7 @@ module.exports = function (log, indexesPath) {
 
         function detectSeqAndOffsetStream(ops) {
           ops.forEach((op) => {
-            if (op.type === 'EQUAL') {
+            if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
               if (!indexes[op.data.indexName]) seq = -1
               else seq = indexes[op.data.indexName].seq
             } else if (op.type === 'AND' || op.type === 'OR') {
