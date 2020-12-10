@@ -1,4 +1,4 @@
-const bipf = require('bipf')
+const bipf = require('@staltz/bipf')
 const traverse = require('traverse')
 const promisify = require('promisify-4loc')
 const pull = require('pull-stream')
@@ -99,6 +99,65 @@ function equal(seek, target, opts) {
       indexName,
       indexAll: opts.indexAll,
       prefix: opts.prefix,
+    },
+  }
+}
+
+function pluckFromDesc(desc) {
+  const keys = desc.split('.')
+  return (buffer, start) => {
+    var p = start
+    for (let key of keys) {
+      p = bipf.seekKey(buffer, p, Buffer.from(key))
+      if (!~p) return void 0
+    }
+    return p
+  }
+}
+
+function slowIncludes(seekDesc, target, opts) {
+  opts = opts || {}
+  const seek = seekFromDesc(seekDesc)
+  const value = toBufferOrFalsy(target)
+  if (!value) throw new Error('slowIncludes() 2nd arg needs to be truthy')
+  const valueName = value.toString()
+  const indexType = seekDesc.replace(/\./g, '_')
+  const indexName = safeFilename(indexType + '_' + valueName)
+  const pluck =
+    opts.pluck && typeof opts.pluck === 'string'
+      ? pluckFromDesc(opts.pluck)
+      : opts.pluck
+  return {
+    type: 'INCLUDES',
+    data: {
+      seek,
+      value,
+      indexType,
+      indexName,
+      indexAll: opts.indexAll,
+      pluck,
+    },
+  }
+}
+
+function includes(seek, target, opts) {
+  opts = opts || {}
+  if (!opts.indexType)
+    throw new Error('includes() operator needs an indexType in the 3rd arg')
+  const value = toBufferOrFalsy(target)
+  if (!value) throw new Error('includes() 2nd arg needs to be truthy')
+  const valueName = value.toString()
+  const indexType = opts.indexType
+  const indexName = safeFilename(indexType + '_' + valueName)
+  return {
+    type: 'INCLUDES',
+    data: {
+      seek,
+      value,
+      indexType,
+      indexName,
+      indexAll: opts.indexAll,
+      pluck: opts.pluck,
     },
   }
 }
@@ -357,6 +416,8 @@ module.exports = {
   live,
   slowEqual,
   equal,
+  slowIncludes,
+  includes,
   gt,
   gte,
   lt,

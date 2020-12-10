@@ -12,6 +12,8 @@ const {
   or,
   equal,
   slowEqual,
+  includes,
+  slowIncludes,
   gt,
   gte,
   lt,
@@ -161,6 +163,22 @@ prepareAndRunTest('slowEqual with prefix', dir, (t, db, raf) => {
   t.deepEqual(queryTree.data.value, Buffer.from('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
   t.equal(queryTree.data.prefix, 32)
+
+  t.end()
+})
+
+prepareAndRunTest('includes()', dir, (t, db, raf) => {
+  const queryTree = includes(helpers.seekAnimals, 'cat', {
+    indexType: 'animals',
+  })
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'INCLUDES')
+
+  t.equal(queryTree.data.indexType, 'animals')
+  t.deepEqual(queryTree.data.value, Buffer.from('cat'))
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
 })
@@ -851,5 +869,75 @@ prepareAndRunTest('support live operations', dir, (t, db, raf) => {
         }
       })
     )
+  })
+})
+
+prepareAndRunTest('support slowIncludes', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st', animals: ['cat', 'dog', 'bird'] }
+  const msg2 = { type: 'contact', text: '2nd', animals: ['bird'] }
+  const msg3 = { type: 'post', text: '3rd', animals: ['cat'] }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg1, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, raf, (e1, m1) => {
+    addMsg(state.queue[1].value, raf, (e2, m2) => {
+      addMsg(state.queue[2].value, raf, (e3, m3) => {
+        query(
+          fromDB(db),
+          and(slowIncludes('value.content.animals', 'bird')),
+          toCallback((err, msgs) => {
+            t.error(err, 'got no error')
+            t.equal(msgs.length, 2, 'got two messages')
+            t.equal(msgs[0].value.content.text, '1st')
+            t.equal(msgs[1].value.content.text, '2nd')
+            t.end()
+          })
+        )
+      })
+    })
+  })
+})
+
+prepareAndRunTest('support slowIncludes and pluck', dir, (t, db, raf) => {
+  const msg1 = {
+    type: 'post',
+    text: '1st',
+    animals: [{ word: 'cat' }, { word: 'dog' }, { word: 'bird' }],
+  }
+  const msg2 = {
+    type: 'contact',
+    text: '2nd',
+    animals: [{ word: 'bird' }],
+  }
+  const msg3 = {
+    type: 'post',
+    text: '3rd',
+    animals: [{ word: 'cat' }],
+  }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg1, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, raf, (e1, m1) => {
+    addMsg(state.queue[1].value, raf, (e2, m2) => {
+      addMsg(state.queue[2].value, raf, (e3, m3) => {
+        query(
+          fromDB(db),
+          and(slowIncludes('value.content.animals', 'cat', { pluck: 'word' })),
+          toCallback((err, msgs) => {
+            t.error(err, 'got no error')
+            t.equal(msgs.length, 2, 'got two messages')
+            t.equal(msgs[0].value.content.text, '1st')
+            t.equal(msgs[1].value.content.text, '3rd')
+            t.end()
+          })
+        )
+      })
+    })
   })
 })

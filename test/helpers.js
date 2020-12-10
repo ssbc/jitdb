@@ -1,4 +1,4 @@
-const bipf = require('bipf')
+const bipf = require('@staltz/bipf')
 
 const bValue = Buffer.from('value')
 const bVote = Buffer.from('vote')
@@ -8,6 +8,8 @@ const bContent = Buffer.from('content')
 const bType = Buffer.from('type')
 const bRoot = Buffer.from('root')
 const bMeta = Buffer.from('meta')
+const bAnimals = Buffer.from('animals')
+const bWord = Buffer.from('word')
 const bPrivate = Buffer.from('private')
 const bChannel = Buffer.from('channel')
 
@@ -38,6 +40,20 @@ module.exports = {
       p = bipf.seekKey(buffer, p, bContent)
       if (~p) return bipf.seekKey(buffer, p, bType)
     }
+  },
+
+  seekAnimals: function (buffer) {
+    var p = 0 // note you pass in p!
+    p = bipf.seekKey(buffer, p, bValue)
+    if (!~p) return
+    p = bipf.seekKey(buffer, p, bContent)
+    if (!~p) return
+    return bipf.seekKey(buffer, p, bAnimals)
+  },
+
+  pluckWord: function (buffer, start) {
+    var p = start
+    return bipf.seekKey(buffer, p, bWord)
   },
 
   seekRoot: function (buffer) {
