@@ -48,8 +48,9 @@ function seqs(values) {
 
 function seekFromDesc(desc) {
   const keys = desc.split('.')
-  return (buffer) => {
-    var p = 0
+  // The 2nd arg `start` is to support plucks too
+  return (buffer, start = 0) => {
+    var p = start
     for (let key of keys) {
       p = bipf.seekKey(buffer, p, Buffer.from(key))
       if (!~p) return void 0
@@ -103,18 +104,6 @@ function equal(seek, target, opts) {
   }
 }
 
-function pluckFromDesc(desc) {
-  const keys = desc.split('.')
-  return (buffer, start) => {
-    var p = start
-    for (let key of keys) {
-      p = bipf.seekKey(buffer, p, Buffer.from(key))
-      if (!~p) return void 0
-    }
-    return p
-  }
-}
-
 function slowIncludes(seekDesc, target, opts) {
   opts = opts || {}
   const seek = seekFromDesc(seekDesc)
@@ -125,7 +114,7 @@ function slowIncludes(seekDesc, target, opts) {
   const indexName = safeFilename(indexType + '_' + valueName)
   const pluck =
     opts.pluck && typeof opts.pluck === 'string'
-      ? pluckFromDesc(opts.pluck)
+      ? seekFromDesc(opts.pluck)
       : opts.pluck
   return {
     type: 'INCLUDES',
