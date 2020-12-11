@@ -8,9 +8,9 @@
     "url": "git://github.com/arj03/jitdb.git"
   },
   "dependencies": {
+    "@staltz/bipf": "^1.4.0",
     "atomically-universal": "^0.1.0",
     "binary-search-bounds": "^2.0.4",
-    "@staltz/bipf": "^1.4.0",
     "debug": "^4.2.0",
     "idb-kv-store": "^4.5.0",
     "jsesc": "^3.0.2",
@@ -21,8 +21,8 @@
     "pull-awaitable": "^1.0.0",
     "pull-cat": "~1.1.11",
     "pull-stream": "^3.6.14",
-    "push-stream": "^11.0.0",
     "push-stream-to-pull-stream": "^1.0.3",
+    "push-stream": "^11.0.0",
     "sanitize-filename": "^1.6.3",
     "traverse": "^0.6.6",
     "typedarray-to-buffer": "^3.1.5",
