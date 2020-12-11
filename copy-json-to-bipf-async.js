@@ -1,7 +1,7 @@
 var pull = require('pull-stream')
 var FlumeLog = require('flumelog-offset')
 var AsyncFlumeLog = require('async-flumelog')
-var binary = require('@staltz/bipf')
+var binary = require('bipf')
 var json = require('flumecodec/json')
 
 // copy an old (flumelog-offset) log (json) to a new async log (bipf)

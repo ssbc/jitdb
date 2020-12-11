@@ -1,4 +1,4 @@
-const bipf = require('@staltz/bipf')
+const bipf = require('bipf')
 const traverse = require('traverse')
 const promisify = require('promisify-4loc')
 const pull = require('pull-stream')

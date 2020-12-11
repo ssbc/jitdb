@@ -1,5 +1,5 @@
 const path = require('path')
-const bipf = require('@staltz/bipf')
+const bipf = require('bipf')
 const push = require('push-stream')
 const pull = require('pull-stream')
 const toPull = require('push-stream-to-pull-stream')

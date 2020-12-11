@@ -1,7 +1,7 @@
 var pull = require('pull-stream')
 var FlumeLog = require('flumelog-offset')
 var FlumeLogAligned = require('flumelog-aligned-offset')
-var binary = require('@staltz/bipf')
+var binary = require('bipf')
 var json = require('flumecodec/json')
 
 var block = 64 * 1024
