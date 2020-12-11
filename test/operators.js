@@ -780,6 +780,34 @@ prepareAndRunTest('support empty deferred operations', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('empty deferred AND equal', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        and(
+          deferred((meta, cb) => {
+            setTimeout(cb, 100)
+          }),
+          slowEqual('value.author', alice.id)
+        ),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error')
+          t.equal(msgs.length, 1, 'toCallback got one message')
+          t.equal(msgs[0].value.author, alice.id)
+          t.equal(msgs[0].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
 prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
@@ -857,6 +885,61 @@ prepareAndRunTest('support live operations', dir, (t, db, raf) => {
     query(
       fromDB(db),
       and(slowEqual('value.content.type', 'post')),
+      live(),
+      toPullStream(),
+      pull.drain((msg) => {
+        if (i++ == 0) {
+          t.equal(msg.value.author, alice.id)
+          addMsg(state.queue[1].value, raf, (e2, msg2) => {})
+        } else {
+          t.equal(msg.value.author, bob.id)
+          t.end()
+        }
+      })
+    )
+  })
+})
+
+prepareAndRunTest('live empty', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    let i = 0
+    query(
+      fromDB(db),
+      live(),
+      toPullStream(),
+      pull.drain((msg) => {
+        if (i++ == 0) {
+          t.equal(msg.value.author, alice.id)
+          addMsg(state.queue[1].value, raf, (e2, msg2) => {})
+        } else {
+          t.equal(msg.value.author, bob.id)
+          t.end()
+        }
+      })
+    )
+  })
+})
+
+prepareAndRunTest('live AND empty deferred', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    let i = 0
+    query(
+      fromDB(db),
+      and(
+        deferred((meta, cb) => {
+          setTimeout(cb, 100)
+        })
+      ),
       live(),
       toPullStream(),
       pull.drain((msg) => {

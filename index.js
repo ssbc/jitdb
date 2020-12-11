@@ -658,6 +658,7 @@ module.exports = function (log, indexesPath) {
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
       else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
       else if (op.type === 'LIVEOFFSETS') ok = true
+      else if (!op.type) ok = true
 
       if (ok && isOr) return true
       else if (!ok && !isOr) return false
@@ -810,7 +811,10 @@ module.exports = function (log, indexesPath) {
             })
           )
         } else {
-          const opts = { live: true, gt: seq }
+          const opts =
+            seq === -1
+              ? { live: true, gt: indexes['offset'].seq }
+              : { live: true, gt: seq }
           recordStream = toPull(log.stream(opts))
         }
 
