@@ -295,8 +295,10 @@ module.exports = function (log, indexesPath) {
     // find the next possible offset
     let offset = 0
     if (index.seq !== -1) {
-      for (; offset < indexes['offset'].tarr.length; ++offset)
-        if (indexes['offset'].tarr[offset] === index.seq) {
+      const { tarr } = indexes['offset']
+      const indexSeq = index.seq
+      for (const len = tarr.length; offset < len; ++offset)
+        if (tarr[offset] === indexSeq) {
           offset++
           break
         }
@@ -487,20 +489,43 @@ module.exports = function (log, indexesPath) {
     ensureIndexSync(op, () => {
       if (op.data.indexName === 'sequence') {
         const bitset = new TypedFastBitSet()
-        for (var i = 0; i < indexes['sequence'].count; ++i) {
-          if (filterCheck(indexes['sequence'].tarr[i], op)) bitset.add(i)
+        const { tarr, count } = indexes['sequence']
+        for (var i = 0; i < count; ++i) {
+          if (filterCheck(tarr[i], op)) bitset.add(i)
         }
         cb(bitset)
       } else if (op.data.indexName === 'timestamp') {
         const bitset = new TypedFastBitSet()
-        for (var i = 0; i < indexes['timestamp'].count; ++i) {
-          if (filterCheck(indexes['timestamp'].tarr[i], op)) bitset.add(i)
+        const { tarr, count } = indexes['timestamp']
+        for (var i = 0; i < count; ++i) {
+          if (filterCheck(tarr[i], op)) bitset.add(i)
         }
         cb(bitset)
       } else {
         debug('filterIndex() is unsupported for %s', op.data.indexName)
       }
     })
+  }
+
+  function getFullBitset(cb) {
+    ensureIndexSync({ data: { indexName: 'sequence' } }, () => {
+      const bitset = new TypedFastBitSet()
+      const { count } = indexes['sequence']
+      for (var i = 0; i < count; ++i) bitset.add(i)
+      cb(bitset)
+    })
+  }
+
+  function getSeqsBitset(opSeqs, cb) {
+    const offsets = []
+    opSeqs.sort((x, y) => x - y)
+    const opSeqsLen = opSeqs.length
+    const { tarr } = indexes['offset']
+    for (var o = 0, len = tarr.length; o < len; ++o) {
+      if (bsb.eq(opSeqs, tarr[o]) !== -1) offsets.push(o)
+      if (offsets.length === opSeqsLen) break
+    }
+    cb(new TypedFastBitSet(offsets))
   }
 
   function matchAgainstPrefix(op, prefixIndex, cb) {
@@ -566,14 +591,7 @@ module.exports = function (log, indexesPath) {
       filterIndex(op, (num, op) => num <= op.data.value, cb)
     } else if (op.type === 'SEQS') {
       ensureOffsetIndexSync(() => {
-        const offsets = []
-        op.seqs.sort((x, y) => x - y)
-        for (var o = 0; o < indexes['offset'].tarr.length; ++o) {
-          if (bsb.eq(op.seqs, indexes['offset'].tarr[o]) !== -1) offsets.push(o)
-
-          if (offsets.length === op.seqs.length) break
-        }
-        cb(new TypedFastBitSet(offsets))
+        getSeqsBitset(op.seqs, cb)
       })
     } else if (op.type === 'OFFSETS') {
       ensureOffsetIndexSync(() => {
@@ -600,11 +618,8 @@ module.exports = function (log, indexesPath) {
         })
       })
     } else if (!op.type) {
-      // to support `query(fromDB(jitdb), toCallback(cb))`, we do GTE>=0
-      getBitsetForOperation(
-        { type: 'GTE', data: { indexName: 'sequence', value: 0 } },
-        cb
-      )
+      // to support `query(fromDB(jitdb), toCallback(cb))`
+      getFullBitset(cb)
     } else console.error('Unknown type', op)
   }
 
@@ -623,9 +638,10 @@ module.exports = function (log, indexesPath) {
         else if (
           op.type === 'OFFSETS' ||
           op.type === 'LIVEOFFSETS' ||
-          op.type === 'SEQS'
+          op.type === 'SEQS' ||
+          !op.type // e.g. query(fromDB, toCallback), or empty deferred()
         );
-        else debug('Unknown operator type:' + op.type)
+        else debug('Unknown operator type: ' + op.type)
       })
     }
 
