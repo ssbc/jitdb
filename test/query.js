@@ -654,3 +654,38 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     })
   })
 })
+
+prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st' }
+  const msg2 = { type: 'post', text: '2nd' }
+  const msg3 = { type: 'post', text: '3rd' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now() + 3000)
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 2000)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 1000)
+
+  const authorQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekAuthor,
+      value: Buffer.from(keys.id),
+      indexType: 'author',
+      indexName: 'author_me',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, m1) => {
+    addMsg(state.queue[1].value, raf, (err, m2) => {
+      addMsg(state.queue[2].value, raf, (err, m3) => {
+        db.all(authorQuery, 0, false, (err, results) => {
+          t.equal(results.length, 3)
+          t.equal(results[0].value.content.text, '1st', '1st ok')
+          t.equal(results[1].value.content.text, '2nd', '2nd ok')
+          t.equal(results[2].value.content.text, '3rd', '3rd ok')
+          t.end()
+        })
+      })
+    })
+  })
+})
