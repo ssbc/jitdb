@@ -307,7 +307,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
   state = validate.appendNew(state, null, keys, msg4, Date.now() + 3)
 
-  const filterQuery = {
+  let filterQuery = {
     type: 'AND',
     data: [
       {
@@ -340,17 +340,23 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
             t.equal(results[0].value.content.text, '2')
 
             filterQuery.data[0].type = 'GTE'
+            // clone to force cache invalidation inside db.all:
+            filterQuery = Object.assign({}, filterQuery)
             db.all(filterQuery, 0, false, (err, results) => {
               t.equal(results.length, 4)
               t.equal(results[0].value.content.text, '1')
 
               filterQuery.data[0].type = 'LT'
               filterQuery.data[0].data.value = 3
+              // clone to force cache invalidation inside db.all:
+              filterQuery = Object.assign({}, filterQuery)
               db.all(filterQuery, 0, false, (err, results) => {
                 t.equal(results.length, 2)
                 t.equal(results[0].value.content.text, '1')
 
                 filterQuery.data[0].type = 'LTE'
+                // clone to force cache invalidation inside db.all:
+                filterQuery = Object.assign({}, filterQuery)
                 db.all(filterQuery, 0, false, (err, results) => {
                   t.equal(results.length, 3)
                   t.equal(results[0].value.content.text, '1')
@@ -358,6 +364,8 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
                   filterQuery.data[0].type = 'GT'
                   filterQuery.data[0].data.indexName = 'timestamp'
                   filterQuery.data[0].data.value = dbMsg1.value.timestamp
+                  // clone to force cache invalidation inside db.all:
+                  filterQuery = Object.assign({}, filterQuery)
                   db.all(filterQuery, 0, false, (err, results) => {
                     t.equal(results.length, 3)
                     t.equal(results[0].value.content.text, '2')

@@ -21,6 +21,15 @@ const {
 module.exports = function (log, indexesPath) {
   debug('indexes path', indexesPath)
 
+  let bitsetCache = new WeakMap()
+  let sortedCache = { ascending: new WeakMap(), descending: new WeakMap() }
+
+  log.since(() => {
+    bitsetCache = new WeakMap()
+    sortedCache.ascending = new WeakMap()
+    sortedCache.descending = new WeakMap()
+  })
+
   const indexes = {}
   let isReady = false
   let waiting = []
@@ -627,6 +636,8 @@ module.exports = function (log, indexesPath) {
   }
 
   function executeOperation(operation, cb) {
+    if (bitsetCache.has(operation)) return cb(bitsetCache.get(operation))
+
     const opsMissingIndexes = []
     const lazyIndexes = []
 
@@ -649,7 +660,10 @@ module.exports = function (log, indexesPath) {
     }
 
     function getBitset() {
-      getBitsetForOperation(operation, cb)
+      getBitsetForOperation(operation, (bitset) => {
+        bitsetCache.set(operation, bitset)
+        cb(bitset)
+      })
     }
 
     function createMissingIndexes() {
@@ -703,10 +717,9 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function getMessagesFromBitsetSlice(bitset, offset, limit, descending, cb) {
-    offset = offset || 0
-    const start = Date.now()
-
+  function sortedByTimestamp(bitset, descending) {
+    const order = descending ? 'descending' : 'ascending'
+    if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
     const timestamped = bitset.array().map((o) => {
       return {
         offset: o,
@@ -717,6 +730,15 @@ module.exports = function (log, indexesPath) {
       if (descending) return b.timestamp - a.timestamp
       else return a.timestamp - b.timestamp
     })
+    sortedCache[order].set(bitset, sorted)
+    return sorted
+  }
+
+  function getMessagesFromBitsetSlice(bitset, offset, limit, descending, cb) {
+    offset = offset || 0
+    const start = Date.now()
+
+    const sorted = sortedByTimestamp(bitset, descending)
     const sliced =
       limit != null
         ? sorted.slice(offset, offset + limit)
@@ -731,7 +753,7 @@ module.exports = function (log, indexesPath) {
       push.collect((err, results) => {
         cb(err, {
           results: results,
-          total: timestamped.length,
+          total: sorted.length,
           duration: Date.now() - start,
         })
       })
