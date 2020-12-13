@@ -179,12 +179,15 @@ module.exports = function (log, indexesPath) {
       indexes['timestamp'].seq = seq
 
       var p = 0 // note you pass in p!
+      p = bipf.seekKey(buffer, p, bTimestamp)
+      const arrivalTimestamp = bipf.decode(buffer, p)
+      p = 0
       p = bipf.seekKey(buffer, p, bValue)
       p = bipf.seekKey(buffer, p, bTimestamp)
+      const declaredTimestamp = bipf.decode(buffer, p)
+      const timestamp = Math.min(arrivalTimestamp, declaredTimestamp)
 
-      // FIXME: maybe min of the two timestamps:
-      // https://github.com/ssbc/ssb-backlinks/blob/7a731d03acebcbb84b5fee5f0dcc4f6fef3b8035/emit-links.js#L55
-      indexes['timestamp'].tarr[offset] = bipf.decode(buffer, p)
+      indexes['timestamp'].tarr[offset] = timestamp
       indexes['timestamp'].count = offset + 1
       return true
     }
