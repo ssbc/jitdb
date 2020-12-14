@@ -1,13 +1,23 @@
 const test = require('tape')
 const fs = require('fs')
 const path = require('path')
+const pull = require('pull-stream')
 const FlumeLog = require('async-flumelog')
 const generateFixture = require('ssb-fixtures')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const JITDB = require('../index')
-const { query, fromDB, and, or, equal, toCallback } = require('../operators')
+const {
+  query,
+  fromDB,
+  and,
+  or,
+  equal,
+  toCallback,
+  toPullStream,
+  paginate,
+} = require('../operators')
 const { seekType, seekAuthor } = require('../test/helpers')
 const copy = require('../copy-json-to-bipf-async')
 
@@ -144,6 +154,34 @@ test('query three indexes (second run)', (t) => {
         t.pass(`duration: ${duration}ms`)
         t.end()
       })
+    )
+  })
+})
+
+test('paginate one huge index', (t) => {
+  db.onReady(() => {
+    const start = Date.now()
+    let i = 0
+    pull(
+      query(
+        fromDB(db),
+        and(equal(seekType, 'post', { indexType: 'type' })),
+        paginate(5),
+        toPullStream()
+      ),
+      pull.take(4000),
+      pull.drain(
+        (msgs) => {
+          i++
+        },
+        (err) => {
+          if (err) t.fail(err)
+          const duration = Date.now() - start
+          if (i !== 4000) t.fail('wrong number of pages read: ' + i)
+          t.pass(`duration: ${duration}ms`)
+          t.end()
+        }
+      )
     )
   })
 })
