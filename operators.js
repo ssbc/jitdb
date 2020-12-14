@@ -365,6 +365,7 @@ function toPullStream() {
         if (offset >= total) return cb(true)
         meta.db.paginate(ops, offset, limit, meta.descending, (err, answer) => {
           if (err) return cb(err)
+          else if (answer.total === 0) cb(true)
           else {
             total = answer.total
             offset += limit
