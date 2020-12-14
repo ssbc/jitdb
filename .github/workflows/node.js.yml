@@ -26,3 +26,30 @@ jobs:
       - run: npm install
       - name: npm test
         run: DEBUG=jitdb npm test
+
+  benchmark:
+    needs: test
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+      - run: npm install
+      - name: Benchmark
+        run: npm run benchmark
+      - id: get-comment-body
+        name: Gather results
+        run: |
+          body=$(cat /tmp/jitdb-benchmark/benchmark.md)
+          body="${body//'%'/'%25'}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+          echo ::set-output name=body::$body
+      - name: Publish comment
+        uses: peter-evans/commit-comment@v1
+        with:
+          body: ${{ steps.get-comment-body.outputs.body }}
