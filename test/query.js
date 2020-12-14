@@ -179,6 +179,47 @@ prepareAndRunTest('Includes and pluck', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st' }
+  const msg2 = { type: 'post', text: '2nd' }
+  const msg3 = { type: 'post', text: '3rd' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'type_post',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.paginate(typeQuery, 0, 1, false, (err, { results }) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, '1st')
+          db.paginate(typeQuery, 1, 1, false, (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, '2nd')
+            db.paginate(typeQuery, 2, 1, false, (err, { results }) => {
+              t.equal(results.length, 1)
+              t.equal(results[0].value.content.text, '3rd')
+              t.end()
+            })
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('Offset', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing!' }
   const msg2 = { type: 'contact', text: 'Testing!' }
