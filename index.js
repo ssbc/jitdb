@@ -614,9 +614,7 @@ module.exports = function (log, indexesPath) {
         cb(new TypedFastBitSet(op.offsets))
       })
     } else if (op.type === 'LIVEOFFSETS') {
-      ensureOffsetIndexSync(() => {
-        cb(new TypedFastBitSet(op.offsets))
-      })
+      cb(new TypedFastBitSet())
     } else if (op.type === 'AND') {
       if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
 

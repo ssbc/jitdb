@@ -31,10 +31,9 @@ function offsets(values) {
   }
 }
 
-function liveOffsets(values, pullStream) {
+function liveOffsets(pullStream) {
   return {
     type: 'LIVEOFFSETS',
-    offsets: values,
     stream: pullStream,
   }
 }

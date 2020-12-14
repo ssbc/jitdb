@@ -255,9 +255,17 @@ prepareAndRunTest('Live with offset values', dir, (t, db, raf) => {
         },
       },
       {
-        type: 'LIVEOFFSETS',
-        offsets: [0],
-        stream: ps,
+        type: 'OR',
+        data: [
+          {
+            type: 'OFFSETS',
+            offsets: [0],
+          },
+          {
+            type: 'LIVEOFFSETS',
+            stream: ps,
+          },
+        ],
       },
     ],
   }
