@@ -822,7 +822,7 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
     and(
       deferred((meta, cb) => {
         setTimeout(() => {
-          cb(null, liveOffsets([], ps))
+          cb(null, liveOffsets(ps))
         }, 100)
       })
     ),
