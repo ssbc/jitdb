@@ -1,14 +1,10 @@
-const test = require('tape')
-const fs = require('fs')
 const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
 const path = require('path')
-const FlumeLog = require('async-flumelog')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const pull = require('pull-stream')
-const { addMsg } = require('./common')()
-const jitdb = require('../index')
+const { addMsg, prepareAndRunTest } = require('./common')()
 const {
   and,
   query,
@@ -24,38 +20,31 @@ mkdirp.sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 
-test('live from empty log', (t) => {
-  const name = 'live-from-empty-log'
-  fs.closeSync(fs.openSync(path.join(dir, name), 'w')) // touch
-  let raf = FlumeLog(path.join(dir, name), { blockSize: 64 * 1024 })
-  let db = jitdb(raf, path.join(dir, 'indexes' + name))
+prepareAndRunTest('Live toPullStream from empty log', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st' }
+  const msg2 = { type: 'post', text: '2nd' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now())
 
-  db.onReady(() => {
-    const msg1 = { type: 'post', text: '1st' }
-    const msg2 = { type: 'post', text: '2nd' }
-    let state = validate.initial()
-    state = validate.appendNew(state, null, keys, msg1, Date.now())
-    state = validate.appendNew(state, null, keys, msg2, Date.now())
+  var i = 1
+  pull(
+    query(
+      fromDB(db),
+      and(slowEqual('value.content.type', 'post')),
+      live(),
+      toPullStream()
+    ),
+    pull.drain((result) => {
+      if (i++ === 1) {
+        t.equal(result.value.content.text, '1st')
+        addMsg(state.queue[1].value, raf, (err, m2) => {})
+      } else {
+        t.equal(result.value.content.text, '2nd')
+        t.end()
+      }
+    })
+  )
 
-    var i = 1
-    pull(
-      query(
-        fromDB(db),
-        and(slowEqual('value.content.type', 'post')),
-        live(),
-        toPullStream()
-      ),
-      pull.drain((result) => {
-        if (i++ === 1) {
-          t.equal(result.value.content.text, '1st')
-          addMsg(state.queue[1].value, raf, (err, m2) => {})
-        } else {
-          t.equal(result.value.content.text, '2nd')
-          t.end()
-        }
-      })
-    )
-
-    addMsg(state.queue[0].value, raf, (err, m1) => {})
-  })
+  addMsg(state.queue[0].value, raf, (err, m1) => {})
 })
