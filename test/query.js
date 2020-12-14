@@ -179,6 +179,47 @@ prepareAndRunTest('Includes and pluck', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st' }
+  const msg2 = { type: 'post', text: '2nd' }
+  const msg3 = { type: 'post', text: '3rd' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'type_post',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.paginate(typeQuery, 0, 1, false, (err, { results }) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, '1st')
+          db.paginate(typeQuery, 1, 1, false, (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, '2nd')
+            db.paginate(typeQuery, 2, 1, false, (err, { results }) => {
+              t.equal(results.length, 1)
+              t.equal(results[0].value.content.text, '3rd')
+              t.end()
+            })
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('Offset', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing!' }
   const msg2 = { type: 'contact', text: 'Testing!' }
@@ -307,7 +348,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
   state = validate.appendNew(state, null, keys, msg4, Date.now() + 3)
 
-  const filterQuery = {
+  let filterQuery = {
     type: 'AND',
     data: [
       {
@@ -340,17 +381,23 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
             t.equal(results[0].value.content.text, '2')
 
             filterQuery.data[0].type = 'GTE'
+            // clone to force cache invalidation inside db.all:
+            filterQuery = Object.assign({}, filterQuery)
             db.all(filterQuery, 0, false, (err, results) => {
               t.equal(results.length, 4)
               t.equal(results[0].value.content.text, '1')
 
               filterQuery.data[0].type = 'LT'
               filterQuery.data[0].data.value = 3
+              // clone to force cache invalidation inside db.all:
+              filterQuery = Object.assign({}, filterQuery)
               db.all(filterQuery, 0, false, (err, results) => {
                 t.equal(results.length, 2)
                 t.equal(results[0].value.content.text, '1')
 
                 filterQuery.data[0].type = 'LTE'
+                // clone to force cache invalidation inside db.all:
+                filterQuery = Object.assign({}, filterQuery)
                 db.all(filterQuery, 0, false, (err, results) => {
                   t.equal(results.length, 3)
                   t.equal(results[0].value.content.text, '1')
@@ -358,6 +405,8 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
                   filterQuery.data[0].type = 'GT'
                   filterQuery.data[0].data.indexName = 'timestamp'
                   filterQuery.data[0].data.value = dbMsg1.value.timestamp
+                  // clone to force cache invalidation inside db.all:
+                  filterQuery = Object.assign({}, filterQuery)
                   db.all(filterQuery, 0, false, (err, results) => {
                     t.equal(results.length, 3)
                     t.equal(results[0].value.content.text, '2')
