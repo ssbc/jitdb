@@ -50,6 +50,7 @@ jobs:
           body="${body//$'\r'/'%0D'}"
           echo ::set-output name=body::$body
       - name: Publish comment
-        uses: peter-evans/commit-comment@v1
+        uses: mshick/add-pr-comment@v1
         with:
-          body: ${{ steps.get-comment-body.outputs.body }}
+          message: ${{ steps.get-comment-body.outputs.body }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
