@@ -87,7 +87,8 @@ test('query one huge index (first run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 23310) t.fail('msgs.length is wrong')
+        if (msgs.length !== 23310)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
         t.end()
       })
@@ -104,7 +105,8 @@ test('query one huge index (second run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 23310) t.fail('msgs.length is wrong')
+        if (msgs.length !== 23310)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
         t.end()
       })
@@ -127,7 +129,8 @@ test('query three indexes (first run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 24606) t.fail('msgs.length is wrong')
+        if (msgs.length !== 24606)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
         t.end()
       })
@@ -150,7 +153,8 @@ test('query three indexes (second run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 24606) t.fail('msgs.length is wrong')
+        if (msgs.length !== 24606)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
         t.end()
       })
