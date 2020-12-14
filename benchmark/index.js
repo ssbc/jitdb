@@ -1,19 +1,30 @@
 const test = require('tape')
 const fs = require('fs')
 const path = require('path')
+const pull = require('pull-stream')
 const FlumeLog = require('async-flumelog')
 const generateFixture = require('ssb-fixtures')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const JITDB = require('../index')
-const { query, fromDB, and, or, equal, toCallback } = require('../operators')
+const {
+  query,
+  fromDB,
+  and,
+  or,
+  equal,
+  toCallback,
+  toPullStream,
+  paginate,
+} = require('../operators')
 const { seekType, seekAuthor } = require('../test/helpers')
 const copy = require('../copy-json-to-bipf-async')
 
 const dir = '/tmp/jitdb-benchmark'
 const oldLogPath = path.join(dir, 'flume', 'log.offset')
 const newLogPath = path.join(dir, 'flume', 'log.bipf')
+const reportPath = path.join(dir, 'benchmark.md')
 const indexesDir = path.join(dir, 'indexes')
 
 const skipCreate = process.argv[2] === 'noCreate'
@@ -21,6 +32,7 @@ const skipCreate = process.argv[2] === 'noCreate'
 if (!skipCreate) {
   rimraf.sync(dir)
   mkdirp.sync(dir)
+  fs.appendFileSync(reportPath, '## Benchmark results\n\n')
 
   const SEED = 'sloop'
   const MESSAGES = 100000
@@ -64,6 +76,7 @@ test('core indexes', (t) => {
   db.onReady(() => {
     const duration = Date.now() - start
     t.pass(`duration: ${duration}ms`)
+    fs.appendFileSync(reportPath, `- Load core indexes: ${duration}ms\n`)
     t.end()
   })
 })
@@ -77,8 +90,13 @@ test('query one huge index (first run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 23310) t.fail('msgs.length is wrong')
+        if (msgs.length !== 23310)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
+        fs.appendFileSync(
+          reportPath,
+          `- Query one huge index (first run): ${duration}ms\n`
+        )
         t.end()
       })
     )
@@ -94,8 +112,13 @@ test('query one huge index (second run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 23310) t.fail('msgs.length is wrong')
+        if (msgs.length !== 23310)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
+        fs.appendFileSync(
+          reportPath,
+          `- Query one huge index (second run): ${duration}ms\n`
+        )
         t.end()
       })
     )
@@ -117,8 +140,13 @@ test('query three indexes (first run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 24606) t.fail('msgs.length is wrong')
+        if (msgs.length !== 24606)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
+        fs.appendFileSync(
+          reportPath,
+          `- Query three indexes (first run): ${duration}ms\n`
+        )
         t.end()
       })
     )
@@ -140,10 +168,47 @@ test('query three indexes (second run)', (t) => {
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
-        if (msgs.length !== 24606) t.fail('msgs.length is wrong')
+        if (msgs.length !== 24606)
+          t.fail('msgs.length is wrong: ' + msgs.length)
         t.pass(`duration: ${duration}ms`)
+        fs.appendFileSync(
+          reportPath,
+          `- Query three indexes (second run): ${duration}ms\n`
+        )
         t.end()
       })
+    )
+  })
+})
+
+test('paginate one huge index', (t) => {
+  db.onReady(() => {
+    const start = Date.now()
+    let i = 0
+    pull(
+      query(
+        fromDB(db),
+        and(equal(seekType, 'post', { indexType: 'type' })),
+        paginate(5),
+        toPullStream()
+      ),
+      pull.take(4000),
+      pull.drain(
+        (msgs) => {
+          i++
+        },
+        (err) => {
+          if (err) t.fail(err)
+          const duration = Date.now() - start
+          if (i !== 4000) t.fail('wrong number of pages read: ' + i)
+          t.pass(`duration: ${duration}ms`)
+          fs.appendFileSync(
+            reportPath,
+            `- Paginate one huge index: ${duration}ms\n`
+          )
+          t.end()
+        }
+      )
     )
   })
 })
