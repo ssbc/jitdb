@@ -23,12 +23,7 @@ module.exports = function (log, indexesPath) {
 
   let bitsetCache = new WeakMap()
   let sortedCache = { ascending: new WeakMap(), descending: new WeakMap() }
-
-  log.since(() => {
-    bitsetCache = new WeakMap()
-    sortedCache.ascending = new WeakMap()
-    sortedCache.descending = new WeakMap()
-  })
+  let cacheSeq = -1
 
   const indexes = {}
   let isReady = false
@@ -139,6 +134,15 @@ module.exports = function (log, indexesPath) {
     } else {
       // node.js
       listFilesFS(indexesPath, parseIndexes)
+    }
+  }
+
+  function updateCacheWithLog() {
+    if (log.since.value > cacheSeq) {
+      cacheSeq = log.since.value
+      bitsetCache = new WeakMap()
+      sortedCache.ascending = new WeakMap()
+      sortedCache.descending = new WeakMap()
     }
   }
 
@@ -636,6 +640,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function executeOperation(operation, cb) {
+    updateCacheWithLog()
     if (bitsetCache.has(operation)) return cb(bitsetCache.get(operation))
 
     const opsMissingIndexes = []
@@ -718,6 +723,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function sortedByTimestamp(bitset, descending) {
+    updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
     if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
     const timestamped = bitset.array().map((o) => {
