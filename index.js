@@ -396,7 +396,7 @@ module.exports = function (log, indexesPath) {
         }
     })
 
-    let offset = -1
+    let offset = 0
 
     let updatedOffsetIndex = false
     let updatedTimestampIndex = false
@@ -406,14 +406,16 @@ module.exports = function (log, indexesPath) {
     log.stream({}).pipe({
       paused: false,
       write: function (record) {
-        offset++
-
         const seq = record.seq
         const buffer = record.value
 
         if (updateOffsetIndex(offset, seq)) updatedOffsetIndex = true
 
-        if (!buffer) return // deleted
+        if (!buffer) {
+          // deleted
+          offset++
+          return
+        }
 
         if (updateTimestampIndex(offset, seq, buffer))
           updatedTimestampIndex = true
@@ -435,6 +437,8 @@ module.exports = function (log, indexesPath) {
           else
             updateIndexValue(op, newIndexes[op.data.indexName], buffer, offset)
         })
+
+        offset++
       },
       end: () => {
         const count = offset // incremented at end
