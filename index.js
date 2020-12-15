@@ -147,6 +147,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function saveCoreIndex(name, coreIndex, count) {
+    if (coreIndex.seq < 0) return
     debug('saving core index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
     saveTypedArrayFile(
@@ -159,12 +160,14 @@ module.exports = function (log, indexesPath) {
   }
 
   function saveIndex(name, index, cb) {
+    if (index.seq < 0 || index.bitset.size() === 0) return
     debug('saving index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
     saveBitsetFile(filename, index.version || 1, index.seq, index.bitset, cb)
   }
 
   function savePrefixIndex(name, prefixIndex, count, cb) {
+    if (prefixIndex.seq < 0) return
     debug('saving prefix index: %s', name)
     const num = prefixIndex.prefix
     const filename = path.join(indexesPath, name + `.${num}prefix`)
