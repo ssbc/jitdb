@@ -147,22 +147,38 @@ module.exports = function (log, indexesPath) {
   }
 
   function saveCoreIndex(name, coreIndex, count) {
+    if (coreIndex.seq < 0) return
     debug('saving core index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
-    saveTypedArrayFile(filename, coreIndex.seq, count, coreIndex.tarr)
+    saveTypedArrayFile(
+      filename,
+      coreIndex.version || 1,
+      coreIndex.seq,
+      count,
+      coreIndex.tarr
+    )
   }
 
   function saveIndex(name, index, cb) {
+    if (index.seq < 0 || index.bitset.size() === 0) return
     debug('saving index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
-    saveBitsetFile(filename, index.seq, index.bitset, cb)
+    saveBitsetFile(filename, index.version || 1, index.seq, index.bitset, cb)
   }
 
   function savePrefixIndex(name, prefixIndex, count, cb) {
+    if (prefixIndex.seq < 0) return
     debug('saving prefix index: %s', name)
     const num = prefixIndex.prefix
     const filename = path.join(indexesPath, name + `.${num}prefix`)
-    saveTypedArrayFile(filename, prefixIndex.seq, count, prefixIndex.tarr, cb)
+    saveTypedArrayFile(
+      filename,
+      prefixIndex.version || 1,
+      prefixIndex.seq,
+      count,
+      prefixIndex.tarr,
+      cb
+    )
   }
 
   function growTarrIndex(index, Type) {
@@ -460,18 +476,20 @@ module.exports = function (log, indexesPath) {
       loadTypedArrayFile(
         index.filepath,
         Uint32Array,
-        (err, { seq, tarr, count }) => {
+        (err, { version, seq, count, tarr }) => {
           // FIXME: handle error
+          index.version = version
           index.seq = seq
-          index.tarr = tarr
           index.count = count
+          index.tarr = tarr
           index.lazy = false
           cb()
         }
       )
     } else {
-      loadBitsetFile(index.filepath, (err, { seq, bitset }) => {
+      loadBitsetFile(index.filepath, (err, { version, seq, bitset }) => {
         // FIXME: handle error
+        index.version = version
         index.seq = seq
         index.bitset = bitset
         index.lazy = false

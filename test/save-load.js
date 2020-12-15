@@ -22,15 +22,17 @@ test('save and load bitsets', (t) => {
   var bitset = new TypedFastBitSet()
   for (var i = 0; i < 10; i += 2) bitset.add(i)
 
-  saveBitsetFile(filename, 123, bitset, (err) => {
+  saveBitsetFile(filename, 1, 123, bitset, (err) => {
     loadBitsetFile(filename, (err, index) => {
       t.error(err, 'no error')
+      t.equal(index.version, 1)
       let loadedBitset = index.bitset
       t.deepEqual(bitset.array(), loadedBitset.array())
       loadedBitset.add(10)
 
-      saveBitsetFile(filename, 1234, loadedBitset, (err) => {
+      saveBitsetFile(filename, 1, 1234, loadedBitset, (err) => {
         loadBitsetFile(filename, (err, index) => {
+          t.equal(index.version, 1)
           t.error(err, 'no error')
           let loadedBitset2 = index.bitset
           t.deepEqual(loadedBitset.array(), loadedBitset2.array())
@@ -49,7 +51,7 @@ test('save and load TypedArray for offset', (t) => {
   var tarr = new Uint32Array(16 * 1000)
   for (var i = 0; i < 10; i += 1) tarr[i] = i
 
-  saveTypedArrayFile(filename, 123, 10, tarr, (err) => {
+  saveTypedArrayFile(filename, 1, 123, 10, tarr, (err) => {
     loadTypedArrayFile(filename, Uint32Array, (err, loadedIdx) => {
       t.equal(loadedIdx.tarr.length, 10 * 1.1, 'file trimmed')
 
@@ -57,7 +59,7 @@ test('save and load TypedArray for offset', (t) => {
 
       loadedIdx.tarr[10] = 10
 
-      saveTypedArrayFile(filename, 1234, 11, loadedIdx.tarr, (err) => {
+      saveTypedArrayFile(filename, 1, 1234, 11, loadedIdx.tarr, (err) => {
         loadTypedArrayFile(filename, Uint32Array, (err, loadedIdx2) => {
           for (var i = 0; i < 11; i += 1)
             t.equal(loadedIdx.tarr[i], loadedIdx2.tarr[i])
@@ -76,13 +78,14 @@ test('save and load TypedArray for timestamp', (t) => {
   var tarr = new Float64Array(16 * 1000)
   for (var i = 0; i < 10; i += 1) tarr[i] = i * 1000000
 
-  saveTypedArrayFile(filename, 123, 10, tarr, (err) => {
+  saveTypedArrayFile(filename, 1, 123, 10, tarr, (err) => {
     loadTypedArrayFile(filename, Float64Array, (err, loadedIdx) => {
+      t.error(err, 'no error')
       for (var i = 0; i < 10; i += 1) t.equal(tarr[i], loadedIdx.tarr[i])
 
       loadedIdx.tarr[10] = 10 * 1000000
 
-      saveTypedArrayFile(filename, 1234, 11, loadedIdx.tarr, (err) => {
+      saveTypedArrayFile(filename, 1, 1234, 11, loadedIdx.tarr, (err) => {
         loadTypedArrayFile(filename, Float64Array, (err, loadedIdx2) => {
           for (var i = 0; i < 11; i += 1)
             t.equal(loadedIdx.tarr[i], loadedIdx2.tarr[i])

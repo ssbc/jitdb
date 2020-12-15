@@ -4,17 +4,38 @@ const TypedFastBitSet = require('typedfastbitset')
 const { readFile, writeFile } = require('atomically-universal')
 const toBuffer = require('typedarray-to-buffer')
 
-function saveTypedArrayFile(filename, seq, count, tarr, cb) {
+const FIELD_SIZE = 4 // bytes
+
+/*
+ * ## File format for tarr files
+ *
+ * Each header field is 4 bytes in size.
+ *
+ * | offset (bytes) | name    | type     |
+ * |----------------|---------|----------|
+ * | 0              | version | UInt32LE |
+ * | 4              | seq     | UInt32LE |
+ * | 8              | count   | UInt32LE |
+ * | 12             | (N/A)   | (N/A)    |
+ * | 16             | body    | Buffer   |
+ *
+ * Note that the 4th header field (offset=12) is empty on purpose, to support
+ * `new Float64Array(b,start,len)` where `start` must be a multiple of 8
+ * when loading in `loadTypedArrayFile`.
+ */
+
+function saveTypedArrayFile(filename, version, seq, count, tarr, cb) {
   if (!cb) cb = () => {}
 
   const dataBuffer = toBuffer(tarr)
   // we try to save an extra 10% so we don't have to immediately grow
   // after loading and adding again
   const saveSize = Math.min(count * 1.1, tarr.length)
-  const b = Buffer.alloc(8 + saveSize * tarr.BYTES_PER_ELEMENT)
-  b.writeInt32LE(seq, 0)
-  b.writeInt32LE(count, 4)
-  dataBuffer.copy(b, 8)
+  const b = Buffer.alloc(4 * FIELD_SIZE + saveSize * tarr.BYTES_PER_ELEMENT)
+  b.writeUInt32LE(version, 0)
+  b.writeUInt32LE(seq, FIELD_SIZE)
+  b.writeUInt32LE(count, 2 * FIELD_SIZE)
+  dataBuffer.copy(b, 4 * FIELD_SIZE)
 
   writeFile(filename, b)
     .then(() => cb())
@@ -24,11 +45,13 @@ function saveTypedArrayFile(filename, seq, count, tarr, cb) {
 function loadTypedArrayFile(filename, Type, cb) {
   readFile(filename)
     .then((buf) => {
-      const seq = buf.readInt32LE(0)
-      const count = buf.readInt32LE(4)
-      const body = buf.slice(8)
+      const version = buf.readUInt32LE(0)
+      const seq = buf.readUInt32LE(FIELD_SIZE)
+      const count = buf.readUInt32LE(2 * FIELD_SIZE)
+      const body = buf.slice(4 * FIELD_SIZE)
 
       cb(null, {
+        version,
         seq,
         count,
         tarr: new Type(
@@ -41,21 +64,25 @@ function loadTypedArrayFile(filename, Type, cb) {
     .catch(cb)
 }
 
-function saveBitsetFile(filename, seq, bitset, cb) {
+function saveBitsetFile(filename, version, seq, bitset, cb) {
   bitset.trim()
-  saveTypedArrayFile(filename, seq, bitset.count, bitset.words, cb)
+  saveTypedArrayFile(filename, version, seq, bitset.count, bitset.words, cb)
 }
 
 function loadBitsetFile(filename, cb) {
-  loadTypedArrayFile(filename, Uint32Array, (err, { tarr, count, seq }) => {
-    if (err) cb(err)
-    else {
-      const bitset = new TypedFastBitSet()
-      bitset.words = tarr
-      bitset.count = count
-      cb(null, { seq, bitset })
+  loadTypedArrayFile(
+    filename,
+    Uint32Array,
+    (err, { version, seq, count, tarr }) => {
+      if (err) cb(err)
+      else {
+        const bitset = new TypedFastBitSet()
+        bitset.words = tarr
+        bitset.count = count
+        cb(null, { version, seq, bitset })
+      }
     }
-  })
+  )
 }
 
 function listFilesIDB(dir, cb) {
