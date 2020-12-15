@@ -34,7 +34,7 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
@@ -68,7 +68,7 @@ prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'First')
           t.end()
@@ -101,7 +101,7 @@ prepareAndRunTest('Prefix equal falsy', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, 'Second')
           t.equal(results[1].value.content.text, 'Third')

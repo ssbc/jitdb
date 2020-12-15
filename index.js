@@ -335,16 +335,25 @@ module.exports = function (log, indexesPath) {
       write: function (record) {
         if (updateOffsetIndex(offset, record.seq)) updatedOffsetIndex = true
 
-        if (updateTimestampIndex(offset, record.seq, record.value))
-          updatedTimestampIndex = true
+        if (record.value != null) {
+          // not deleted
+          if (updateTimestampIndex(offset, record.seq, record.value))
+            updatedTimestampIndex = true
 
-        if (updateSequenceIndex(offset, record.seq, record.value))
-          updatedSequenceIndex = true
+          if (updateSequenceIndex(offset, record.seq, record.value))
+            updatedSequenceIndex = true
 
-        if (indexNeedsUpdate) {
-          if (op.data.prefix)
-            updatePrefixIndex(op.data, index, record.value, offset, record.seq)
-          else updateIndexValue(op, index, record.value, offset)
+          if (indexNeedsUpdate) {
+            if (op.data.prefix)
+              updatePrefixIndex(
+                op.data,
+                index,
+                record.value,
+                offset,
+                record.seq
+              )
+            else updateIndexValue(op, index, record.value, offset)
+          }
         }
 
         offset++
@@ -405,26 +414,34 @@ module.exports = function (log, indexesPath) {
 
         if (updateOffsetIndex(offset, seq)) updatedOffsetIndex = true
 
-        if (updateTimestampIndex(offset, record.seq, buffer))
-          updatedTimestampIndex = true
+        if (buffer != null) {
+          // not deleted
+          if (updateTimestampIndex(offset, seq, buffer))
+            updatedTimestampIndex = true
 
-        if (updateSequenceIndex(offset, record.seq, buffer))
-          updatedSequenceIndex = true
+          if (updateSequenceIndex(offset, seq, buffer))
+            updatedSequenceIndex = true
 
-        opsMissingIndexes.forEach((op) => {
-          if (op.data.prefix)
-            updatePrefixIndex(
-              op.data,
-              newIndexes[op.data.indexName],
-              buffer,
-              offset,
-              seq
-            )
-          else if (op.data.indexAll)
-            updateAllIndexValue(op.data, newIndexes, buffer, offset)
-          else
-            updateIndexValue(op, newIndexes[op.data.indexName], buffer, offset)
-        })
+          opsMissingIndexes.forEach((op) => {
+            if (op.data.prefix)
+              updatePrefixIndex(
+                op.data,
+                newIndexes[op.data.indexName],
+                buffer,
+                offset,
+                seq
+              )
+            else if (op.data.indexAll)
+              updateAllIndexValue(op.data, newIndexes, buffer, offset)
+            else
+              updateIndexValue(
+                op,
+                newIndexes[op.data.indexName],
+                buffer,
+                offset
+              )
+          })
+        }
 
         offset++
       },
@@ -563,6 +580,11 @@ module.exports = function (log, indexesPath) {
       const seek = op.data.seek
       for (let i = 0, len = recs.length; i < len; ++i) {
         const { value, offset } = recs[i]
+        if (value === undefined) {
+          // deleted
+          bitset.remove(offset)
+          continue
+        }
         const fieldStart = seek(value)
         const candidate = bipf.slice(value, fieldStart)
         if (target) {
@@ -738,7 +760,14 @@ module.exports = function (log, indexesPath) {
     return sorted
   }
 
-  function getMessagesFromBitsetSlice(bitset, offset, limit, descending, cb) {
+  function getMessagesFromBitsetSlice(
+    bitset,
+    offset,
+    limit,
+    descending,
+    onlySeq,
+    cb
+  ) {
     offset = offset || 0
     const start = Date.now()
 
@@ -752,8 +781,11 @@ module.exports = function (log, indexesPath) {
 
     push(
       push.values(sliced),
-      push.asyncMap(({ offset }, cb) => getMessage(offset, cb)),
-      push.filter((x) => x), // removes deleted messages
+      push.asyncMap(({ offset }, cb) => {
+        if (onlySeq) cb(null, indexes['offset'].tarr[offset])
+        else getMessage(offset, cb)
+      }),
+      push.filter((x) => (onlySeq ? true : x)), // removes deleted messages
       push.collect((err, results) => {
         cb(err, {
           results: results,
@@ -764,7 +796,7 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function paginate(operation, offset, limit, descending, cb) {
+  function paginate(operation, offset, limit, descending, onlySeq, cb) {
     onReady(() => {
       executeOperation(operation, (bitset) => {
         getMessagesFromBitsetSlice(
@@ -772,6 +804,7 @@ module.exports = function (log, indexesPath) {
           offset,
           limit,
           descending,
+          onlySeq,
           (err, answer) => {
             if (err) cb(err)
             else {
@@ -786,7 +819,7 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function all(operation, offset, descending, cb) {
+  function all(operation, offset, descending, onlySeq, cb) {
     onReady(() => {
       executeOperation(operation, (bitset) => {
         getMessagesFromBitsetSlice(
@@ -794,6 +827,7 @@ module.exports = function (log, indexesPath) {
           offset,
           null,
           descending,
+          onlySeq,
           (err, answer) => {
             if (err) cb(err)
             else {

@@ -34,15 +34,15 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     addMsg(state.queue[1].value, raf, (err, msg2) => {
-      db.paginate(typeQuery, 0, 10, false, (err, { results }) => {
+      db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
         t.equal(results.length, 2)
 
         // rerun on created index
-        db.paginate(typeQuery, 0, 10, true, (err, { results }) => {
+        db.paginate(typeQuery, 0, 10, true, false, (err, { results }) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.author, keys2.id)
 
-          db.paginate(typeQuery, 0, 10, false, (err, { results }) => {
+          db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
             t.equal(results.length, 2)
             t.equal(results[0].value.author, keys.id)
 
@@ -55,60 +55,76 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                 indexName: 'author_' + keys.id,
               },
             }
-            db.paginate(authorQuery, 0, 10, false, (err, { results }) => {
-              t.equal(results.length, 1)
-              t.equal(results[0].id, msg1.id)
-
-              // rerun on created index
-              db.paginate(authorQuery, 0, 10, false, (err, { results }) => {
+            db.paginate(
+              authorQuery,
+              0,
+              10,
+              false,
+              false,
+              (err, { results }) => {
                 t.equal(results.length, 1)
                 t.equal(results[0].id, msg1.id)
 
+                // rerun on created index
                 db.paginate(
-                  {
-                    type: 'AND',
-                    data: [authorQuery, typeQuery],
-                  },
+                  authorQuery,
                   0,
                   10,
+                  false,
                   false,
                   (err, { results }) => {
                     t.equal(results.length, 1)
                     t.equal(results[0].id, msg1.id)
 
-                    const authorQuery2 = {
-                      type: 'EQUAL',
-                      data: {
-                        seek: helpers.seekAuthor,
-                        value: Buffer.from(keys2.id),
-                        indexType: 'author',
-                        indexName: 'author_' + keys2.id,
-                      },
-                    }
-
                     db.paginate(
                       {
                         type: 'AND',
-                        data: [
-                          typeQuery,
-                          {
-                            type: 'OR',
-                            data: [authorQuery, authorQuery2],
-                          },
-                        ],
+                        data: [authorQuery, typeQuery],
                       },
                       0,
                       10,
                       false,
+                      false,
                       (err, { results }) => {
-                        t.equal(results.length, 2)
-                        t.end()
+                        t.equal(results.length, 1)
+                        t.equal(results[0].id, msg1.id)
+
+                        const authorQuery2 = {
+                          type: 'EQUAL',
+                          data: {
+                            seek: helpers.seekAuthor,
+                            value: Buffer.from(keys2.id),
+                            indexType: 'author',
+                            indexName: 'author_' + keys2.id,
+                          },
+                        }
+
+                        db.paginate(
+                          {
+                            type: 'AND',
+                            data: [
+                              typeQuery,
+                              {
+                                type: 'OR',
+                                data: [authorQuery, authorQuery2],
+                              },
+                            ],
+                          },
+                          0,
+                          10,
+                          false,
+                          false,
+                          (err, { results }) => {
+                            t.equal(results.length, 2)
+                            t.end()
+                          }
+                        )
                       }
                     )
                   }
                 )
-              })
-            })
+              }
+            )
           })
         })
       })
@@ -133,11 +149,11 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.all(typeQuery, 0, false, (err, results) => {
+    db.all(typeQuery, 0, false, false, (err, results) => {
       t.equal(results.length, 1)
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
-        db.all(typeQuery, 0, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })
@@ -171,7 +187,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect((err, results) => {
-      db.paginate(typeQuery, 0, 1, false, (err, { results }) => {
+      db.paginate(typeQuery, 0, 1, false, false, (err, { results }) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing 31999')
         t.end()
@@ -220,7 +236,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
         addMsg(state.queue[3].value, raf, (err, msg) => {
-          db.all(authorQuery, 0, false, (err, results) => {
+          db.all(authorQuery, 0, false, false, (err, results) => {
             t.error(err)
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
@@ -259,16 +275,16 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.all(typeQuery('post'), 0, false, (err, results) => {
+      db.all(typeQuery('post'), 0, false, false, (err, results) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing 1')
 
         addMsg(state.queue[2].value, raf, (err, msg) => {
           addMsg(state.queue[3].value, raf, (err, msg) => {
-            db.all(typeQuery('about'), 0, false, (err, results) => {
+            db.all(typeQuery('about'), 0, false, false, (err, results) => {
               t.equal(results.length, 1)
 
-              db.all(typeQuery('post'), 0, false, (err, results) => {
+              db.all(typeQuery('post'), 0, false, false, (err, results) => {
                 t.equal(results.length, 2)
                 t.deepEqual(db.indexes['type_post'].bitset.array(), [0, 2])
                 t.deepEqual(db.indexes['type_contact'].bitset.array(), [1])

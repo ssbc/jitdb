@@ -364,11 +364,12 @@ _Rule of thumb_: use prefix indexes in an EQUAL operation only when the target `
 
 ## Low-level API
 
-### paginate(operation, offset, limit, descending, cb)
+### paginate(operation, offset, limit, descending, onlySeq, cb)
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
-query is run. The result is an object with the fields:
+query is run. `onlySeq` be be used to return seqs instead of the
+actual messages. The result is an object with the fields:
 
 - `data`: the actual messages
 - `total`: the total number of messages
@@ -385,14 +386,28 @@ Operation can be of the following types:
 | AND           | [operation, operation]                       |
 | OR            | [operation, operation]                       |
 
-`seek` is a function that takes a buffer from the database as input and returns an index in the buffer from where a value can be compared to the `value` given. If value is `undefined` it corresponds to the field not being defined at that point in the buffer. `prefix` enables the use of prefix indexes for this operation. `indexType` is used to group indexes of the same type. If `indexAll` is specified and no index of the type and value exists, then instead of only this index being created, missing indexes for all possible values given the seek pointer will be created. This can be particular useful for data where there number of different values are rather small, but still larger than a few. One example is author or feeds in SSB, a typical database of 1 million records will have roughly 700 authors. The biggest cost in creating the indexes is traversing the database, so creating all indexes in one go instead of several hundreds is a lot faster.
+`seek` is a function that takes a buffer from the database as input
+and returns an index in the buffer from where a value can be compared
+to the `value` given. If value is `undefined` it corresponds to the
+field not being defined at that point in the buffer. `prefix` enables
+the use of prefix indexes for this operation. `indexType` is used to
+group indexes of the same type. If `indexAll` is specified and no
+index of the type and value exists, then instead of only this index
+being created, missing indexes for all possible values given the seek
+pointer will be created. This can be particular useful for data where
+there number of different values are rather small, but still larger
+than a few. One example is author or feeds in SSB, a typical database
+of 1 million records will have roughly 700 authors. The biggest cost
+in creating the indexes is traversing the database, so creating all
+indexes in one go instead of several hundreds is a lot faster.
 
 For `GT`, `GTE`, `LT` and `LTE`, `indexName` can be either `sequence`
 or `timestamp`.
 
-`OFFSETS` and `SEQS` allow one to use offset and seq (respectively) positions
-into the log file as query operators. This is useful for interfacing with data indexed by something else than JITDB. Offsets are faster as they can be combined
-in queries directly.
+`OFFSETS` and `SEQS` allow one to use offset and seq (respectively)
+positions into the log file as query operators. This is useful for
+interfacing with data indexed by something else than JITDB. Offsets
+are faster as they can be combined in queries directly.
 
 Example
 
@@ -411,7 +426,7 @@ some after processing that you wouldn't create and index for, but the
 overhead of decoding the buffers is small enough that I don't think it
 makes sense.
 
-### all(operation, offset, descending, cb)
+### all(operation, offset, descending, onlySeq, cb)
 
 Similar to paginate except there is no `limit` argument and the result
 will be the messages directly.

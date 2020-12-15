@@ -337,8 +337,15 @@ function toCallback(cb) {
       .then((ops) => {
         const offset = meta.offset || 0
         if (meta.pageSize)
-          meta.db.paginate(ops, offset, meta.pageSize, meta.descending, cb)
-        else meta.db.all(ops, offset, meta.descending, cb)
+          meta.db.paginate(
+            ops,
+            offset,
+            meta.pageSize,
+            meta.descending,
+            false,
+            cb
+          )
+        else meta.db.all(ops, offset, meta.descending, false, cb)
       })
       .catch((err) => {
         cb(err)
@@ -363,15 +370,22 @@ function toPullStream() {
       return function readable(end, cb) {
         if (end) return cb(end)
         if (offset >= total) return cb(true)
-        meta.db.paginate(ops, offset, limit, meta.descending, (err, answer) => {
-          if (err) return cb(err)
-          else if (answer.total === 0) cb(true)
-          else {
-            total = answer.total
-            offset += limit
-            cb(null, !meta.pageSize ? answer.results[0] : answer.results)
+        meta.db.paginate(
+          ops,
+          offset,
+          limit,
+          meta.descending,
+          false,
+          (err, answer) => {
+            if (err) return cb(err)
+            else if (answer.total === 0) cb(true)
+            else {
+              total = answer.total
+              offset += limit
+              cb(null, !meta.pageSize ? answer.results[0] : answer.results)
+            }
           }
-        })
+        )
       }
     }
 
