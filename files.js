@@ -66,7 +66,7 @@ function loadTypedArrayFile(filename, Type, cb) {
 
 function saveBitsetFile(filename, version, seq, bitset, cb) {
   bitset.trim()
-  saveTypedArrayFile(filename, seq, version, bitset.count, bitset.words, cb)
+  saveTypedArrayFile(filename, version, seq, bitset.count, bitset.words, cb)
 }
 
 function loadBitsetFile(filename, cb) {
