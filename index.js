@@ -335,25 +335,22 @@ module.exports = function (log, indexesPath) {
       write: function (record) {
         if (updateOffsetIndex(offset, record.seq)) updatedOffsetIndex = true
 
-        if (record.value != null) {
-          // not deleted
-          if (updateTimestampIndex(offset, record.seq, record.value))
-            updatedTimestampIndex = true
+        if (!record.value) {
+          // deleted
+          offset++
+          return
+        }
 
-          if (updateSequenceIndex(offset, record.seq, record.value))
-            updatedSequenceIndex = true
+        if (updateTimestampIndex(offset, record.seq, record.value))
+          updatedTimestampIndex = true
 
-          if (indexNeedsUpdate) {
-            if (op.data.prefix)
-              updatePrefixIndex(
-                op.data,
-                index,
-                record.value,
-                offset,
-                record.seq
-              )
-            else updateIndexValue(op, index, record.value, offset)
-          }
+        if (updateSequenceIndex(offset, record.seq, record.value))
+          updatedSequenceIndex = true
+
+        if (indexNeedsUpdate) {
+          if (op.data.prefix)
+            updatePrefixIndex(op.data, index, record.value, offset, record.seq)
+          else updateIndexValue(op, index, record.value, offset)
         }
 
         offset++
@@ -399,7 +396,7 @@ module.exports = function (log, indexesPath) {
         }
     })
 
-    let offset = 0
+    let offset = -1
 
     let updatedOffsetIndex = false
     let updatedTimestampIndex = false
@@ -409,41 +406,35 @@ module.exports = function (log, indexesPath) {
     log.stream({}).pipe({
       paused: false,
       write: function (record) {
+        offset++
+
         const seq = record.seq
         const buffer = record.value
 
         if (updateOffsetIndex(offset, seq)) updatedOffsetIndex = true
 
-        if (buffer != null) {
-          // not deleted
-          if (updateTimestampIndex(offset, seq, buffer))
-            updatedTimestampIndex = true
+        if (!buffer) return // deleted
 
-          if (updateSequenceIndex(offset, seq, buffer))
-            updatedSequenceIndex = true
+        if (updateTimestampIndex(offset, seq, buffer))
+          updatedTimestampIndex = true
 
-          opsMissingIndexes.forEach((op) => {
-            if (op.data.prefix)
-              updatePrefixIndex(
-                op.data,
-                newIndexes[op.data.indexName],
-                buffer,
-                offset,
-                seq
-              )
-            else if (op.data.indexAll)
-              updateAllIndexValue(op.data, newIndexes, buffer, offset)
-            else
-              updateIndexValue(
-                op,
-                newIndexes[op.data.indexName],
-                buffer,
-                offset
-              )
-          })
-        }
+        if (updateSequenceIndex(offset, seq, buffer))
+          updatedSequenceIndex = true
 
-        offset++
+        opsMissingIndexes.forEach((op) => {
+          if (op.data.prefix)
+            updatePrefixIndex(
+              op.data,
+              newIndexes[op.data.indexName],
+              buffer,
+              offset,
+              seq
+            )
+          else if (op.data.indexAll)
+            updateAllIndexValue(op.data, newIndexes, buffer, offset)
+          else
+            updateIndexValue(op, newIndexes[op.data.indexName], buffer, offset)
+        })
       },
       end: () => {
         const count = offset // incremented at end
@@ -580,7 +571,7 @@ module.exports = function (log, indexesPath) {
       const seek = op.data.seek
       for (let i = 0, len = recs.length; i < len; ++i) {
         const { value, offset } = recs[i]
-        if (value === undefined) {
+        if (!value) {
           // deleted
           bitset.remove(offset)
           continue
