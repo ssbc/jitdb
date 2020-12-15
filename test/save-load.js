@@ -25,12 +25,14 @@ test('save and load bitsets', (t) => {
   saveBitsetFile(filename, 1, 123, bitset, (err) => {
     loadBitsetFile(filename, (err, index) => {
       t.error(err, 'no error')
+      t.equal(index.version, 1)
       let loadedBitset = index.bitset
       t.deepEqual(bitset.array(), loadedBitset.array())
       loadedBitset.add(10)
 
       saveBitsetFile(filename, 1, 1234, loadedBitset, (err) => {
         loadBitsetFile(filename, (err, index) => {
+          t.equal(index.version, 1)
           t.error(err, 'no error')
           let loadedBitset2 = index.bitset
           t.deepEqual(loadedBitset.array(), loadedBitset2.array())
