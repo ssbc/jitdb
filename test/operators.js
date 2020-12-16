@@ -812,7 +812,7 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, alice, msg, Date.now())
-  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+  state = validate.appendNew(state, null, bob, msg, Date.now())
 
   var ps = Pushable()
 
@@ -827,9 +827,8 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
       })
     ),
     toPullStream(),
-    pull.filter((x) => x), // filter out the first non-live empty result
     pull.drain((msg) => {
-      t.equal(msg.value.author, bob.id)
+      t.equal(msg.value.author, alice.id)
 
       // test we don't get live messages after aborting stream
       addMsg(state.queue[1].value, raf, (e2, msg2) => {
@@ -842,11 +841,40 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
   )
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
-    addMsg(state.queue[1].value, raf, (e2, msg2) => {
-      ps.push(1)
-    })
+    ps.push(1)
   })
 })
+
+prepareAndRunTest(
+  'support live only operations pull stream',
+  dir,
+  (t, db, raf) => {
+    const msg = { type: 'post', text: 'Testing!' }
+    let state = validate.initial()
+    state = validate.appendNew(state, null, alice, msg, Date.now())
+    state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+    addMsg(state.queue[0].value, raf, (e1, msg1) => {
+      let i = 0
+      query(
+        fromDB(db),
+        and(slowEqual('value.content.type', 'post')),
+        live(),
+        toPullStream(),
+        pull.drain((msg) => {
+          t.equal(msg.value.author, bob.id)
+          t.end()
+        })
+      )
+
+      // when setting up a query, executeDeferredOps needs to run
+      // so we wait 1 tick
+      setTimeout(() => {
+        addMsg(state.queue[1].value, raf, (e2, msg2) => {})
+      })
+    })
+  }
+)
 
 prepareAndRunTest('support live operations async iter', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
@@ -859,7 +887,7 @@ prepareAndRunTest('support live operations async iter', dir, (t, db, raf) => {
     const results = query(
       fromDB(db),
       and(slowEqual('value.content.type', 'post')),
-      live(),
+      live({ old: true }),
       toAsyncIter()
     )
     for await (let msg of results) {
@@ -885,7 +913,7 @@ prepareAndRunTest('support live operations', dir, (t, db, raf) => {
     query(
       fromDB(db),
       and(slowEqual('value.content.type', 'post')),
-      live(),
+      live({ old: true }),
       toPullStream(),
       pull.drain((msg) => {
         if (i++ == 0) {
@@ -910,7 +938,7 @@ prepareAndRunTest('live empty', dir, (t, db, raf) => {
     let i = 0
     query(
       fromDB(db),
-      live(),
+      live({ old: true }),
       toPullStream(),
       pull.drain((msg) => {
         if (i++ == 0) {
@@ -940,7 +968,7 @@ prepareAndRunTest('live AND empty deferred', dir, (t, db, raf) => {
           setTimeout(cb, 100)
         })
       ),
-      live(),
+      live({ old: true }),
       toPullStream(),
       pull.drain((msg) => {
         if (i++ == 0) {

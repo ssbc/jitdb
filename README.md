@@ -352,15 +352,33 @@ const {
 
 ## Prefix indexes
 
-Most indexes in JITDB are bitvectors, which are suitable for answering boolean queries such as "is this msg a post?" or "is this msg from author A?". For each of these queries, JITDB creates one file.
+Most indexes in JITDB are bitvectors, which are suitable for answering
+boolean queries such as "is this msg a post?" or "is this msg from
+author A?". For each of these queries, JITDB creates one file.
 
-This is fine for several cases, but some queries are not boolean. Queries on bitvectors such as "is this msg a reply to msg X?" can end up generating `N` files if the "msg X" can have N different values. The creation of indexes is this case becomes the overhead.
+This is fine for several cases, but some queries are not
+boolean. Queries on bitvectors such as "is this msg a reply to msg X?"
+can end up generating `N` files if the "msg X" can have N different
+values. The creation of indexes is this case becomes the overhead.
 
-**Prefix indexes** help in that case because they can answer non-boolean queries with multiple different values but using just one index file. For example, for N different values of "msg X", just one prefix index is enough for answering "is this msg a reply to msg X?".
+**Prefix indexes** help in that case because they can answer
+non-boolean queries with multiple different values but using just one
+index file. For example, for N different values of "msg X", just one
+prefix index is enough for answering "is this msg a reply to msg X?".
 
-The way prefix indexes work is that for each message in the log, it picks the first 32 bits of a field in the message (hence 'prefix') and then compares your desired value with all of these prefixes. It doesn't store the whole value because that could turn out wasteful in storage and memory as the log scales (to 1 million or more messages). Storing just a prefix is not enough for uniqueness, though, as different values will have the same prefix, so queries on prefix indexes will create false positives, but JITDB does an additional check so in the resulting query, **you will not get false positives**.
+The way prefix indexes work is that for each message in the log, it
+picks the first 32 bits of a field in the message (hence 'prefix') and
+then compares your desired value with all of these prefixes. It
+doesn't store the whole value because that could turn out wasteful in
+storage and memory as the log scales (to 1 million or more
+messages). Storing just a prefix is not enough for uniqueness, though,
+as different values will have the same prefix, so queries on prefix
+indexes will create false positives, but JITDB does an additional
+check so in the resulting query, **you will not get false positives**.
 
-_Rule of thumb_: use prefix indexes in an EQUAL operation only when the target `value` of your EQUAL can dynamically assume many (more than a dozen) possible values.
+_Rule of thumb_: use prefix indexes in an EQUAL operation only when
+the target `value` of your EQUAL can dynamically assume many (more
+than a dozen) possible values.
 
 ## Low-level API
 
