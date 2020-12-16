@@ -283,8 +283,9 @@ function or(...args) {
   }
 }
 
-function live() {
-  return (ops) => updateMeta(ops, 'live', true)
+function live(opts) {
+  if (opts && opts.old) return (ops) => updateMeta(ops, 'live', true)
+  else return (ops) => updateMeta(ops, 'liveOnly', true)
 }
 
 function descending() {
@@ -396,9 +397,14 @@ function toPullStream() {
           (err) => cb(err)
         )
       }),
-      pull.map((ops) =>
-        cat([paginateStream(ops), meta.live ? meta.db.live(ops) : null])
-      ),
+      pull.map((ops) => {
+        if (meta.liveOnly) return meta.db.live(ops)
+        else
+          return cat([
+            paginateStream(ops),
+            meta.live ? meta.db.live(ops) : null,
+          ])
+      }),
       pull.flatten()
     )
   }
