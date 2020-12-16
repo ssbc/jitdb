@@ -284,8 +284,8 @@ function or(...args) {
 }
 
 function live(opts) {
-  if (opts && opts.old) return (ops) => updateMeta(ops, 'live', true)
-  else return (ops) => updateMeta(ops, 'liveOnly', true)
+  if (opts && opts.old) return (ops) => updateMeta(ops, 'liveAndOld', true)
+  else return (ops) => updateMeta(ops, 'live', true)
 }
 
 function descending() {
@@ -398,12 +398,10 @@ function toPullStream() {
         )
       }),
       pull.map((ops) => {
-        if (meta.liveOnly) return meta.db.live(ops)
-        else
-          return cat([
-            paginateStream(ops),
-            meta.live ? meta.db.live(ops) : null,
-          ])
+        if (meta.live) return meta.db.live(ops)
+        else if (meta.liveAndOld)
+          return cat([paginateStream(ops), meta.db.live(ops)])
+        else return paginateStream(ops)
       }),
       pull.flatten()
     )

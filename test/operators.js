@@ -812,6 +812,7 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now())
 
   var ps = Pushable()
 
@@ -830,7 +831,7 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
       t.equal(msg.value.author, alice.id)
 
       // test we don't get live messages after aborting stream
-      addMsg(state.queue[0].value, raf, (e2, msg2) => {
+      addMsg(state.queue[1].value, raf, (e2, msg2) => {
         ps.push(2)
         t.end()
       })
