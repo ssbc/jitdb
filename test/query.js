@@ -46,12 +46,12 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
 
-          db.all(contactQuery, 0, false, (err, results) => {
+          db.all(contactQuery, 0, false, false, (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.type, 'contact')
 
@@ -86,7 +86,7 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 0, 1, true, (err, { results }) => {
+        db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
           t.end()
@@ -119,7 +119,7 @@ prepareAndRunTest('Includes', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err1, msg) => {
     addMsg(state.queue[1].value, raf, (err2, msg) => {
       addMsg(state.queue[2].value, raf, (err3, msg) => {
-        db.all(typeQuery, 0, false, (err4, results) => {
+        db.all(typeQuery, 0, false, false, (err4, results) => {
           t.error(err4)
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, '1st')
@@ -167,7 +167,7 @@ prepareAndRunTest('Includes and pluck', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err1, msg) => {
     addMsg(state.queue[1].value, raf, (err2, msg) => {
       addMsg(state.queue[2].value, raf, (err3, msg) => {
-        db.all(typeQuery, 0, false, (err4, results) => {
+        db.all(typeQuery, 0, false, false, (err4, results) => {
           t.error(err4)
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, '1st')
@@ -202,13 +202,13 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 0, 1, false, (err, { results }) => {
+        db.paginate(typeQuery, 0, 1, false, false, (err, { results }) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, '1st')
-          db.paginate(typeQuery, 1, 1, false, (err, { results }) => {
+          db.paginate(typeQuery, 1, 1, false, false, (err, { results }) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, '2nd')
-            db.paginate(typeQuery, 2, 1, false, (err, { results }) => {
+            db.paginate(typeQuery, 2, 1, false, false, (err, { results }) => {
               t.equal(results.length, 1)
               t.equal(results[0].value.content.text, '3rd')
               t.end()
@@ -243,7 +243,7 @@ prepareAndRunTest('Offset', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 1, 1, true, (err, { results }) => {
+        db.paginate(typeQuery, 1, 1, true, false, (err, { results }) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing!')
           t.end()
@@ -270,7 +270,7 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    db.paginate(typeQuery, 0, 1, true, (err, { results }) => {
+    db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.text, 'Testing!')
       t.end()
@@ -298,7 +298,7 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.paginate(typeQuery, 0, 1, true, (err, { results }) => {
+      db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing no root')
         t.end()
@@ -327,7 +327,7 @@ prepareAndRunTest('Null', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.paginate(typeQuery, 0, 1, true, (err, { results }) => {
+      db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing no root')
         t.end()
@@ -375,7 +375,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
       addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
         addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
-          db.all(filterQuery, 0, false, (err, results) => {
+          db.all(filterQuery, 0, false, false, (err, results) => {
             t.error(err, 'no err')
             t.equal(results.length, 3)
             t.equal(results[0].value.content.text, '2')
@@ -383,7 +383,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
             filterQuery.data[0].type = 'GTE'
             // clone to force cache invalidation inside db.all:
             filterQuery = Object.assign({}, filterQuery)
-            db.all(filterQuery, 0, false, (err, results) => {
+            db.all(filterQuery, 0, false, false, (err, results) => {
               t.equal(results.length, 4)
               t.equal(results[0].value.content.text, '1')
 
@@ -391,14 +391,14 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
               filterQuery.data[0].data.value = 3
               // clone to force cache invalidation inside db.all:
               filterQuery = Object.assign({}, filterQuery)
-              db.all(filterQuery, 0, false, (err, results) => {
+              db.all(filterQuery, 0, false, false, (err, results) => {
                 t.equal(results.length, 2)
                 t.equal(results[0].value.content.text, '1')
 
                 filterQuery.data[0].type = 'LTE'
                 // clone to force cache invalidation inside db.all:
                 filterQuery = Object.assign({}, filterQuery)
-                db.all(filterQuery, 0, false, (err, results) => {
+                db.all(filterQuery, 0, false, false, (err, results) => {
                   t.equal(results.length, 3)
                   t.equal(results[0].value.content.text, '1')
 
@@ -407,7 +407,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
                   filterQuery.data[0].data.value = dbMsg1.value.timestamp
                   // clone to force cache invalidation inside db.all:
                   filterQuery = Object.assign({}, filterQuery)
-                  db.all(filterQuery, 0, false, (err, results) => {
+                  db.all(filterQuery, 0, false, false, (err, results) => {
                     t.equal(results.length, 3)
                     t.equal(results[0].value.content.text, '2')
 
@@ -447,7 +447,7 @@ prepareAndRunTest('GTE Zero', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
       addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
         addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
-          db.all(filterQuery, 0, false, (err, results) => {
+          db.all(filterQuery, 0, false, false, (err, results) => {
             t.equal(results.length, 4)
             t.equal(results[0].value.content.text, '1')
             t.equal(results[1].value.content.text, '2')
@@ -493,7 +493,7 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(dataQuery, 0, 1, true, (err, { results }) => {
+        db.paginate(dataQuery, 0, 1, true, false, (err, { results }) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing no root')
           t.end()
@@ -521,7 +521,7 @@ prepareAndRunTest('Data offsets simple', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(dataQuery, 0, false, (err, results) => {
+        db.all(dataQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.name, 'Test')
           t.equal(results[1].value.content.text, 'Testing no root')
@@ -564,7 +564,7 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(dataQuery, 0, 1, true, (err, { results }) => {
+        db.paginate(dataQuery, 0, 1, true, false, (err, { results }) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing no root')
           t.end()
@@ -620,7 +620,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(allQuery, 0, false, (err, results) => {
+        db.all(allQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
           t.end()
@@ -693,7 +693,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(allQuery, 0, false, (err, results) => {
+        db.all(allQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, 'Testing!')
           t.equal(results[1].value.content.text, 'Testing 2!')
@@ -727,7 +727,7 @@ prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, m1) => {
     addMsg(state.queue[1].value, raf, (err, m2) => {
       addMsg(state.queue[2].value, raf, (err, m3) => {
-        db.all(authorQuery, 0, false, (err, results) => {
+        db.all(authorQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 3)
           t.equal(results[0].value.content.text, '1st', '1st ok')
           t.equal(results[1].value.content.text, '2nd', '2nd ok')

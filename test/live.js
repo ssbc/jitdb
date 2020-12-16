@@ -197,7 +197,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     // create index
-    db.all(typeQuery, 0, false, (err, results) => {
+    db.all(typeQuery, 0, false, false, (err, results) => {
       t.equal(results.length, 1)
 
       pull(
@@ -206,7 +206,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
           t.equal(result.key, state.queue[1].key)
 
           // rerun on updated index
-          db.all(typeQuery, 0, false, (err, results) => {
+          db.all(typeQuery, 0, false, false, (err, results) => {
             t.equal(results.length, 2)
             t.end()
           })
@@ -271,7 +271,7 @@ prepareAndRunTest('Live with offset values', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.all(typeQuery, 0, false, (err, results) => {
+    db.all(typeQuery, 0, false, false, (err, results) => {
       t.equal(results.length, 1)
 
       let liveI = 1
