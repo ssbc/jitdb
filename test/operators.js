@@ -859,6 +859,7 @@ prepareAndRunTest(
       query(
         fromDB(db),
         and(slowEqual('value.content.type', 'post')),
+        live({ old: true }), // to make sure the next one overrides this one
         live(),
         toPullStream(),
         pull.drain((msg) => {
@@ -887,6 +888,7 @@ prepareAndRunTest('support live operations async iter', dir, (t, db, raf) => {
     const results = query(
       fromDB(db),
       and(slowEqual('value.content.type', 'post')),
+      live(), // to make sure the next one overrides this one
       live({ old: true }),
       toAsyncIter()
     )
