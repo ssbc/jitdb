@@ -220,7 +220,7 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('Offset', dir, (t, db, raf) => {
+prepareAndRunTest('Seq', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing!' }
   const msg2 = { type: 'contact', text: 'Testing!' }
   const msg3 = { type: 'post', text: 'Testing 2!' }
@@ -461,77 +461,6 @@ prepareAndRunTest('GTE Zero', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
-  const msg1 = { type: 'post', text: 'Testing root', root: '1' }
-  const msg2 = { type: 'about', name: 'Test' }
-  const msg3 = { type: 'post', text: 'Testing no root' }
-
-  let state = validate.initial()
-  state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
-  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
-
-  const dataQuery = {
-    type: 'AND',
-    data: [
-      {
-        type: 'EQUAL',
-        data: {
-          seek: helpers.seekType,
-          value: Buffer.from('post'),
-          indexType: 'type',
-          indexName: 'type_post',
-        },
-      },
-      {
-        type: 'SEQS',
-        seqs: [363, 765],
-      },
-    ],
-  }
-
-  addMsg(state.queue[0].value, raf, (err, msg) => {
-    addMsg(state.queue[1].value, raf, (err, msg) => {
-      addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(dataQuery, 0, 1, true, false, (err, { results }) => {
-          t.equal(results.length, 1)
-          t.equal(results[0].value.content.text, 'Testing no root')
-          t.end()
-        })
-      })
-    })
-  })
-})
-
-prepareAndRunTest('Data offsets simple', dir, (t, db, raf) => {
-  const msg1 = { type: 'post', text: 'Testing root', root: '1' }
-  const msg2 = { type: 'about', name: 'Test' }
-  const msg3 = { type: 'post', text: 'Testing no root' }
-
-  let state = validate.initial()
-  state = validate.appendNew(state, null, keys, msg1, Date.now())
-  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
-  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
-
-  const dataQuery = {
-    type: 'OFFSETS',
-    offsets: [1, 2],
-  }
-
-  addMsg(state.queue[0].value, raf, (err, msg) => {
-    addMsg(state.queue[1].value, raf, (err, msg) => {
-      addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(dataQuery, 0, false, false, (err, results) => {
-          t.equal(results.length, 2)
-          t.equal(results[0].value.content.name, 'Test')
-          t.equal(results[1].value.content.text, 'Testing no root')
-          t.end()
-        })
-      })
-    })
-  })
-})
-
 prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing root', root: '1' }
   const msg2 = { type: 'about', name: 'Test' }
@@ -556,7 +485,78 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
       },
       {
         type: 'OFFSETS',
-        offsets: [1, 2],
+        offsets: [363, 765],
+      },
+    ],
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.paginate(dataQuery, 0, 1, true, false, (err, { results }) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing no root')
+          t.end()
+        })
+      })
+    })
+  })
+})
+
+prepareAndRunTest('Data seqs simple', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing root', root: '1' }
+  const msg2 = { type: 'about', name: 'Test' }
+  const msg3 = { type: 'post', text: 'Testing no root' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const dataQuery = {
+    type: 'SEQS',
+    seqs: [1, 2],
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.all(dataQuery, 0, false, false, (err, results) => {
+          t.equal(results.length, 2)
+          t.equal(results[0].value.content.name, 'Test')
+          t.equal(results[1].value.content.text, 'Testing no root')
+          t.end()
+        })
+      })
+    })
+  })
+})
+
+prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing root', root: '1' }
+  const msg2 = { type: 'about', name: 'Test' }
+  const msg3 = { type: 'post', text: 'Testing no root' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const dataQuery = {
+    type: 'AND',
+    data: [
+      {
+        type: 'EQUAL',
+        data: {
+          seek: helpers.seekType,
+          value: Buffer.from('post'),
+          indexType: 'type',
+          indexName: 'type_post',
+        },
+      },
+      {
+        type: 'SEQS',
+        seqs: [1, 2],
       },
     ],
   }
@@ -604,7 +604,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     },
   }
 
-  const seqQuery = {
+  const sequenceQuery = {
     type: 'GT',
     data: {
       indexName: 'sequence',
@@ -614,7 +614,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
 
   const allQuery = {
     type: 'AND',
-    data: [typeQuery, authorQuery, seqQuery],
+    data: [typeQuery, authorQuery, sequenceQuery],
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {

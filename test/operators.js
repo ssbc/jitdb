@@ -19,9 +19,9 @@ const {
   lt,
   lte,
   deferred,
-  liveOffsets,
-  offsets,
+  liveSeqs,
   seqs,
+  offsets,
   fromDB,
   paginate,
   startFrom,
@@ -296,11 +296,11 @@ prepareAndRunTest(
     )
 
     t.equal(queryTreePaginate.meta.pageSize, 10)
-    t.equal(queryTreeStartFrom.meta.offset, 5)
+    t.equal(queryTreeStartFrom.meta.seq, 5)
     t.equal(queryTreeDescending.meta.descending, true)
 
     t.equal(queryTreeAll.meta.pageSize, 10)
-    t.equal(queryTreeAll.meta.offset, 5)
+    t.equal(queryTreeAll.meta.seq, 5)
     t.equal(queryTreeAll.meta.descending, true)
 
     t.end()
@@ -419,30 +419,30 @@ prepareAndRunTest('operators gt lt gte lte numbers only', dir, (t, db, raf) => {
   t.end()
 })
 
-prepareAndRunTest('operator offsets', dir, (t, db, raf) => {
-  const queryTree = query(fromDB(db), and(offsets([10, 20])))
-
-  t.equal(typeof queryTree, 'object', 'queryTree is an object')
-
-  t.equal(queryTree.type, 'OFFSETS')
-  t.true(Array.isArray(queryTree.offsets), '.offsets is an array')
-
-  t.equal(queryTree.offsets[0], 10)
-  t.equal(queryTree.offsets[1], 20)
-
-  t.end()
-})
-
 prepareAndRunTest('operator seqs', dir, (t, db, raf) => {
-  const queryTree = query(fromDB(db), and(seqs([11, 12])))
+  const queryTree = query(fromDB(db), and(seqs([10, 20])))
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
 
   t.equal(queryTree.type, 'SEQS')
   t.true(Array.isArray(queryTree.seqs), '.seqs is an array')
 
-  t.equal(queryTree.seqs[0], 11)
-  t.equal(queryTree.seqs[1], 12)
+  t.equal(queryTree.seqs[0], 10)
+  t.equal(queryTree.seqs[1], 20)
+
+  t.end()
+})
+
+prepareAndRunTest('operator offsets', dir, (t, db, raf) => {
+  const queryTree = query(fromDB(db), and(offsets([11, 12])))
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'OFFSETS')
+  t.true(Array.isArray(queryTree.offsets), '.offsets is an array')
+
+  t.equal(queryTree.offsets[0], 11)
+  t.equal(queryTree.offsets[1], 12)
 
   t.end()
 })
@@ -808,7 +808,7 @@ prepareAndRunTest('empty deferred AND equal', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
+prepareAndRunTest('support live seq operations', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, alice, msg, Date.now())
@@ -822,7 +822,7 @@ prepareAndRunTest('support live offset operations', dir, (t, db, raf) => {
     and(
       deferred((meta, cb) => {
         setTimeout(() => {
-          cb(null, liveOffsets(ps))
+          cb(null, liveSeqs(ps))
         }, 100)
       })
     ),

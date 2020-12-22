@@ -23,7 +23,7 @@ module.exports = function (log, indexesPath) {
 
   let bitsetCache = new WeakMap()
   let sortedCache = { ascending: new WeakMap(), descending: new WeakMap() }
-  let cacheSeq = -1
+  let cacheOffset = -1
 
   const indexes = {}
   let isReady = false
@@ -32,23 +32,23 @@ module.exports = function (log, indexesPath) {
   loadIndexes(() => {
     debug('loaded indexes', Object.keys(indexes))
 
-    if (!indexes['offset']) {
-      indexes['offset'] = {
-        seq: -1,
+    if (!indexes['seq']) {
+      indexes['seq'] = {
+        offset: -1,
         count: 0,
         tarr: new Uint32Array(16 * 1000),
       }
     }
     if (!indexes['timestamp']) {
       indexes['timestamp'] = {
-        seq: -1,
+        offset: -1,
         count: 0,
         tarr: new Float64Array(16 * 1000),
       }
     }
     if (!indexes['sequence']) {
       indexes['sequence'] = {
-        seq: -1,
+        offset: -1,
         count: 0,
         tarr: new Uint32Array(16 * 1000),
       }
@@ -75,7 +75,7 @@ module.exports = function (log, indexesPath) {
         push.values(files),
         push.asyncMap((file, cb) => {
           const indexName = path.parse(file).name
-          if (file === 'offset.index') {
+          if (file === 'seq.index') {
             loadTypedArrayFile(
               path.join(indexesPath, file),
               Uint32Array,
@@ -105,7 +105,7 @@ module.exports = function (log, indexesPath) {
           } else if (file.endsWith('.32prefix')) {
             // Don't load it yet, just tag it `lazy`
             indexes[indexName] = {
-              seq: -1,
+              offset: -1,
               count: 0,
               tarr: new Uint32Array(16 * 1000),
               lazy: true,
@@ -116,7 +116,7 @@ module.exports = function (log, indexesPath) {
           } else if (file.endsWith('.index')) {
             // Don't load it yet, just tag it `lazy`
             indexes[indexName] = {
-              seq: 0,
+              offset: 0,
               bitset: new TypedFastBitSet(),
               lazy: true,
               filepath: path.join(indexesPath, file),
@@ -138,8 +138,8 @@ module.exports = function (log, indexesPath) {
   }
 
   function updateCacheWithLog() {
-    if (log.since.value > cacheSeq) {
-      cacheSeq = log.since.value
+    if (log.since.value > cacheOffset) {
+      cacheOffset = log.since.value
       bitsetCache = new WeakMap()
       sortedCache.ascending = new WeakMap()
       sortedCache.descending = new WeakMap()
@@ -147,34 +147,34 @@ module.exports = function (log, indexesPath) {
   }
 
   function saveCoreIndex(name, coreIndex, count) {
-    if (coreIndex.seq < 0) return
+    if (coreIndex.offset < 0) return
     debug('saving core index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
     saveTypedArrayFile(
       filename,
       coreIndex.version || 1,
-      coreIndex.seq,
+      coreIndex.offset,
       count,
       coreIndex.tarr
     )
   }
 
   function saveIndex(name, index, cb) {
-    if (index.seq < 0 || index.bitset.size() === 0) return
+    if (index.offset < 0 || index.bitset.size() === 0) return
     debug('saving index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
-    saveBitsetFile(filename, index.version || 1, index.seq, index.bitset, cb)
+    saveBitsetFile(filename, index.version || 1, index.offset, index.bitset, cb)
   }
 
   function savePrefixIndex(name, prefixIndex, count, cb) {
-    if (prefixIndex.seq < 0) return
+    if (prefixIndex.offset < 0) return
     debug('saving prefix index: %s', name)
     const num = prefixIndex.prefix
     const filename = path.join(indexesPath, name + `.${num}prefix`)
     saveTypedArrayFile(
       filename,
       prefixIndex.version || 1,
-      prefixIndex.seq,
+      prefixIndex.offset,
       count,
       prefixIndex.tarr,
       cb
@@ -188,24 +188,24 @@ module.exports = function (log, indexesPath) {
     index.tarr = newArray
   }
 
-  function updateOffsetIndex(offset, seq) {
-    if (offset > indexes['offset'].count - 1) {
-      if (offset > indexes['offset'].tarr.length)
-        growTarrIndex(indexes['offset'], Uint32Array)
+  function updateSeqIndex(seq, offset) {
+    if (seq > indexes['seq'].count - 1) {
+      if (seq > indexes['seq'].tarr.length)
+        growTarrIndex(indexes['seq'], Uint32Array)
 
-      indexes['offset'].seq = seq
-      indexes['offset'].tarr[offset] = seq
-      indexes['offset'].count = offset + 1
+      indexes['seq'].offset = offset
+      indexes['seq'].tarr[seq] = offset
+      indexes['seq'].count = seq + 1
       return true
     }
   }
 
-  function updateTimestampIndex(offset, seq, buffer) {
-    if (offset > indexes['timestamp'].count - 1) {
-      if (offset > indexes['timestamp'].tarr.length)
+  function updateTimestampIndex(seq, offset, buffer) {
+    if (seq > indexes['timestamp'].count - 1) {
+      if (seq > indexes['timestamp'].tarr.length)
         growTarrIndex(indexes['timestamp'], Float64Array)
 
-      indexes['timestamp'].seq = seq
+      indexes['timestamp'].offset = offset
 
       var p = 0 // note you pass in p!
       p = bipf.seekKey(buffer, p, bTimestamp)
@@ -216,25 +216,25 @@ module.exports = function (log, indexesPath) {
       const declaredTimestamp = bipf.decode(buffer, p)
       const timestamp = Math.min(arrivalTimestamp, declaredTimestamp)
 
-      indexes['timestamp'].tarr[offset] = timestamp
-      indexes['timestamp'].count = offset + 1
+      indexes['timestamp'].tarr[seq] = timestamp
+      indexes['timestamp'].count = seq + 1
       return true
     }
   }
 
-  function updateSequenceIndex(offset, seq, buffer) {
-    if (offset > indexes['sequence'].count - 1) {
-      if (offset > indexes['sequence'].tarr.length)
+  function updateSequenceIndex(seq, offset, buffer) {
+    if (seq > indexes['sequence'].count - 1) {
+      if (seq > indexes['sequence'].tarr.length)
         growTarrIndex(indexes['sequence'], Uint32Array)
 
-      indexes['sequence'].seq = seq
+      indexes['sequence'].offset = offset
 
       var p = 0 // note you pass in p!
       p = bipf.seekKey(buffer, p, bValue)
       p = bipf.seekKey(buffer, p, bSequence)
 
-      indexes['sequence'].tarr[offset] = bipf.decode(buffer, p)
-      indexes['sequence'].count = offset + 1
+      indexes['sequence'].tarr[seq] = bipf.decode(buffer, p)
+      indexes['sequence'].count = seq + 1
       return true
     }
   }
@@ -283,60 +283,60 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function updatePrefixIndex(opData, index, buffer, offset, seq) {
-    if (offset > index.count - 1) {
-      if (offset > index.tarr.length) growTarrIndex(index, Uint32Array)
+  function updatePrefixIndex(opData, index, buffer, seq, offset) {
+    if (seq > index.count - 1) {
+      if (seq > index.tarr.length) growTarrIndex(index, Uint32Array)
 
       const fieldStart = opData.seek(buffer)
       if (fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
-        index.tarr[offset] = buf.length ? safeReadUint32(buf) : 0
+        index.tarr[seq] = buf.length ? safeReadUint32(buf) : 0
       } else {
-        index.tarr[offset] = 0
+        index.tarr[seq] = 0
       }
-      index.seq = seq
-      index.count = offset + 1
+      index.offset = offset
+      index.count = seq + 1
     }
   }
 
-  function updateIndexValue(op, index, buffer, offset) {
+  function updateIndexValue(op, index, buffer, seq) {
     if (op.type === 'EQUAL' && checkEqual(op.data, buffer))
-      index.bitset.add(offset)
+      index.bitset.add(seq)
     else if (op.type === 'INCLUDES' && checkIncludes(op.data, buffer))
-      index.bitset.add(offset)
+      index.bitset.add(seq)
   }
 
-  function updateAllIndexValue(opData, newIndexes, buffer, offset) {
+  function updateAllIndexValue(opData, newIndexes, buffer, seq) {
     const fieldStart = opData.seek(buffer)
     const value = bipf.decode(buffer, fieldStart)
     const indexName = safeFilename(opData.indexType + '_' + value)
 
     if (!newIndexes[indexName]) {
       newIndexes[indexName] = {
-        seq: 0,
+        offset: 0,
         bitset: new TypedFastBitSet(),
       }
     }
 
-    newIndexes[indexName].bitset.add(offset)
+    newIndexes[indexName].bitset.add(seq)
   }
 
   function updateIndex(op, cb) {
     const index = indexes[op.data.indexName]
 
-    // find the next possible offset
-    let offset = 0
-    if (index.seq !== -1) {
-      const { tarr } = indexes['offset']
-      const indexSeq = index.seq
-      for (const len = tarr.length; offset < len; ++offset)
-        if (tarr[offset] === indexSeq) {
-          offset++
+    // find the next possible seq
+    let seq = 0
+    if (index.offset !== -1) {
+      const { tarr } = indexes['seq']
+      const indexOffset = index.offset
+      for (const len = tarr.length; seq < len; ++seq)
+        if (tarr[seq] === indexOffset) {
+          seq++
           break
         }
     }
 
-    let updatedOffsetIndex = false
+    let updatedSeqIndex = false
     let updatedTimestampIndex = false
     let updatedSequenceIndex = false
     const start = Date.now()
@@ -344,39 +344,42 @@ module.exports = function (log, indexesPath) {
     const indexNeedsUpdate =
       op.data.indexName !== 'sequence' &&
       op.data.indexName !== 'timestamp' &&
-      op.data.indexName !== 'offset'
+      op.data.indexName !== 'seq'
 
-    log.stream({ gt: index.seq }).pipe({
+    log.stream({ gt: index.offset }).pipe({
       paused: false,
       write: function (record) {
-        if (updateOffsetIndex(offset, record.seq)) updatedOffsetIndex = true
+        // "seq" in flume is an abstract number, here it actually means "offset"
+        const offset = record.seq
+        const buffer = record.value
 
-        if (!record.value) {
+        if (updateSeqIndex(seq, offset)) updatedSeqIndex = true
+
+        if (!buffer) {
           // deleted
-          offset++
+          seq++
           return
         }
 
-        if (updateTimestampIndex(offset, record.seq, record.value))
+        if (updateTimestampIndex(seq, offset, buffer))
           updatedTimestampIndex = true
 
-        if (updateSequenceIndex(offset, record.seq, record.value))
+        if (updateSequenceIndex(seq, offset, buffer))
           updatedSequenceIndex = true
 
         if (indexNeedsUpdate) {
           if (op.data.prefix)
-            updatePrefixIndex(op.data, index, record.value, offset, record.seq)
-          else updateIndexValue(op, index, record.value, offset)
+            updatePrefixIndex(op.data, index, buffer, seq, offset)
+          else updateIndexValue(op, index, buffer, seq)
         }
 
-        offset++
+        seq++
       },
       end: () => {
-        const count = offset // incremented at end
+        const count = seq // incremented at end
         debug(`time: ${Date.now() - start}ms, total items: ${count}`)
 
-        if (updatedOffsetIndex)
-          saveCoreIndex('offset', indexes['offset'], count)
+        if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
 
         if (updatedTimestampIndex)
           saveCoreIndex('timestamp', indexes['timestamp'], count)
@@ -384,7 +387,7 @@ module.exports = function (log, indexesPath) {
         if (updatedSequenceIndex)
           saveCoreIndex('sequence', indexes['sequence'], count)
 
-        index.seq = indexes['offset'].seq
+        index.offset = indexes['seq'].offset
         if (indexNeedsUpdate) {
           if (index.prefix) savePrefixIndex(op.data.indexName, index, count)
           else saveIndex(op.data.indexName, index)
@@ -400,21 +403,21 @@ module.exports = function (log, indexesPath) {
     opsMissingIndexes.forEach((op) => {
       if (op.data.prefix)
         newIndexes[op.data.indexName] = {
-          seq: 0,
+          offset: 0,
           count: 0,
           tarr: new Uint32Array(16 * 1000),
           prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
         }
       else
         newIndexes[op.data.indexName] = {
-          seq: 0,
+          offset: 0,
           bitset: new TypedFastBitSet(),
         }
     })
 
-    let offset = 0
+    let seq = 0
 
-    let updatedOffsetIndex = false
+    let updatedSeqIndex = false
     let updatedTimestampIndex = false
     let updatedSequenceIndex = false
     const start = Date.now()
@@ -422,21 +425,22 @@ module.exports = function (log, indexesPath) {
     log.stream({}).pipe({
       paused: false,
       write: function (record) {
-        const seq = record.seq
+        // "seq" in flume is an abstract number, here it actually means "offset"
+        const offset = record.seq
         const buffer = record.value
 
-        if (updateOffsetIndex(offset, seq)) updatedOffsetIndex = true
+        if (updateSeqIndex(seq, offset)) updatedSeqIndex = true
 
         if (!buffer) {
           // deleted
-          offset++
+          seq++
           return
         }
 
-        if (updateTimestampIndex(offset, seq, buffer))
+        if (updateTimestampIndex(seq, offset, buffer))
           updatedTimestampIndex = true
 
-        if (updateSequenceIndex(offset, seq, buffer))
+        if (updateSequenceIndex(seq, offset, buffer))
           updatedSequenceIndex = true
 
         opsMissingIndexes.forEach((op) => {
@@ -445,23 +449,21 @@ module.exports = function (log, indexesPath) {
               op.data,
               newIndexes[op.data.indexName],
               buffer,
-              offset,
-              seq
+              seq,
+              offset
             )
           else if (op.data.indexAll)
-            updateAllIndexValue(op.data, newIndexes, buffer, offset)
-          else
-            updateIndexValue(op, newIndexes[op.data.indexName], buffer, offset)
+            updateAllIndexValue(op.data, newIndexes, buffer, seq)
+          else updateIndexValue(op, newIndexes[op.data.indexName], buffer, seq)
         })
 
-        offset++
+        seq++
       },
       end: () => {
-        const count = offset // incremented at end
+        const count = seq // incremented at end
         debug(`time: ${Date.now() - start}ms, total items: ${count}`)
 
-        if (updatedOffsetIndex)
-          saveCoreIndex('offset', indexes['offset'], count)
+        if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
 
         if (updatedTimestampIndex)
           saveCoreIndex('timestamp', indexes['timestamp'], count)
@@ -471,7 +473,7 @@ module.exports = function (log, indexesPath) {
 
         for (var indexName in newIndexes) {
           const index = (indexes[indexName] = newIndexes[indexName])
-          index.seq = indexes['offset'].seq
+          index.offset = indexes['seq'].offset
           if (index.prefix) savePrefixIndex(indexName, index, count)
           else saveIndex(indexName, index)
         }
@@ -488,10 +490,10 @@ module.exports = function (log, indexesPath) {
       loadTypedArrayFile(
         index.filepath,
         Uint32Array,
-        (err, { version, seq, count, tarr }) => {
+        (err, { version, offset, count, tarr }) => {
           // FIXME: handle error
           index.version = version
-          index.seq = seq
+          index.offset = offset
           index.count = count
           index.tarr = tarr
           index.lazy = false
@@ -499,10 +501,10 @@ module.exports = function (log, indexesPath) {
         }
       )
     } else {
-      loadBitsetFile(index.filepath, (err, { version, seq, bitset }) => {
+      loadBitsetFile(index.filepath, (err, { version, offset, bitset }) => {
         // FIXME: handle error
         index.version = version
-        index.seq = seq
+        index.offset = offset
         index.bitset = bitset
         index.lazy = false
         cb()
@@ -519,7 +521,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function ensureIndexSync(op, cb) {
-    if (log.since.value > indexes[op.data.indexName].seq) {
+    if (log.since.value > indexes[op.data.indexName].offset) {
       updateIndex(op, cb)
     } else {
       debug('ensureIndexSync %s is already synced', op.data.indexName)
@@ -527,8 +529,8 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function ensureOffsetIndexSync(cb) {
-    ensureIndexSync({ data: { indexName: 'offset' } }, cb)
+  function ensureSeqIndexSync(cb) {
+    ensureIndexSync({ data: { indexName: 'seq' } }, cb)
   }
 
   function filterIndex(op, filterCheck, cb) {
@@ -562,16 +564,16 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function getSeqsBitset(opSeqs, cb) {
-    const offsets = []
-    opSeqs.sort((x, y) => x - y)
-    const opSeqsLen = opSeqs.length
-    const { tarr } = indexes['offset']
-    for (var o = 0, len = tarr.length; o < len; ++o) {
-      if (bsb.eq(opSeqs, tarr[o]) !== -1) offsets.push(o)
-      if (offsets.length === opSeqsLen) break
+  function getOffsetsBitset(opOffsets, cb) {
+    const seqs = []
+    opOffsets.sort((x, y) => x - y)
+    const opOffsetsLen = opOffsets.length
+    const { tarr } = indexes['seq']
+    for (var s = 0, len = tarr.length; s < len; ++s) {
+      if (bsb.eq(opOffsets, tarr[s]) !== -1) seqs.push(s)
+      if (seqs.length === opOffsetsLen) break
     }
-    cb(new TypedFastBitSet(offsets))
+    cb(new TypedFastBitSet(seqs))
   }
 
   function matchAgainstPrefix(op, prefixIndex, cb) {
@@ -592,18 +594,18 @@ module.exports = function (log, indexesPath) {
       if (err) return console.error(err)
       const seek = op.data.seek
       for (let i = 0, len = recs.length; i < len; ++i) {
-        const { value, offset } = recs[i]
+        const { value, seq } = recs[i]
         if (!value) {
           // deleted
-          bitset.remove(offset)
+          bitset.remove(seq)
           continue
         }
         const fieldStart = seek(value)
         const candidate = bipf.slice(value, fieldStart)
         if (target) {
-          if (Buffer.compare(candidate, target)) bitset.remove(offset)
+          if (Buffer.compare(candidate, target)) bitset.remove(seq)
         } else {
-          if (~fieldStart) bitset.remove(offset)
+          if (~fieldStart) bitset.remove(seq)
         }
       }
       cb(bitset)
@@ -640,15 +642,15 @@ module.exports = function (log, indexesPath) {
       filterIndex(op, (num, op) => num < op.data.value, cb)
     } else if (op.type === 'LTE') {
       filterIndex(op, (num, op) => num <= op.data.value, cb)
-    } else if (op.type === 'SEQS') {
-      ensureOffsetIndexSync(() => {
-        getSeqsBitset(op.seqs, cb)
-      })
     } else if (op.type === 'OFFSETS') {
-      ensureOffsetIndexSync(() => {
-        cb(new TypedFastBitSet(op.offsets))
+      ensureSeqIndexSync(() => {
+        getOffsetsBitset(op.offsets, cb)
       })
-    } else if (op.type === 'LIVEOFFSETS') {
+    } else if (op.type === 'SEQS') {
+      ensureSeqIndexSync(() => {
+        cb(new TypedFastBitSet(op.seqs))
+      })
+    } else if (op.type === 'LIVESEQS') {
       cb(new TypedFastBitSet())
     } else if (op.type === 'AND') {
       if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
@@ -688,9 +690,9 @@ module.exports = function (log, indexesPath) {
         } else if (op.type === 'AND' || op.type === 'OR')
           detectMissingAndLazyIndexes(op.data)
         else if (
-          op.type === 'OFFSETS' ||
-          op.type === 'LIVEOFFSETS' ||
           op.type === 'SEQS' ||
+          op.type === 'LIVESEQS' ||
+          op.type === 'OFFSETS' ||
           !op.type // e.g. query(fromDB, toCallback), or empty deferred()
         );
         else debug('Unknown operator type: ' + op.type)
@@ -728,7 +730,7 @@ module.exports = function (log, indexesPath) {
       else if (op.type === 'INCLUDES') ok = checkIncludes(op.data, value)
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
       else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
-      else if (op.type === 'LIVEOFFSETS') ok = true
+      else if (op.type === 'LIVESEQS') ok = true
       else if (!op.type) ok = true
 
       if (ok && isOr) return true
@@ -739,19 +741,19 @@ module.exports = function (log, indexesPath) {
     else return true
   }
 
-  function getMessage(offset, cb) {
-    const seq = indexes['offset'].tarr[offset]
-    log.get(seq, (err, res) => {
+  function getMessage(seq, cb) {
+    const offset = indexes['seq'].tarr[seq]
+    log.get(offset, (err, value) => {
       if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, bipf.decode(res, 0))
+      else cb(err, bipf.decode(value, 0))
     })
   }
 
-  function getRecord(offset, cb) {
-    const seq = indexes['offset'].tarr[offset]
-    log.get(seq, (err, res) => {
+  function getRecord(seq, cb) {
+    const offset = indexes['seq'].tarr[seq]
+    log.get(offset, (err, value) => {
       if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, { seq, value: res, offset })
+      else cb(err, { offset, value, seq })
     })
   }
 
@@ -759,10 +761,10 @@ module.exports = function (log, indexesPath) {
     updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
     if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
-    const timestamped = bitset.array().map((o) => {
+    const timestamped = bitset.array().map((s) => {
       return {
-        offset: o,
-        timestamp: indexes['timestamp'].tarr[o],
+        seq: s,
+        timestamp: indexes['timestamp'].tarr[s],
       }
     })
     const sorted = timestamped.sort((a, b) => {
@@ -775,30 +777,30 @@ module.exports = function (log, indexesPath) {
 
   function getMessagesFromBitsetSlice(
     bitset,
-    offset,
+    seq,
     limit,
     descending,
-    onlySeq,
+    onlyOffset,
     cb
   ) {
-    offset = offset || 0
+    seq = seq || 0
     const start = Date.now()
 
     const sorted = sortedByTimestamp(bitset, descending)
     const sliced =
       limit != null
-        ? sorted.slice(offset, offset + limit)
-        : offset > 0
-        ? sorted.slice(offset)
+        ? sorted.slice(seq, seq + limit)
+        : seq > 0
+        ? sorted.slice(seq)
         : sorted
 
     push(
       push.values(sliced),
-      push.asyncMap(({ offset }, cb) => {
-        if (onlySeq) cb(null, indexes['offset'].tarr[offset])
-        else getMessage(offset, cb)
+      push.asyncMap(({ seq }, cb) => {
+        if (onlyOffset) cb(null, indexes['seq'].tarr[seq])
+        else getMessage(seq, cb)
       }),
-      push.filter((x) => (onlySeq ? true : x)), // removes deleted messages
+      push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
       push.collect((err, results) => {
         cb(err, {
           results: results,
@@ -809,15 +811,15 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function paginate(operation, offset, limit, descending, onlySeq, cb) {
+  function paginate(operation, seq, limit, descending, onlyOffset, cb) {
     onReady(() => {
       executeOperation(operation, (bitset) => {
         getMessagesFromBitsetSlice(
           bitset,
-          offset,
+          seq,
           limit,
           descending,
-          onlySeq,
+          onlyOffset,
           (err, answer) => {
             if (err) cb(err)
             else {
@@ -832,15 +834,15 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function all(operation, offset, descending, onlySeq, cb) {
+  function all(operation, seq, descending, onlyOffset, cb) {
     onReady(() => {
       executeOperation(operation, (bitset) => {
         getMessagesFromBitsetSlice(
           bitset,
-          offset,
+          seq,
           null,
           descending,
-          onlySeq,
+          onlyOffset,
           (err, answer) => {
             if (err) cb(err)
             else {
@@ -867,46 +869,46 @@ module.exports = function (log, indexesPath) {
         })
       ),
       pull.map(() => {
-        let seq = -1
-        let offsetStream
+        let offset = -1
+        let seqStream
 
-        function detectSeqAndOffsetStream(ops) {
+        function detectOffsetAndSeqStream(ops) {
           ops.forEach((op) => {
             if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
-              if (!indexes[op.data.indexName]) seq = -1
-              else seq = indexes[op.data.indexName].seq
+              if (!indexes[op.data.indexName]) offset = -1
+              else offset = indexes[op.data.indexName].offset
             } else if (op.type === 'AND' || op.type === 'OR') {
-              detectSeqAndOffsetStream(op.data)
-            } else if (op.type === 'LIVEOFFSETS') {
-              if (offsetStream)
-                throw new Error('Only one offset stream in live supported')
-              offsetStream = op.stream
+              detectOffsetAndSeqStream(op.data)
+            } else if (op.type === 'LIVESEQS') {
+              if (seqStream)
+                throw new Error('Only one seq stream in live supported')
+              seqStream = op.stream
             }
           })
         }
 
-        detectSeqAndOffsetStream([op])
+        detectOffsetAndSeqStream([op])
 
         // There are two cases here:
-        // - op contains a live offset stream, in which case we let the
-        //   offset stream drive new values
+        // - op contains a live seq stream, in which case we let the
+        //   seq stream drive new values
         // - op doesn't, in which we let the log stream drive new values
 
         let recordStream
-        if (offsetStream) {
+        if (seqStream) {
           recordStream = pull(
-            offsetStream,
+            seqStream,
             pull.asyncMap((o, cb) => {
-              ensureOffsetIndexSync(() => {
+              ensureSeqIndexSync(() => {
                 getRecord(o, cb)
               })
             })
           )
         } else {
           const opts =
-            seq === -1
-              ? { live: true, gt: indexes['offset'].seq }
-              : { live: true, gt: seq }
+            offset === -1
+              ? { live: true, gt: indexes['seq'].offset }
+              : { live: true, gt: offset }
           recordStream = toPull(log.stream(opts))
         }
 

@@ -24,24 +24,24 @@ function toBufferOrFalsy(value) {
   return Buffer.isBuffer(value) ? value : Buffer.from(value)
 }
 
-function offsets(values) {
-  return {
-    type: 'OFFSETS',
-    offsets: values,
-  }
-}
-
-function liveOffsets(pullStream) {
-  return {
-    type: 'LIVEOFFSETS',
-    stream: pullStream,
-  }
-}
-
 function seqs(values) {
   return {
     type: 'SEQS',
     seqs: values,
+  }
+}
+
+function liveSeqs(pullStream) {
+  return {
+    type: 'LIVESEQS',
+    stream: pullStream,
+  }
+}
+
+function offsets(values) {
+  return {
+    type: 'OFFSETS',
+    offsets: values,
   }
 }
 
@@ -292,8 +292,8 @@ function descending() {
   return (ops) => updateMeta(ops, 'descending', true)
 }
 
-function startFrom(offset) {
-  return (ops) => updateMeta(ops, 'offset', offset)
+function startFrom(seq) {
+  return (ops) => updateMeta(ops, 'seq', seq)
 }
 
 function paginate(pageSize) {
@@ -336,17 +336,10 @@ function toCallback(cb) {
     const meta = extractMeta(rawOps)
     executeDeferredOps(rawOps, meta)
       .then((ops) => {
-        const offset = meta.offset || 0
+        const seq = meta.seq || 0
         if (meta.pageSize)
-          meta.db.paginate(
-            ops,
-            offset,
-            meta.pageSize,
-            meta.descending,
-            false,
-            cb
-          )
-        else meta.db.all(ops, offset, meta.descending, false, cb)
+          meta.db.paginate(ops, seq, meta.pageSize, meta.descending, false, cb)
+        else meta.db.all(ops, seq, meta.descending, false, cb)
       })
       .catch((err) => {
         cb(err)
@@ -365,15 +358,15 @@ function toPullStream() {
     const meta = extractMeta(rawOps)
 
     function paginateStream(ops) {
-      let offset = meta.offset || 0
+      let seq = meta.seq || 0
       let total = Infinity
       const limit = meta.pageSize || 1
       return function readable(end, cb) {
         if (end) return cb(end)
-        if (offset >= total) return cb(true)
+        if (seq >= total) return cb(true)
         meta.db.paginate(
           ops,
-          offset,
+          seq,
           limit,
           meta.descending,
           false,
@@ -382,7 +375,7 @@ function toPullStream() {
             else if (answer.total === 0) cb(true)
             else {
               total = answer.total
-              offset += limit
+              seq += limit
               cb(null, !meta.pageSize ? answer.results[0] : answer.results)
             }
           }
@@ -432,10 +425,10 @@ module.exports = {
   and,
   or,
   deferred,
-  liveOffsets,
+  liveSeqs,
 
-  offsets,
   seqs,
+  offsets,
 
   descending,
   startFrom,
