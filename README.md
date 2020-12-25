@@ -188,7 +188,7 @@ want to get results in batches, you should use **`toPullStream`**,
 
 - **toPullStream** creates a [pull-stream] source to stream the results
 - **paginate** configures the size of each page stream to the pull-stream source
-- **startFrom** configures the beginning offset from where to start streaming
+- **startFrom** configures the beginning seq from where to start streaming
 - **descending** configures the pagination stream to order results
   from newest to oldest (otherwise the default order is oldest to
   newest)
@@ -279,9 +279,9 @@ for await (let msgs of results) {
 #### Custom indexes and `deferred` operator
 
 There may be custom indexes external to JITDB, in which case you
-should convert the results from those indexes to `seqs()` or
-`offsets()` (read more about these in the low level API section). In
-those cases, the `SEQS` or `OFFSETS` are often received
+should convert the results from those indexes to `offsets()` or
+`seqs()` (read more about these in the low level API section). In
+those cases, the `OFFSETS` or `SEQS` are often received
 asynchronously. To support piping these async results in the `query`
 chain, we have the `deferred()` operator which postpones the fetching
 of results from your custom index, but allows you to compose
@@ -301,7 +301,7 @@ function task(meta, cb)
 where `meta` is an object containing an instance of JITDB and other
 metadata.
 
-As an example, suppose you have a custom index that returns offsets
+As an example, suppose you have a custom index that returns seqs
 `11`, `13` and `17`, and you want to include these results into your
 operator chain, to `AND` them with a specific author. Use `deferred`
 like this:
@@ -311,7 +311,7 @@ query(
   fromDB(db),
   deferred((meta, cb) => {
     // do something asynchronously, then deliver results to cb
-    cb(null, offsets([11, 13, 17]))
+    cb(null, seqs([11, 13, 17]))
   }),
   and(slowEqual('value.author', aliceId)),
   toCallback((err, results) => {
@@ -337,8 +337,8 @@ const {
   lt,
   lte,
   deferred,
-  seqs,
   offsets,
+  seqs,
   paginate,
   startFrom,
   descending,
@@ -382,11 +382,11 @@ than a dozen) possible values.
 
 ## Low-level API
 
-### paginate(operation, offset, limit, descending, onlySeq, cb)
+### paginate(operation, seqs, limit, descending, onlyOffset, cb)
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
-query is run. `onlySeq` be be used to return seqs instead of the
+query is run. `onlyOffset` can be used to return offset instead of the
 actual messages. The result is an object with the fields:
 
 - `data`: the actual messages
@@ -399,8 +399,8 @@ Operation can be of the following types:
 | ------------- | -------------------------------------------- |
 | EQUAL         | { seek, value, indexType, indexAll, prefix } |
 | GT,GTE,LT,LTE | { indexName, value }                         |
-| SEQS          | { seqs }                                     |
 | OFFSETS       | { offsets }                                  |
+| SEQS          | { seqs }                                     |
 | AND           | [operation, operation]                       |
 | OR            | [operation, operation]                       |
 
@@ -422,9 +422,9 @@ indexes in one go instead of several hundreds is a lot faster.
 For `GT`, `GTE`, `LT` and `LTE`, `indexName` can be either `sequence`
 or `timestamp`.
 
-`OFFSETS` and `SEQS` allow one to use offset and seq (respectively)
+`SEQS` and `OFFSETS` allow one to use seq and offset (respectively)
 positions into the log file as query operators. This is useful for
-interfacing with data indexed by something else than JITDB. Offsets
+interfacing with data indexed by something else than JITDB. Seqs
 are faster as they can be combined in queries directly.
 
 Example
@@ -444,7 +444,7 @@ some after processing that you wouldn't create and index for, but the
 overhead of decoding the buffers is small enough that I don't think it
 makes sense.
 
-### all(operation, offset, descending, onlySeq, cb)
+### all(operation, seq, descending, onlyOffset, cb)
 
 Similar to paginate except there is no `limit` argument and the result
 will be the messages directly.
@@ -456,7 +456,7 @@ new values as they are added to the underlying log. This is meant to
 run after `paginate` or `all`.
 
 Please note the index is _not_ updated when using this method and only
-one live offsets stream is supported.
+one live seqs stream is supported.
 
 ### onReady(cb)
 

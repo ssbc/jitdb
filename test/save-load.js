@@ -43,8 +43,8 @@ test('save and load bitsets', (t) => {
   })
 })
 
-test('save and load TypedArray for offset', (t) => {
-  const idxDir = path.join(dir, 'indexesSaveLoadOffset')
+test('save and load TypedArray for seq', (t) => {
+  const idxDir = path.join(dir, 'indexesSaveLoadSeq')
   mkdirp.sync(idxDir)
   const filename = path.join(idxDir, 'test.index')
 

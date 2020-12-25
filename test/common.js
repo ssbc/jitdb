@@ -21,11 +21,11 @@ module.exports = function () {
       }
       var b = Buffer.alloc(bipf.encodingLength(data))
       bipf.encode(data, b, 0)
-      raf.append(b, function (err, seq) {
+      raf.append(b, function (err, offset) {
         if (err) cb(err)
         // instead of cluttering the tests with onDrain, we just
         // simulate sync adds here
-        else raf.onDrain(() => cb(null, data, seq))
+        else raf.onDrain(() => cb(null, data, offset))
       })
     },
 

@@ -220,7 +220,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('Live with offset values', dir, (t, db, raf) => {
+prepareAndRunTest('Live with seq values', dir, (t, db, raf) => {
   let state = validate.initial()
 
   const n = 1001
@@ -258,11 +258,11 @@ prepareAndRunTest('Live with offset values', dir, (t, db, raf) => {
         type: 'OR',
         data: [
           {
-            type: 'OFFSETS',
-            offsets: [0],
+            type: 'SEQS',
+            seqs: [0],
           },
           {
-            type: 'LIVEOFFSETS',
+            type: 'LIVESEQS',
             stream: ps,
           },
         ],
