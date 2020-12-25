@@ -1,6 +1,6 @@
 var pull = require('pull-stream')
 var FlumeLog = require('flumelog-offset')
-var AsyncFlumeLog = require('async-flumelog')
+var AsyncLog = require('async-log')
 var binary = require('bipf')
 var json = require('flumecodec/json')
 
@@ -8,7 +8,7 @@ var json = require('flumecodec/json')
 function copy(oldpath, newpath, cb) {
   var block = 64 * 1024
   var log = FlumeLog(oldpath, { blockSize: block, codec: json })
-  var log2 = AsyncFlumeLog(newpath, { blockSize: block })
+  var log2 = AsyncLog(newpath, { blockSize: block })
 
   var dataTransferred = 0
 
