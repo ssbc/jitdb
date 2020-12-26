@@ -1,6 +1,6 @@
 var pull = require('pull-stream')
 var FlumeLog = require('flumelog-offset')
-var AsyncLog = require('async-log')
+var AsyncLog = require('async-append-only-log')
 var binary = require('bipf')
 var json = require('flumecodec/json')
 

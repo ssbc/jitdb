@@ -1,4 +1,4 @@
-const Log = require('async-log')
+const Log = require('async-append-only-log')
 const bipf = require('bipf')
 const hash = require('ssb-keys/util').hash
 const path = require('path')

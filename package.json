@@ -29,7 +29,7 @@
     "typedfastbitset": "^0.1.5"
   },
   "devDependencies": {
-    "async-log": "ssb-ngi-pointer/async-log#rename-seq",
+    "async-append-only-log": "^3.0.0",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
     "husky": "^4.3.0",
