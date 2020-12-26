@@ -349,8 +349,7 @@ module.exports = function (log, indexesPath) {
     log.stream({ gt: index.offset }).pipe({
       paused: false,
       write: function (record) {
-        // "seq" in flume is an abstract number, here it actually means "offset"
-        const offset = record.seq
+        const offset = record.offset
         const buffer = record.value
 
         if (updateSeqIndex(seq, offset)) updatedSeqIndex = true
@@ -425,8 +424,7 @@ module.exports = function (log, indexesPath) {
     log.stream({}).pipe({
       paused: false,
       write: function (record) {
-        // "seq" in flume is an abstract number, here it actually means "offset"
-        const offset = record.seq
+        const offset = record.offset
         const buffer = record.value
 
         if (updateSeqIndex(seq, offset)) updatedSeqIndex = true

@@ -2,7 +2,7 @@ const test = require('tape')
 const fs = require('fs')
 const path = require('path')
 const pull = require('pull-stream')
-const FlumeLog = require('async-flumelog')
+const Log = require('async-append-only-log')
 const generateFixture = require('ssb-fixtures')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -54,7 +54,7 @@ if (!skipCreate) {
     })
   })
 
-  test('move flumelog-offset to async-flumelog', (t) => {
+  test('move flumelog-offset to async-log', (t) => {
     copy(oldLogPath, newLogPath, (err) => {
       if (err) t.fail(err)
       setTimeout(() => {
@@ -70,7 +70,7 @@ let db
 
 test('core indexes', (t) => {
   const start = Date.now()
-  raf = FlumeLog(newLogPath, { blockSize: 64 * 1024 })
+  raf = Log(newLogPath, { blockSize: 64 * 1024 })
   rimraf.sync(indexesDir)
   db = JITDB(raf, indexesDir)
   db.onReady(() => {
