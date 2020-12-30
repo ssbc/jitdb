@@ -485,19 +485,16 @@ module.exports = function (log, indexesPath) {
     debug('lazy loading %s', indexName)
     let index = indexes[indexName]
     if (index.prefix) {
-      loadTypedArrayFile(
-        index.filepath,
-        Uint32Array,
-        (err, { version, offset, count, tarr }) => {
-          // FIXME: handle error
-          index.version = version
-          index.offset = offset
-          index.count = count
-          index.tarr = tarr
-          index.lazy = false
-          cb()
-        }
-      )
+      loadTypedArrayFile(index.filepath, Uint32Array, (err, data) => {
+        if (err) return cb(err)
+        const { version, offset, count, tarr } = data
+        index.version = version
+        index.offset = offset
+        index.count = count
+        index.tarr = tarr
+        index.lazy = false
+        cb()
+      })
     } else {
       loadBitsetFile(index.filepath, (err, { version, offset, bitset }) => {
         // FIXME: handle error
