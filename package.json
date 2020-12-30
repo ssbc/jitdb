@@ -21,11 +21,11 @@
     "pull-awaitable": "^1.0.0",
     "pull-cat": "~1.1.11",
     "pull-stream": "^3.6.14",
-    "push-stream-to-pull-stream": "^1.0.3",
     "push-stream": "^11.0.0",
+    "push-stream-to-pull-stream": "^1.0.3",
     "sanitize-filename": "^1.6.3",
     "traverse": "^0.6.6",
-    "typedarray-to-buffer": "^3.1.5",
+    "typedarray-to-buffer": "^4.0.0",
     "typedfastbitset": "^0.1.5"
   },
   "devDependencies": {

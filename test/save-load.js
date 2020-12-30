@@ -95,3 +95,12 @@ test('save and load TypedArray for timestamp', (t) => {
     })
   })
 })
+
+test('load non-existing file', (t) => {
+  const filename = path.join('/IDontExist', 'test.index')
+
+  loadBitsetFile(filename, (err, index) => {
+    t.equal(err.code, 'ENOENT')
+    t.end()
+  })
+})
