@@ -496,8 +496,9 @@ module.exports = function (log, indexesPath) {
         cb()
       })
     } else {
-      loadBitsetFile(index.filepath, (err, { version, offset, bitset }) => {
-        // FIXME: handle error
+      loadBitsetFile(index.filepath, (err, data) => {
+        if (err) return cb(err)
+        const { version, offset, bitset } = data
         index.version = version
         index.offset = offset
         index.bitset = bitset
