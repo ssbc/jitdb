@@ -70,19 +70,16 @@ function saveBitsetFile(filename, version, offset, bitset, cb) {
 }
 
 function loadBitsetFile(filename, cb) {
-  loadTypedArrayFile(
-    filename,
-    Uint32Array,
-    (err, { version, offset, count, tarr }) => {
-      if (err) cb(err)
-      else {
-        const bitset = new TypedFastBitSet()
-        bitset.words = tarr
-        bitset.count = count
-        cb(null, { version, offset, bitset })
-      }
+  loadTypedArrayFile(filename, Uint32Array, (err, data) => {
+    if (err) cb(err)
+    else {
+      const { version, offset, count, tarr } = data
+      const bitset = new TypedFastBitSet()
+      bitset.words = tarr
+      bitset.count = count
+      cb(null, { version, offset, bitset })
     }
-  )
+  })
 }
 
 function listFilesIDB(dir, cb) {
