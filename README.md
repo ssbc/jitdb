@@ -191,7 +191,7 @@ want to get results in batches, you should use **`toPullStream`**,
 - **startFrom** configures the beginning seq from where to start streaming
 - **descending** configures the pagination stream to order results
   from newest to oldest (otherwise the default order is oldest to
-  newest)
+  newest) based on timestamp
 
 Example, **stream all messages of type `contact` from Alice or Bob in pages of size 10:**
 
