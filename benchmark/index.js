@@ -32,7 +32,6 @@ const skipCreate = process.argv[2] === 'noCreate'
 if (!skipCreate) {
   rimraf.sync(dir)
   mkdirp.sync(dir)
-  fs.appendFileSync(reportPath, '## Benchmark results\n\n')
 
   const SEED = 'sloop'
   const MESSAGES = 100000
@@ -50,6 +49,8 @@ if (!skipCreate) {
       t.pass(`messages = ${MESSAGES}`)
       t.pass(`authors = ${AUTHORS}`)
       t.true(fs.existsSync(oldLogPath), 'log.offset was created')
+      fs.appendFileSync(reportPath, '## Benchmark results\n\n')
+      fs.appendFileSync(reportPath, '| Part | Duration |\n|---|---|\n')
       t.end()
     })
   })
@@ -76,7 +77,7 @@ test('core indexes', (t) => {
   db.onReady(() => {
     const duration = Date.now() - start
     t.pass(`duration: ${duration}ms`)
-    fs.appendFileSync(reportPath, `- Load core indexes: ${duration}ms\n`)
+    fs.appendFileSync(reportPath, `| Load core indexes | ${duration}ms |\n`)
     t.end()
   })
 })
@@ -95,7 +96,7 @@ test('query one huge index (first run)', (t) => {
         t.pass(`duration: ${duration}ms`)
         fs.appendFileSync(
           reportPath,
-          `- Query one huge index (first run): ${duration}ms\n`
+          `| Query 1 big index (1st run) | ${duration}ms |\n`
         )
         t.end()
       })
@@ -117,7 +118,7 @@ test('query one huge index (second run)', (t) => {
         t.pass(`duration: ${duration}ms`)
         fs.appendFileSync(
           reportPath,
-          `- Query one huge index (second run): ${duration}ms\n`
+          `| Query 1 big index (2nd run) | ${duration}ms |\n`
         )
         t.end()
       })
@@ -145,7 +146,7 @@ test('query three indexes (first run)', (t) => {
         t.pass(`duration: ${duration}ms`)
         fs.appendFileSync(
           reportPath,
-          `- Query three indexes (first run): ${duration}ms\n`
+          `| Query 3 indexes (1st run) | ${duration}ms |\n`
         )
         t.end()
       })
@@ -173,7 +174,7 @@ test('query three indexes (second run)', (t) => {
         t.pass(`duration: ${duration}ms`)
         fs.appendFileSync(
           reportPath,
-          `- Query three indexes (second run): ${duration}ms\n`
+          `| Query 3 indexes (2nd run) | ${duration}ms |\n`
         )
         t.end()
       })
@@ -204,7 +205,7 @@ test('paginate one huge index', (t) => {
           t.pass(`duration: ${duration}ms`)
           fs.appendFileSync(
             reportPath,
-            `- Paginate one huge index: ${duration}ms\n`
+            `| Paginate 1 big index | ${duration}ms |\n`
           )
           t.end()
         }
