@@ -1,4 +1,4 @@
-const FlumeLog = require('async-flumelog')
+const Log = require('async-append-only-log')
 const pull = require('pull-stream')
 const JITDB = require('./index')
 const {
@@ -19,7 +19,7 @@ const {
 } = require('./operators')
 const { seekType, seekAuthor, seekVoteLink } = require('./test/helpers')
 
-var raf = FlumeLog(process.argv[2], { blockSize: 64 * 1024 })
+var raf = Log(process.argv[2], { blockSize: 64 * 1024 })
 
 var db = JITDB(raf, './indexes')
 db.onReady(async () => {
