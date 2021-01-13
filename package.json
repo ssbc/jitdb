@@ -29,7 +29,7 @@
     "typedfastbitset": "^0.1.5"
   },
   "devDependencies": {
-    "async-append-only-log": "^3.0.0",
+    "async-append-only-log": "^3.0.2",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
     "husky": "^4.3.0",

@@ -710,12 +710,14 @@ module.exports = function (log, indexesPath) {
 
     detectMissingAndLazyIndexes([operation])
 
-    if (opsMissingIndexes.length > 0)
-      debug('missing indexes: %o', opsMissingIndexes)
+    ensureSeqIndexSync(() => {
+      if (opsMissingIndexes.length > 0)
+        debug('missing indexes: %o', opsMissingIndexes)
 
-    if (lazyIndexes.length > 0)
-      loadLazyIndexes(lazyIndexes, createMissingIndexes)
-    else createMissingIndexes()
+      if (lazyIndexes.length > 0)
+        loadLazyIndexes(lazyIndexes, createMissingIndexes)
+      else createMissingIndexes()
+    })
   }
 
   function isValueOk(ops, value, isOr) {
