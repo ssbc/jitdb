@@ -10,6 +10,7 @@ const {
   query,
   and,
   or,
+  not,
   equal,
   slowEqual,
   includes,
@@ -445,6 +446,35 @@ prepareAndRunTest('operator offsets', dir, (t, db, raf) => {
   t.equal(queryTree.offsets[1], 12)
 
   t.end()
+})
+
+prepareAndRunTest('not operator', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      pull(
+        query(
+          fromDB(db),
+          and(not(slowEqual('value.author', alice.id))),
+          paginate(2),
+          toPullStream()
+        ),
+        pull.collect((err, pages) => {
+          t.error(err, 'toPullStream got no error')
+          t.equal(pages.length, 1, 'toPullStream got one page')
+          const msgs = pages[0]
+          t.equal(msgs.length, 1, 'page has one messages')
+          t.equal(msgs[0].value.author, bob.id)
+          t.equal(msgs[0].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
 })
 
 prepareAndRunTest('operators fromDB then toCallback', dir, (t, db, raf) => {
@@ -915,6 +945,32 @@ prepareAndRunTest('support live operations', dir, (t, db, raf) => {
     query(
       fromDB(db),
       and(slowEqual('value.content.type', 'post')),
+      live({ old: true }),
+      toPullStream(),
+      pull.drain((msg) => {
+        if (i++ == 0) {
+          t.equal(msg.value.author, alice.id)
+          addMsg(state.queue[1].value, raf, (e2, msg2) => {})
+        } else {
+          t.equal(msg.value.author, bob.id)
+          t.end()
+        }
+      })
+    )
+  })
+})
+
+prepareAndRunTest('support live with not', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    let i = 0
+    query(
+      fromDB(db),
+      and(not(slowEqual('value.content.type', 'about'))),
       live({ old: true }),
       toPullStream(),
       pull.drain((msg) => {

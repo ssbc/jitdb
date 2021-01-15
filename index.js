@@ -664,6 +664,12 @@ module.exports = function (log, indexesPath) {
           cb(op1.new_union(op2))
         })
       })
+    } else if (op.type === 'NOT') {
+      getBitsetForOperation(op.data[0], (op1) => {
+        getFullBitset((fullBitset) => {
+          cb(fullBitset.difference(op1))
+        })
+      })
     } else if (!op.type) {
       // to support `query(fromDB(jitdb), toCallback(cb))`
       getFullBitset(cb)
@@ -683,7 +689,7 @@ module.exports = function (log, indexesPath) {
           const indexName = op.data.indexName
           if (!indexes[indexName]) opsMissingIndexes.push(op)
           else if (indexes[indexName].lazy) lazyIndexes.push(indexName)
-        } else if (op.type === 'AND' || op.type === 'OR')
+        } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
           detectMissingAndLazyIndexes(op.data)
         else if (
           op.type === 'SEQS' ||
@@ -726,6 +732,7 @@ module.exports = function (log, indexesPath) {
       let ok = false
       if (op.type === 'EQUAL') ok = checkEqual(op.data, value)
       else if (op.type === 'INCLUDES') ok = checkIncludes(op.data, value)
+      else if (op.type === 'NOT') ok = !isValueOk(op.data, value, false)
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
       else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
       else if (op.type === 'LIVESEQS') ok = true
@@ -875,7 +882,11 @@ module.exports = function (log, indexesPath) {
             if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
               if (!indexes[op.data.indexName]) offset = -1
               else offset = indexes[op.data.indexName].offset
-            } else if (op.type === 'AND' || op.type === 'OR') {
+            } else if (
+              op.type === 'AND' ||
+              op.type === 'OR' ||
+              op.type === 'NOT'
+            ) {
               detectOffsetAndSeqStream(op.data)
             } else if (op.type === 'LIVESEQS') {
               if (seqStream)
