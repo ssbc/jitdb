@@ -84,6 +84,79 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
   t.end()
 })
 
+prepareAndRunTest('query ignores non-function arguments', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })),
+    null
+  )
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'EQUAL')
+
+  t.equal(queryTree.data.indexType, 'type')
+  t.equal(queryTree.data.indexAll, true)
+  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+
+  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
+  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
+  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+
+  t.end()
+})
+
+prepareAndRunTest('and() ignores non-function arguments', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    and(
+      null,
+      equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+    )
+  )
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'EQUAL')
+
+  t.equal(queryTree.data.indexType, 'type')
+  t.equal(queryTree.data.indexAll, true)
+  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+
+  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
+  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
+  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+
+  t.end()
+})
+
+prepareAndRunTest('or() ignores non-function arguments', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    or(
+      null,
+      equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+    )
+  )
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'EQUAL')
+
+  t.equal(queryTree.data.indexType, 'type')
+  t.equal(queryTree.data.indexAll, true)
+  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+
+  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
+  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
+  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+
+  t.end()
+})
+
 prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
   const queryTree = slowEqual('value.content.type', 'post', { indexAll: true })
 
