@@ -330,15 +330,19 @@ const {
   query,
   and,
   or,
+  not,
   equal,
   slowEqual,
+  includes,
+  slowIncludes,
   gt,
   gte,
   lt,
   lte,
   deferred,
-  offsets,
+  liveSeqs,
   seqs,
+  offsets,
   paginate,
   startFrom,
   descending,
@@ -405,6 +409,7 @@ Operation can be of the following types:
 | GT,GTE,LT,LTE | { indexName, value }                         |
 | OFFSETS       | { offsets }                                  |
 | SEQS          | { seqs }                                     |
+| NOT           | [operation]                                  |
 | AND           | [operation, operation]                       |
 | OR            | [operation, operation]                       |
 

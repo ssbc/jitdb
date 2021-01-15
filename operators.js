@@ -150,6 +150,13 @@ function includes(seek, target, opts) {
   }
 }
 
+function not(ops) {
+  return {
+    type: 'NOT',
+    data: [ops],
+  }
+}
+
 function gt(value, indexName) {
   if (typeof value !== 'number') throw new Error('gt() needs a number arg')
   return {
@@ -422,6 +429,7 @@ module.exports = {
   equal,
   slowIncludes,
   includes,
+  not,
   gt,
   gte,
   lt,
