@@ -9,7 +9,7 @@ const { safeFilename } = require('./files')
 
 function query(...cbs) {
   let res = cbs[0]
-  for (let i = 1, n = cbs.length; i < n; i++) res = cbs[i](res)
+  for (let i = 1, n = cbs.length; i < n; i++) if (cbs[i]) res = cbs[i](res)
   return res
 }
 
@@ -244,7 +244,9 @@ function extractMeta(orig) {
 }
 
 function and(...args) {
-  const rhs = args.map((arg) => (typeof arg === 'function' ? arg() : arg))
+  const rhs = args
+    .map((arg) => (typeof arg === 'function' ? arg() : arg))
+    .filter((arg) => !!arg)
   return (ops) => {
     const res =
       ops && ops.type
@@ -264,7 +266,9 @@ function and(...args) {
 }
 
 function or(...args) {
-  const rhs = args.map((arg) => (typeof arg === 'function' ? arg() : arg))
+  const rhs = args
+    .map((arg) => (typeof arg === 'function' ? arg() : arg))
+    .filter((arg) => !!arg)
   return (ops) => {
     const res =
       ops && ops.type
