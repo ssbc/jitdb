@@ -25,7 +25,10 @@ const FIELD_SIZE = 4 // bytes
  */
 
 function saveTypedArrayFile(filename, version, offset, count, tarr, cb) {
-  if (!cb) cb = () => {}
+  if (!cb)
+    cb = (err) => {
+      if (err) console.error(err)
+    }
 
   const dataBuffer = toBuffer(tarr)
   // we try to save an extra 10% so we don't have to immediately grow

@@ -190,8 +190,9 @@ module.exports = function (log, indexesPath) {
 
   function updateSeqIndex(seq, offset) {
     if (seq > indexes['seq'].count - 1) {
-      if (seq > indexes['seq'].tarr.length)
+      if (seq > indexes['seq'].tarr.length - 1) {
         growTarrIndex(indexes['seq'], Uint32Array)
+      }
 
       indexes['seq'].offset = offset
       indexes['seq'].tarr[seq] = offset
@@ -202,7 +203,7 @@ module.exports = function (log, indexesPath) {
 
   function updateTimestampIndex(seq, offset, buffer) {
     if (seq > indexes['timestamp'].count - 1) {
-      if (seq > indexes['timestamp'].tarr.length)
+      if (seq > indexes['timestamp'].tarr.length - 1)
         growTarrIndex(indexes['timestamp'], Float64Array)
 
       indexes['timestamp'].offset = offset
@@ -224,7 +225,7 @@ module.exports = function (log, indexesPath) {
 
   function updateSequenceIndex(seq, offset, buffer) {
     if (seq > indexes['sequence'].count - 1) {
-      if (seq > indexes['sequence'].tarr.length)
+      if (seq > indexes['sequence'].tarr.length - 1)
         growTarrIndex(indexes['sequence'], Uint32Array)
 
       indexes['sequence'].offset = offset
@@ -285,7 +286,7 @@ module.exports = function (log, indexesPath) {
 
   function updatePrefixIndex(opData, index, buffer, seq, offset) {
     if (seq > index.count - 1) {
-      if (seq > index.tarr.length) growTarrIndex(index, Uint32Array)
+      if (seq > index.tarr.length - 1) growTarrIndex(index, Uint32Array)
 
       const fieldStart = opData.seek(buffer)
       if (fieldStart) {
