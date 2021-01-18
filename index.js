@@ -55,7 +55,7 @@ module.exports = function (log, indexesPath) {
     }
 
     isReady = true
-    for (var i = 0; i < waiting.length; ++i) waiting[i]()
+    for (let i = 0; i < waiting.length; ++i) waiting[i]()
     waiting = []
   })
 
@@ -535,15 +535,15 @@ module.exports = function (log, indexesPath) {
       if (op.data.indexName === 'sequence') {
         const bitset = new TypedFastBitSet()
         const { tarr, count } = indexes['sequence']
-        for (var i = 0; i < count; ++i) {
-          if (filterCheck(tarr[i], op)) bitset.add(i)
+        for (let seq = 0; seq < count; ++seq) {
+          if (filterCheck(tarr[seq], op)) bitset.add(seq)
         }
         cb(bitset)
       } else if (op.data.indexName === 'timestamp') {
         const bitset = new TypedFastBitSet()
         const { tarr, count } = indexes['timestamp']
-        for (var i = 0; i < count; ++i) {
-          if (filterCheck(tarr[i], op)) bitset.add(i)
+        for (let seq = 0; seq < count; ++seq) {
+          if (filterCheck(tarr[seq], op)) bitset.add(seq)
         }
         cb(bitset)
       } else {
@@ -556,7 +556,7 @@ module.exports = function (log, indexesPath) {
     ensureIndexSync({ data: { indexName: 'sequence' } }, () => {
       const bitset = new TypedFastBitSet()
       const { count } = indexes['sequence']
-      for (var i = 0; i < count; ++i) bitset.add(i)
+      bitset.addRange(0, count)
       cb(bitset)
     })
   }
@@ -728,7 +728,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function isValueOk(ops, value, isOr) {
-    for (var i = 0; i < ops.length; ++i) {
+    for (let i = 0; i < ops.length; ++i) {
       const op = ops[i]
       let ok = false
       if (op.type === 'EQUAL') ok = checkEqual(op.data, value)

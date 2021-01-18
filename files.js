@@ -69,7 +69,8 @@ function loadTypedArrayFile(filename, Type, cb) {
 
 function saveBitsetFile(filename, version, offset, bitset, cb) {
   bitset.trim()
-  saveTypedArrayFile(filename, version, offset, bitset.count, bitset.words, cb)
+  const count = bitset.words.length
+  saveTypedArrayFile(filename, version, offset, count, bitset.words, cb)
 }
 
 function loadBitsetFile(filename, cb) {
@@ -79,7 +80,6 @@ function loadBitsetFile(filename, cb) {
       const { version, offset, count, tarr } = data
       const bitset = new TypedFastBitSet()
       bitset.words = tarr
-      bitset.count = count
       cb(null, { version, offset, bitset })
     }
   })
