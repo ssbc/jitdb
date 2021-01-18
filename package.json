@@ -26,7 +26,7 @@
     "sanitize-filename": "^1.6.3",
     "traverse": "^0.6.6",
     "typedarray-to-buffer": "^4.0.0",
-    "typedfastbitset": "^0.1.5"
+    "typedfastbitset": "~0.1.5"
   },
   "devDependencies": {
     "async-append-only-log": "^3.0.2",
