@@ -47,6 +47,56 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Normal index renamed to prefix', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing!' }
+  const msg2 = { type: 'contact', text: 'Testing!' }
+  const msg3 = { type: 'post', text: 'Testing 2!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const normalQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'value_content_type_post',
+    },
+  }
+
+  const prefixQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'value_content_type',
+      prefix: 32,
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.all(normalQuery, 0, false, false, (err, results) => {
+          t.equal(results.length, 2)
+          t.equal(results[0].value.content.type, 'post')
+          t.equal(results[1].value.content.type, 'post')
+          db.all(prefixQuery, 0, false, false, (err, results2) => {
+            t.equal(results2.length, 2)
+            t.equal(results2[0].value.content.type, 'post')
+            t.equal(results2[1].value.content.type, 'post')
+            t.end()
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'First', channel: 'foo' }
   const msg2 = { type: 'contact', text: 'Second' }
