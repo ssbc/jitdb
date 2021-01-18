@@ -97,6 +97,61 @@ prepareAndRunTest('Normal index renamed to prefix', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Prefix index skips deleted records', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing!' }
+  const msg2 = { type: 'contact', text: 'Testing!' }
+  const msg3 = { type: 'post', text: 'Testing 2!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const prefixQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'value_content_type',
+      prefix: 32,
+    },
+  }
+
+  // Cloned to avoid the op-to-bitset cache
+  const prefixQuery2 = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'value_content_type',
+      prefix: 32,
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err1) => {
+    addMsg(state.queue[1].value, raf, (err2) => {
+      addMsg(state.queue[2].value, raf, (err3) => {
+        db.all(prefixQuery, 0, false, true, (err4, offsets) => {
+          t.error(err4, 'no err4')
+          t.deepEqual(offsets, [0, 760])
+          raf.del(760, (err5) => {
+            t.error(err5, 'no err5')
+            db.all(prefixQuery2, 0, false, false, (err6, results) => {
+              t.error(err6, 'no err6')
+              t.equal(results.length, 1)
+              t.equal(results[0].value.content.type, 'post')
+              t.equal(results[0].value.content.text, 'Testing!')
+              t.end()
+            })
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'First', channel: 'foo' }
   const msg2 = { type: 'contact', text: 'Second' }

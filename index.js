@@ -566,8 +566,8 @@ module.exports = function (log, indexesPath) {
     opOffsets.sort((x, y) => x - y)
     const opOffsetsLen = opOffsets.length
     const { tarr } = indexes['seq']
-    for (var s = 0, len = tarr.length; s < len; ++s) {
-      if (bsb.eq(opOffsets, tarr[s]) !== -1) seqs.push(s)
+    for (let seq = 0, len = tarr.length; seq < len; ++seq) {
+      if (bsb.eq(opOffsets, tarr[seq]) !== -1) seqs.push(seq)
       if (seqs.length === opOffsetsLen) break
     }
     cb(new TypedFastBitSet(seqs))
@@ -580,10 +580,10 @@ module.exports = function (log, indexesPath) {
     const tarr = prefixIndex.tarr
     const bitset = new TypedFastBitSet()
     const done = multicb({ pluck: 1 })
-    for (let o = 0; o < count; ++o) {
-      if (tarr[o] === targetPrefix) {
-        bitset.add(o)
-        getRecord(o, done())
+    for (let seq = 0; seq < count; ++seq) {
+      if (tarr[seq] === targetPrefix) {
+        bitset.add(seq)
+        getRecord(seq, done())
       }
     }
     done((err, recs) => {
@@ -758,7 +758,7 @@ module.exports = function (log, indexesPath) {
   function getRecord(seq, cb) {
     const offset = indexes['seq'].tarr[seq]
     log.get(offset, (err, value) => {
-      if (err && err.code === 'flumelog:deleted') cb()
+      if (err && err.code === 'flumelog:deleted') cb(null, { seq, offset })
       else cb(err, { offset, value, seq })
     })
   }
@@ -767,10 +767,10 @@ module.exports = function (log, indexesPath) {
     updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
     if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
-    const timestamped = bitset.array().map((s) => {
+    const timestamped = bitset.array().map((seq) => {
       return {
-        seq: s,
-        timestamp: indexes['timestamp'].tarr[s],
+        seq,
+        timestamp: indexes['timestamp'].tarr[seq],
       }
     })
     const sorted = timestamped.sort((a, b) => {
@@ -908,9 +908,9 @@ module.exports = function (log, indexesPath) {
         if (seqStream) {
           recordStream = pull(
             seqStream,
-            pull.asyncMap((o, cb) => {
+            pull.asyncMap((seq, cb) => {
               ensureSeqIndexSync(() => {
-                getRecord(o, cb)
+                getRecord(seq, cb)
               })
             })
           )
