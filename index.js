@@ -556,7 +556,7 @@ module.exports = function (log, indexesPath) {
     ensureIndexSync({ data: { indexName: 'sequence' } }, () => {
       const bitset = new TypedFastBitSet()
       const { count } = indexes['sequence']
-      for (var i = 0; i < count; ++i) bitset.add(i)
+      bitset.addRange(0, count)
       cb(bitset)
     })
   }
