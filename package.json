@@ -29,21 +29,21 @@
     "typedfastbitset": "~0.2.1"
   },
   "devDependencies": {
-    "async-append-only-log": "^3.0.2",
+    "async-append-only-log": "^3.0.3",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
-    "husky": "^4.3.0",
+    "husky": "^4.3.8",
     "obv": "0.0.1",
     "prettier": "^2.1.2",
     "pretty-quick": "^3.1.0",
     "pull-pushable": "^2.2.0",
     "rimraf": "^3.0.2",
     "ssb-fixtures": "2.2.0",
-    "ssb-keys": "^7.2.2",
-    "ssb-ref": "^2.14.0",
+    "ssb-keys": "^8.0.1",
+    "ssb-ref": "^2.14.3",
     "ssb-validate": "^4.1.1",
     "tap-spec": "^5.0.0",
-    "tape": "^5.0.1"
+    "tape": "^5.1.1"
   },
   "scripts": {
     "test": "tape test/*.js | tap-spec",
