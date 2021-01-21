@@ -1033,6 +1033,31 @@ prepareAndRunTest('support live operations', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('support live inside and', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    let i = 0
+    query(
+      fromDB(db),
+      and(live({ old: true }), slowEqual('value.content.type', 'post')),
+      toPullStream(),
+      pull.drain((msg) => {
+        if (i++ == 0) {
+          t.equal(msg.value.author, alice.id)
+          addMsg(state.queue[1].value, raf, (e2, msg2) => {})
+        } else {
+          t.equal(msg.value.author, bob.id)
+          t.end()
+        }
+      })
+    )
+  })
+})
+
 prepareAndRunTest('support live with not', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()

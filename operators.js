@@ -251,12 +251,12 @@ function extractMeta(orig) {
 }
 
 function and(...args) {
-  const rhs = args
-    .map((arg) => (typeof arg === 'function' ? arg() : arg))
-    .filter((arg) => !!arg)
-  return (ops) => {
+  return (ops, isSpecialOps) => {
+    const rhs = args
+      .map((arg) => (typeof arg === 'function' ? arg(ops, true) : arg))
+      .filter((arg) => !!arg)
     const res =
-      ops && ops.type
+      ops && ops.type && !isSpecialOps
         ? {
             type: 'AND',
             data: [ops, ...rhs],
@@ -273,12 +273,12 @@ function and(...args) {
 }
 
 function or(...args) {
-  const rhs = args
-    .map((arg) => (typeof arg === 'function' ? arg() : arg))
-    .filter((arg) => !!arg)
-  return (ops) => {
+  return (ops, isSpecialOps) => {
+    const rhs = args
+      .map((arg) => (typeof arg === 'function' ? arg(ops, true) : arg))
+      .filter((arg) => !!arg)
     const res =
-      ops && ops.type
+      ops && ops.type && !isSpecialOps
         ? {
             type: 'OR',
             data: [ops, ...rhs],
@@ -293,6 +293,8 @@ function or(...args) {
     return res
   }
 }
+
+// The following are "special operators": they only update meta
 
 function live(opts) {
   if (opts && opts.old) return (ops) => updateMeta(ops, 'live', 'liveAndOld')
