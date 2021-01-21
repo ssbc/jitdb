@@ -7,42 +7,28 @@ const pullAwaitable = require('pull-awaitable')
 const cat = require('pull-cat')
 const { safeFilename } = require('./files')
 
-function query(...cbs) {
-  let res = cbs[0]
-  for (let i = 1, n = cbs.length; i < n; i++) if (cbs[i]) res = cbs[i](res)
+//#region Helper functions and util operators
+
+function copyMeta(orig, dest) {
+  if (orig.meta) {
+    dest.meta = orig.meta
+  }
+}
+
+function updateMeta(orig, key, value) {
+  const res = Object.assign({}, orig)
+  res.meta[key] = value
   return res
 }
 
-function fromDB(db) {
-  return {
-    meta: { db },
-  }
+function extractMeta(orig) {
+  const meta = orig.meta
+  return meta
 }
 
 function toBufferOrFalsy(value) {
   if (!value) return value
   return Buffer.isBuffer(value) ? value : Buffer.from(value)
-}
-
-function seqs(values) {
-  return {
-    type: 'SEQS',
-    seqs: values,
-  }
-}
-
-function liveSeqs(pullStream) {
-  return {
-    type: 'LIVESEQS',
-    stream: pullStream,
-  }
-}
-
-function offsets(values) {
-  return {
-    type: 'OFFSETS',
-    offsets: values,
-  }
 }
 
 function seekFromDesc(desc) {
@@ -57,6 +43,40 @@ function seekFromDesc(desc) {
     return p
   }
 }
+
+function query(...cbs) {
+  let res = cbs[0]
+  for (let i = 1, n = cbs.length; i < n; i++) if (cbs[i]) res = cbs[i](res)
+  return res
+}
+
+function debug() {
+  return (ops) => {
+    const meta = JSON.stringify(ops.meta, (key, val) =>
+      key === 'db' ? void 0 : val
+    )
+    console.log(
+      'debug',
+      JSON.stringify(
+        ops,
+        (key, val) => {
+          if (key === 'meta') return void 0
+          else if (key === 'task' && typeof val === 'function')
+            return '[Function]'
+          else if (key === 'value' && val.type === 'Buffer')
+            return Buffer.from(val.data).toString()
+          else return val
+        },
+        2
+      ),
+      meta === '{}' ? '' : 'meta: ' + meta
+    )
+    return ops
+  }
+}
+
+//#endregion
+//#region "Unit operators": they create objects that JITDB interprets
 
 function slowEqual(seekDesc, target, opts) {
   opts = opts || {}
@@ -150,13 +170,6 @@ function includes(seek, target, opts) {
   }
 }
 
-function not(ops) {
-  return {
-    type: 'NOT',
-    data: [ops],
-  }
-}
-
 function gt(value, indexName) {
   if (typeof value !== 'number') throw new Error('gt() needs a number arg')
   return {
@@ -201,6 +214,27 @@ function lte(value, indexName) {
   }
 }
 
+function seqs(values) {
+  return {
+    type: 'SEQS',
+    seqs: values,
+  }
+}
+
+function liveSeqs(pullStream) {
+  return {
+    type: 'LIVESEQS',
+    stream: pullStream,
+  }
+}
+
+function offsets(values) {
+  return {
+    type: 'OFFSETS',
+    offsets: values,
+  }
+}
+
 function deferred(task) {
   return {
     type: 'DEFERRED',
@@ -208,46 +242,14 @@ function deferred(task) {
   }
 }
 
-function debug() {
-  return (ops) => {
-    const meta = JSON.stringify(ops.meta, (key, val) =>
-      key === 'db' ? void 0 : val
-    )
-    console.log(
-      'debug',
-      JSON.stringify(
-        ops,
-        (key, val) => {
-          if (key === 'meta') return void 0
-          else if (key === 'task' && typeof val === 'function')
-            return '[Function]'
-          else if (key === 'value' && val.type === 'Buffer')
-            return Buffer.from(val.data).toString()
-          else return val
-        },
-        2
-      ),
-      meta === '{}' ? '' : 'meta: ' + meta
-    )
-    return ops
+//#endregion
+//#region "Combinator operators": they build composite operations
+
+function not(ops) {
+  return {
+    type: 'NOT',
+    data: [ops],
   }
-}
-
-function copyMeta(orig, dest) {
-  if (orig.meta) {
-    dest.meta = orig.meta
-  }
-}
-
-function updateMeta(orig, key, value) {
-  const res = Object.assign({}, orig)
-  res.meta[key] = value
-  return res
-}
-
-function extractMeta(orig) {
-  const meta = orig.meta
-  return meta
 }
 
 function and(...args) {
@@ -294,7 +296,14 @@ function or(...args) {
   }
 }
 
-// The following are "special operators": they only update meta
+//#endregion
+//#region "Special operators": they only update meta
+
+function fromDB(db) {
+  return {
+    meta: { db },
+  }
+}
 
 function live(opts) {
   if (opts && opts.old) return (ops) => updateMeta(ops, 'live', 'liveAndOld')
@@ -312,6 +321,9 @@ function startFrom(seq) {
 function paginate(pageSize) {
   return (ops) => updateMeta(ops, 'pageSize', pageSize)
 }
+
+//#endregion
+//#region "Consumer operators": they execute the query tree
 
 async function executeDeferredOps(ops, meta) {
   // Collect all deferred tasks and their object-traversal paths
@@ -421,6 +433,8 @@ function toAsyncIter() {
     for await (let x of pullAwaitable(ps)) yield x
   }
 }
+
+//#endregion
 
 module.exports = {
   fromDB,
