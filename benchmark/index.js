@@ -18,7 +18,7 @@ const {
   toPullStream,
   paginate,
 } = require('../operators')
-const { seekType, seekAuthor } = require('../test/helpers')
+const { seekType, seekAuthor, seekVoteLink } = require('../test/helpers')
 const copy = require('../copy-json-to-bipf-async')
 
 const dir = '/tmp/jitdb-benchmark'
@@ -210,6 +210,102 @@ test('paginate one huge index', (t) => {
           t.end()
         }
       )
+    )
+  })
+})
+
+test('query a prefix map (first run)', (t) => {
+  db.onReady(() => {
+    query(
+      fromDB(db),
+      paginate(1),
+      toCallback((err, { results }) => {
+        if (err) t.fail(err)
+        const rootKey = results[0].key
+
+        db.onReady(() => {
+          const start = Date.now()
+          let i = 0
+          pull(
+            query(
+              fromDB(db),
+              and(
+                equal(seekVoteLink, rootKey, {
+                  indexType: 'value_content_vote_link',
+                  useMap: true,
+                  prefix: 32,
+                })
+              ),
+              paginate(5),
+              toPullStream()
+            ),
+            pull.drain(
+              (msgs) => {
+                i++
+              },
+              (err) => {
+                if (err) t.fail(err)
+                const duration = Date.now() - start
+                if (i !== 92) t.fail('wrong number of pages read: ' + i)
+                t.pass(`duration: ${duration}ms`)
+                fs.appendFileSync(
+                  reportPath,
+                  `| Query a prefix map (1st run) | ${duration}ms |\n`
+                )
+                t.end()
+              }
+            )
+          )
+        })
+      })
+    )
+  })
+})
+
+test('query a prefix map (second run)', (t) => {
+  db.onReady(() => {
+    query(
+      fromDB(db),
+      paginate(1),
+      toCallback((err, { results }) => {
+        if (err) t.fail(err)
+        const rootKey = results[0].key
+
+        db.onReady(() => {
+          const start = Date.now()
+          let i = 0
+          pull(
+            query(
+              fromDB(db),
+              and(
+                equal(seekVoteLink, rootKey, {
+                  indexType: 'value_content_vote_link',
+                  useMap: true,
+                  prefix: 32,
+                })
+              ),
+              paginate(5),
+              toPullStream()
+            ),
+            pull.drain(
+              (msgs) => {
+                i++
+              },
+              (err) => {
+                if (err) t.fail(err)
+                const duration = Date.now() - start
+                if (i !== 92) t.fail('wrong number of pages read: ' + i)
+                t.pass(`duration: ${duration}ms`)
+                fs.appendFileSync(
+                  reportPath,
+                  `| Query a prefix map (2nd run) | ${duration}ms |\n`
+                )
+                t.end()
+              }
+            )
+          )
+        })
+      })
     )
   })
 })

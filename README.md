@@ -384,6 +384,12 @@ _Rule of thumb_: use prefix indexes in an EQUAL operation only when
 the target `value` of your EQUAL can dynamically assume many (more
 than a dozen) possible values.
 
+An additional option `useMap` can be provided that will store the
+prefix as a map instead of an array. The map can be seen as an
+inverted index that allows for faster queries at the cost of extra
+space. Maps don't store empty values meaning they are also a good fit
+for sparce indexes such as vote links.
+
 ## Low-level API
 
 First some terminology: offset refers to the byte position in the log

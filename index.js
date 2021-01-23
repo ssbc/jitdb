@@ -11,6 +11,8 @@ const debug = require('debug')('jitdb')
 const {
   saveTypedArrayFile,
   loadTypedArrayFile,
+  savePrefixMapFile,
+  loadPrefixMapFile,
   saveBitsetFile,
   loadBitsetFile,
   safeFilename,
@@ -113,6 +115,17 @@ module.exports = function (log, indexesPath) {
               filepath: path.join(indexesPath, file),
             }
             cb()
+          } else if (file.endsWith('.32prefixmap')) {
+            // Don't load it yet, just tag it `lazy`
+            indexes[indexName] = {
+              offset: -1,
+              count: 0,
+              map: {},
+              lazy: true,
+              prefix: 32,
+              filepath: path.join(indexesPath, file),
+            }
+            cb()
           } else if (file.endsWith('.index')) {
             // Don't load it yet, just tag it `lazy`
             indexes[indexName] = {
@@ -177,6 +190,21 @@ module.exports = function (log, indexesPath) {
       prefixIndex.offset,
       count,
       prefixIndex.tarr,
+      cb
+    )
+  }
+
+  function savePrefixMapIndex(name, prefixIndex, count, cb) {
+    if (prefixIndex.offset < 0) return
+    debug('saving prefix map index: %s', name)
+    const num = prefixIndex.prefix
+    const filename = path.join(indexesPath, name + `.${num}prefixmap`)
+    savePrefixMapFile(
+      filename,
+      prefixIndex.version || 1,
+      prefixIndex.offset,
+      count,
+      prefixIndex.map,
       cb
     )
   }
@@ -284,12 +312,32 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function addToPrefixMap(map, seq, value) {
+    if (value === 0) return
+
+    const arr = map[value] || (map[value] = [])
+    arr.push(seq)
+  }
+
+  function updatePrefixMapIndex(opData, index, buffer, seq, offset) {
+    if (seq > index.count - 1) {
+      const fieldStart = opData.seek(buffer)
+      if (~fieldStart) {
+        const buf = bipf.slice(buffer, fieldStart)
+        addToPrefixMap(index.map, seq, buf.length ? safeReadUint32(buf) : 0)
+      }
+
+      index.offset = offset
+      index.count = seq + 1
+    }
+  }
+
   function updatePrefixIndex(opData, index, buffer, seq, offset) {
     if (seq > index.count - 1) {
       if (seq > index.tarr.length - 1) growTarrIndex(index, Uint32Array)
 
       const fieldStart = opData.seek(buffer)
-      if (fieldStart) {
+      if (~fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
         index.tarr[seq] = buf.length ? safeReadUint32(buf) : 0
       } else {
@@ -368,7 +416,9 @@ module.exports = function (log, indexesPath) {
           updatedSequenceIndex = true
 
         if (indexNeedsUpdate) {
-          if (op.data.prefix)
+          if (op.data.prefix && op.data.useMap)
+            updatePrefixMapIndex(op.data, index, buffer, seq, offset)
+          else if (op.data.prefix)
             updatePrefixIndex(op.data, index, buffer, seq, offset)
           else updateIndexValue(op, index, buffer, seq)
         }
@@ -389,7 +439,10 @@ module.exports = function (log, indexesPath) {
 
         index.offset = indexes['seq'].offset
         if (indexNeedsUpdate) {
-          if (index.prefix) savePrefixIndex(op.data.indexName, index, count)
+          if (index.prefix && index.map)
+            savePrefixMapIndex(op.data.indexName, index, count)
+          else if (index.prefix)
+            savePrefixIndex(op.data.indexName, index, count)
           else saveIndex(op.data.indexName, index)
         }
 
@@ -401,7 +454,14 @@ module.exports = function (log, indexesPath) {
   function createIndexes(opsMissingIndexes, cb) {
     const newIndexes = {}
     opsMissingIndexes.forEach((op) => {
-      if (op.data.prefix)
+      if (op.data.prefix && op.data.useMap) {
+        newIndexes[op.data.indexName] = {
+          offset: 0,
+          count: 0,
+          map: {},
+          prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
+        }
+      } else if (op.data.prefix)
         newIndexes[op.data.indexName] = {
           offset: 0,
           count: 0,
@@ -443,6 +503,14 @@ module.exports = function (log, indexesPath) {
           updatedSequenceIndex = true
 
         opsMissingIndexes.forEach((op) => {
+          if (op.data.prefix && op.data.useMap)
+            updatePrefixMapIndex(
+              op.data,
+              newIndexes[op.data.indexName],
+              buffer,
+              seq,
+              offset
+            )
           if (op.data.prefix)
             updatePrefixIndex(
               op.data,
@@ -473,7 +541,9 @@ module.exports = function (log, indexesPath) {
         for (var indexName in newIndexes) {
           const index = (indexes[indexName] = newIndexes[indexName])
           index.offset = indexes['seq'].offset
-          if (index.prefix) savePrefixIndex(indexName, index, count)
+          if (index.prefix && index.map)
+            savePrefixMapIndex(indexName, index, count)
+          else if (index.prefix) savePrefixIndex(indexName, index, count)
           else saveIndex(indexName, index)
         }
 
@@ -485,7 +555,18 @@ module.exports = function (log, indexesPath) {
   function loadLazyIndex(indexName, cb) {
     debug('lazy loading %s', indexName)
     let index = indexes[indexName]
-    if (index.prefix) {
+    if (index.prefix && index.map) {
+      loadPrefixMapFile(index.filepath, (err, data) => {
+        if (err) return cb(err)
+        const { version, offset, count, map } = data
+        index.version = version
+        index.offset = offset
+        index.count = count
+        index.map = map
+        index.lazy = false
+        cb()
+      })
+    } else if (index.prefix) {
       loadTypedArrayFile(index.filepath, Uint32Array, (err, data) => {
         if (err) return cb(err)
         const { version, offset, count, tarr } = data
@@ -576,16 +657,27 @@ module.exports = function (log, indexesPath) {
   function matchAgainstPrefix(op, prefixIndex, cb) {
     const target = op.data.value
     const targetPrefix = target ? safeReadUint32(target) : 0
-    const count = prefixIndex.count
-    const tarr = prefixIndex.tarr
     const bitset = new TypedFastBitSet()
     const done = multicb({ pluck: 1 })
-    for (let seq = 0; seq < count; ++seq) {
-      if (tarr[seq] === targetPrefix) {
-        bitset.add(seq)
-        getRecord(seq, done())
+
+    if (prefixIndex.map) {
+      if (prefixIndex.map[targetPrefix]) {
+        prefixIndex.map[targetPrefix].forEach((seq) => {
+          bitset.add(seq)
+          getRecord(seq, done())
+        })
+      }
+    } else {
+      const count = prefixIndex.count
+      const tarr = prefixIndex.tarr
+      for (let seq = 0; seq < count; ++seq) {
+        if (tarr[seq] === targetPrefix) {
+          bitset.add(seq)
+          getRecord(seq, done())
+        }
       }
     }
+
     done((err, recs) => {
       // FIXME: handle error better, this cb() should support 2 args
       if (err) return console.error(err)
