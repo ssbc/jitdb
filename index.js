@@ -326,8 +326,6 @@ module.exports = function (log, indexesPath) {
       if (fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
         addToPrefixMap(index.map, seq, buf.length ? safeReadUint32(buf) : 0)
-      } else {
-        addToPrefixMap(index.map, seq, 0)
       }
 
       index.offset = offset
