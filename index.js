@@ -370,8 +370,17 @@ module.exports = function (log, indexesPath) {
     newIndexes[indexName].bitset.add(seq)
   }
 
+  // concurrent index update
+  const waitingIndexUpdate = {}
+
   function updateIndex(op, cb) {
     const index = indexes[op.data.indexName]
+
+    const waitingKey = op.data.indexName
+    if (waitingIndexUpdate[waitingKey]) {
+      waitingIndexUpdate[waitingKey].push(cb)
+      return // wait for other index update
+    } else waitingIndexUpdate[waitingKey] = []
 
     // find the next possible seq
     let seq = 0
@@ -446,13 +455,26 @@ module.exports = function (log, indexesPath) {
           else saveIndex(op.data.indexName, index)
         }
 
+        waitingIndexUpdate[waitingKey].forEach((cb) => cb())
+        delete waitingIndexUpdate[waitingKey]
+
         cb()
       },
     })
   }
 
+  // concurrent index create
+  const waitingIndexCreate = {}
+
   function createIndexes(opsMissingIndexes, cb) {
     const newIndexes = {}
+
+    const waitingKey = opsMissingIndexes.join()
+    if (waitingIndexCreate[waitingKey]) {
+      waitingIndexCreate[waitingKey].push(cb)
+      return // wait for other index create
+    } else waitingIndexCreate[waitingKey] = []
+
     opsMissingIndexes.forEach((op) => {
       if (op.data.prefix && op.data.useMap) {
         newIndexes[op.data.indexName] = {
@@ -546,6 +568,9 @@ module.exports = function (log, indexesPath) {
           else if (index.prefix) savePrefixIndex(indexName, index, count)
           else saveIndex(indexName, index)
         }
+
+        waitingIndexCreate[waitingKey].forEach((cb) => cb())
+        delete waitingIndexCreate[waitingKey]
 
         cb()
       },
