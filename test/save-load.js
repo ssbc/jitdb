@@ -6,6 +6,8 @@ const mkdirp = require('mkdirp')
 const {
   saveTypedArrayFile,
   loadTypedArrayFile,
+  savePrefixMapFile,
+  loadPrefixMapFile,
   saveBitsetFile,
   loadBitsetFile,
 } = require('../files')
@@ -89,6 +91,30 @@ test('save and load TypedArray for timestamp', (t) => {
         loadTypedArrayFile(filename, Float64Array, (err, loadedIdx2) => {
           for (var i = 0; i < 11; i += 1)
             t.equal(loadedIdx.tarr[i], loadedIdx2.tarr[i])
+          t.end()
+        })
+      })
+    })
+  })
+})
+
+test('save and load prefix map', (t) => {
+  const idxDir = path.join(dir, 'indexesSaveLoadPrefix')
+  mkdirp.sync(idxDir)
+  const filename = path.join(idxDir, 'test.index')
+
+  var map = { 1: [1, 2, 3] }
+
+  savePrefixMapFile(filename, 1, 123, 10, map, (err) => {
+    loadPrefixMapFile(filename, (err, loadedIdx) => {
+      t.error(err, 'no error')
+      t.deepEqual(map, loadedIdx.map)
+
+      map[2] = [1, 2]
+
+      savePrefixMapFile(filename, 1, 1234, 11, map, (err) => {
+        loadPrefixMapFile(filename, (err, loadedIdx2) => {
+          t.deepEqual(map, loadedIdx2.map)
           t.end()
         })
       })

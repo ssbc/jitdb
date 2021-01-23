@@ -107,9 +107,13 @@ function equal(seek, target, opts) {
   const value = toBufferOrFalsy(target)
   const valueName = !value ? '' : value.toString()
   const indexType = opts.indexType
-  const indexName = opts.prefix
-    ? safeFilename(indexType)
-    : safeFilename(indexType + '_' + valueName)
+  const indexName = safeFilename(
+    opts.prefix
+      ? opts.useMap
+        ? indexType + '_map'
+        : indexType
+      : indexType + '_' + valueName
+  )
   return {
     type: 'EQUAL',
     data: {
@@ -117,6 +121,7 @@ function equal(seek, target, opts) {
       value,
       indexType,
       indexName,
+      useMap: opts.useMap,
       indexAll: opts.indexAll,
       prefix: opts.prefix,
     },

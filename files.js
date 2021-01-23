@@ -67,6 +67,43 @@ function loadTypedArrayFile(filename, Type, cb) {
     .catch(cb)
 }
 
+function savePrefixMapFile(filename, version, offset, count, map, cb) {
+  if (!cb)
+    cb = (err) => {
+      if (err) console.error(err)
+    }
+
+  const jsonMap = JSON.stringify(map)
+  const b = Buffer.alloc(4 * FIELD_SIZE + jsonMap.length)
+  b.writeUInt32LE(version, 0)
+  b.writeUInt32LE(offset, FIELD_SIZE)
+  b.writeUInt32LE(count, 2 * FIELD_SIZE)
+  Buffer.from(jsonMap).copy(b, 4 * FIELD_SIZE)
+
+  writeFile(filename, b)
+    .then(() => cb())
+    .catch(cb)
+}
+
+function loadPrefixMapFile(filename, cb) {
+  readFile(filename)
+    .then((buf) => {
+      const version = buf.readUInt32LE(0)
+      const offset = buf.readUInt32LE(FIELD_SIZE)
+      const count = buf.readUInt32LE(2 * FIELD_SIZE)
+      const body = buf.slice(4 * FIELD_SIZE)
+      const map = JSON.parse(body)
+
+      cb(null, {
+        version,
+        offset,
+        count,
+        map,
+      })
+    })
+    .catch(cb)
+}
+
 function saveBitsetFile(filename, version, offset, bitset, cb) {
   bitset.trim()
   const count = bitset.words.length
@@ -120,6 +157,8 @@ function safeFilename(filename) {
 module.exports = {
   saveTypedArrayFile,
   loadTypedArrayFile,
+  savePrefixMapFile,
+  loadPrefixMapFile,
   saveBitsetFile,
   loadBitsetFile,
   listFilesIDB,
