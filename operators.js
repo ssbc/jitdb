@@ -78,15 +78,23 @@ function debug() {
 //#endregion
 //#region "Unit operators": they create objects that JITDB interprets
 
+function getIndexName(opts, indexType, valueName) {
+  return safeFilename(
+    opts.prefix
+      ? opts.useMap
+        ? indexType + '__map'
+        : indexType
+      : indexType + '_' + valueName
+  )
+}
+
 function slowEqual(seekDesc, target, opts) {
   opts = opts || {}
   const seek = seekFromDesc(seekDesc)
   const value = toBufferOrFalsy(target)
   const valueName = !value ? '' : value.toString()
   const indexType = seekDesc.replace(/\./g, '_')
-  const indexName = opts.prefix
-    ? safeFilename(indexType)
-    : safeFilename(indexType + '_' + valueName)
+  const indexName = getIndexName(opts, indexType, valueName)
   return {
     type: 'EQUAL',
     data: {
@@ -94,6 +102,7 @@ function slowEqual(seekDesc, target, opts) {
       value,
       indexType,
       indexName,
+      useMap: opts.useMap,
       indexAll: opts.indexAll,
       prefix: opts.prefix,
     },
@@ -107,13 +116,7 @@ function equal(seek, target, opts) {
   const value = toBufferOrFalsy(target)
   const valueName = !value ? '' : value.toString()
   const indexType = opts.indexType
-  const indexName = safeFilename(
-    opts.prefix
-      ? opts.useMap
-        ? indexType + '_map'
-        : indexType
-      : indexType + '_' + valueName
-  )
+  const indexName = getIndexName(opts, indexType, valueName)
   return {
     type: 'EQUAL',
     data: {
