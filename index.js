@@ -315,15 +315,14 @@ module.exports = function (log, indexesPath) {
   function addToPrefixMap(map, seq, value) {
     if (value === 0) return
 
-    let arr = map[value] || []
+    const arr = map[value] || (map[value] = [])
     arr.push(seq)
-    map[value] = arr
   }
 
   function updatePrefixMapIndex(opData, index, buffer, seq, offset) {
     if (seq > index.count - 1) {
       const fieldStart = opData.seek(buffer)
-      if (fieldStart) {
+      if (~fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
         addToPrefixMap(index.map, seq, buf.length ? safeReadUint32(buf) : 0)
       }
@@ -338,7 +337,7 @@ module.exports = function (log, indexesPath) {
       if (seq > index.tarr.length - 1) growTarrIndex(index, Uint32Array)
 
       const fieldStart = opData.seek(buffer)
-      if (fieldStart) {
+      if (~fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
         index.tarr[seq] = buf.length ? safeReadUint32(buf) : 0
       } else {
