@@ -302,13 +302,13 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function safeReadUint32(buf, offset) {
+  function safeReadUint32(buf, prefixOffset = 0) {
     if (buf.length < 4) {
       const bigger = Buffer.alloc(4)
       buf.copy(bigger)
-      return bigger.readUInt32LE(offset)
+      return bigger.readUInt32LE(prefixOffset)
     } else {
-      return buf.readUInt32LE(offset)
+      return buf.readUInt32LE(prefixOffset)
     }
   }
 
@@ -324,11 +324,10 @@ module.exports = function (log, indexesPath) {
       const fieldStart = opData.seek(buffer)
       if (~fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
-        const offset = opData.prefixOffset ? opData.prefixOffset : 0
         addToPrefixMap(
           index.map,
           seq,
-          buf.length ? safeReadUint32(buf, offset) : 0
+          buf.length ? safeReadUint32(buf, opData.prefixOffset) : 0
         )
       }
 
@@ -344,8 +343,9 @@ module.exports = function (log, indexesPath) {
       const fieldStart = opData.seek(buffer)
       if (~fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
-        const offset = opData.prefixOffset ? opData.prefixOffset : 0
-        index.tarr[seq] = buf.length ? safeReadUint32(buf, offset) : 0
+        index.tarr[seq] = buf.length
+          ? safeReadUint32(buf, opData.prefixOffset)
+          : 0
       } else {
         index.tarr[seq] = 0
       }
@@ -689,8 +689,9 @@ module.exports = function (log, indexesPath) {
 
   function matchAgainstPrefix(op, prefixIndex, cb) {
     const target = op.data.value
-    const targetOffset = op.data.prefixOffset ? op.data.prefixOffset : 0
-    const targetPrefix = target ? safeReadUint32(target, targetOffset) : 0
+    const targetPrefix = target
+      ? safeReadUint32(target, op.data.prefixOffset)
+      : 0
     const bitset = new TypedFastBitSet()
     const done = multicb({ pluck: 1 })
 
