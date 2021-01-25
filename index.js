@@ -312,10 +312,10 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function addToPrefixMap(map, seq, value) {
-    if (value === 0) return
+  function addToPrefixMap(map, seq, prefix) {
+    if (prefix === 0) return
 
-    const arr = map[value] || (map[value] = [])
+    const arr = map[prefix] || (map[prefix] = [])
     arr.push(seq)
   }
 
@@ -324,11 +324,10 @@ module.exports = function (log, indexesPath) {
       const fieldStart = opData.seek(buffer)
       if (~fieldStart) {
         const buf = bipf.slice(buffer, fieldStart)
-        addToPrefixMap(
-          index.map,
-          seq,
-          buf.length ? safeReadUint32(buf, opData.prefixOffset) : 0
-        )
+        if (buf.length) {
+          const prefix = safeReadUint32(buf, opData.prefixOffset)
+          addToPrefixMap(index.map, seq, prefix)
+        }
       }
 
       index.offset = offset
