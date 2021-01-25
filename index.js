@@ -371,7 +371,7 @@ module.exports = function (log, indexesPath) {
   }
 
   // concurrent index update
-  const waitingIndexUpdate = {}
+  const waitingIndexUpdate = new Map()
 
   function updateIndex(op, cb) {
     const index = indexes[op.data.indexName]
@@ -464,12 +464,14 @@ module.exports = function (log, indexesPath) {
   }
 
   // concurrent index create
-  const waitingIndexCreate = {}
+  const waitingIndexCreate = new Map()
 
   function createIndexes(opsMissingIndexes, cb) {
     const newIndexes = {}
 
-    const waitingKey = opsMissingIndexes.join()
+    const waitingKey = opsMissingIndexes
+      .map((op) => op.data.indexName)
+      .join('|')
     if (waitingIndexCreate[waitingKey]) {
       waitingIndexCreate[waitingKey].push(cb)
       return // wait for other index create
