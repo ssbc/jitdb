@@ -377,10 +377,10 @@ module.exports = function (log, indexesPath) {
     const index = indexes[op.data.indexName]
 
     const waitingKey = op.data.indexName
-    if (waitingIndexUpdate[waitingKey]) {
-      waitingIndexUpdate[waitingKey].push(cb)
+    if (waitingIndexUpdate.has(waitingKey)) {
+      waitingIndexUpdate.get(waitingKey).push(cb)
       return // wait for other index update
-    } else waitingIndexUpdate[waitingKey] = []
+    } else waitingIndexUpdate.set(waitingKey, [])
 
     // find the next possible seq
     let seq = 0
@@ -455,8 +455,8 @@ module.exports = function (log, indexesPath) {
           else saveIndex(op.data.indexName, index)
         }
 
-        waitingIndexUpdate[waitingKey].forEach((cb) => cb())
-        delete waitingIndexUpdate[waitingKey]
+        waitingIndexUpdate.get(waitingKey).forEach((cb) => cb())
+        waitingIndexUpdate.delete(waitingKey)
 
         cb()
       },
@@ -472,10 +472,10 @@ module.exports = function (log, indexesPath) {
     const waitingKey = opsMissingIndexes
       .map((op) => op.data.indexName)
       .join('|')
-    if (waitingIndexCreate[waitingKey]) {
-      waitingIndexCreate[waitingKey].push(cb)
-      return // wait for other index create
-    } else waitingIndexCreate[waitingKey] = []
+    if (waitingIndexCreate.has(waitingKey)) {
+      waitingIndexCreate.get(waitingKey).push(cb)
+      return // wait for other index update
+    } else waitingIndexCreate.set(waitingKey, [])
 
     opsMissingIndexes.forEach((op) => {
       if (op.data.prefix && op.data.useMap) {
@@ -571,8 +571,8 @@ module.exports = function (log, indexesPath) {
           else saveIndex(indexName, index)
         }
 
-        waitingIndexCreate[waitingKey].forEach((cb) => cb())
-        delete waitingIndexCreate[waitingKey]
+        waitingIndexCreate.get(waitingKey).forEach((cb) => cb())
+        waitingIndexCreate.delete(waitingKey)
 
         cb()
       },
