@@ -375,3 +375,39 @@ prepareAndRunTest('Prefix map equal', dir, (t, db, raf) => {
     })
   })
 })
+
+prepareAndRunTest('Prefix offset', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing!' }
+  const msg2 = { type: 'contact', text: 'Testing!' }
+  const msg3 = { type: 'post', text: 'Testing 2!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        const typeQuery = {
+          type: 'EQUAL',
+          data: {
+            seek: helpers.seekKey,
+            value: Buffer.from(msg.key),
+            indexType: 'key',
+            indexName: 'value_key_' + msg.key,
+            useMap: true,
+            prefix: 32,
+            prefixOffset: 1,
+          },
+        }
+
+        db.all(typeQuery, 0, false, false, (err, results) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing 2!')
+          t.end()
+        })
+      })
+    })
+  })
+})
