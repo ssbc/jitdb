@@ -29,6 +29,7 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
       seek: helpers.seekType,
       value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'value_content_type_post',
       prefix: 32,
     },
   }
@@ -113,7 +114,7 @@ prepareAndRunTest('Prefix index skips deleted records', dir, (t, db, raf) => {
       seek: helpers.seekType,
       value: Buffer.from('post'),
       indexType: 'type',
-      indexName: 'value_content_type',
+      indexName: 'value_content_type_post',
       prefix: 32,
     },
   }
@@ -125,7 +126,7 @@ prepareAndRunTest('Prefix index skips deleted records', dir, (t, db, raf) => {
       seek: helpers.seekType,
       value: Buffer.from('post'),
       indexType: 'type',
-      indexName: 'value_content_type',
+      indexName: 'value_content_type_post',
       prefix: 32,
     },
   }
@@ -168,6 +169,7 @@ prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
       seek: helpers.seekChannel,
       value: Buffer.from('foo'),
       indexType: 'channel',
+      indexName: 'value_content_channel_foo',
       prefix: 32,
     },
   }
@@ -201,6 +203,7 @@ prepareAndRunTest('Prefix equal falsy', dir, (t, db, raf) => {
       seek: helpers.seekChannel,
       value: null,
       indexType: 'channel',
+      indexName: 'value_content_channel_',
       prefix: 32,
     },
   }
@@ -264,6 +267,8 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
         '%wOtfXXopI3mTHL6F7Y3XXNtpxws9mQdaEocNJuKtAZo=.sha256'
       ),
       indexType: 'vote',
+      indexName:
+        'value_content_vote_link_%wOtfXXopI3mTHL6F7Y3XXNtpxws9mQdaEocNJuKtAZo=.sha256',
       prefix: 32,
     },
   }
@@ -318,6 +323,7 @@ prepareAndRunTest('Prefix equal unknown value', dir, (t, db, raf) => {
       seek: helpers.seekAuthor,
       value: Buffer.from('abc'),
       indexType: 'author',
+      indexName: 'value_author_abc',
       prefix: 32,
     },
   }
@@ -350,6 +356,7 @@ prepareAndRunTest('Prefix map equal', dir, (t, db, raf) => {
       seek: helpers.seekType,
       value: Buffer.from('post'),
       indexType: 'type',
+      indexName: 'value_content_type_post',
       useMap: true,
       prefix: 32,
     },

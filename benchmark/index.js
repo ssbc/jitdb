@@ -6,6 +6,7 @@ const Log = require('async-append-only-log')
 const generateFixture = require('ssb-fixtures')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const multicb = require('multicb')
 const ssbKeys = require('ssb-keys')
 const JITDB = require('../index')
 const {
@@ -123,6 +124,36 @@ test('query one huge index (second run)', (t) => {
         t.end()
       })
     )
+  })
+})
+
+test('create an index twice concurrently', (t) => {
+  db.onReady(() => {
+    const done = multicb({ pluck: 1 })
+    const start = Date.now()
+
+    query(
+      fromDB(db),
+      and(equal(seekType, 'about', { indexType: 'type' })),
+      toCallback(done())
+    )
+
+    query(
+      fromDB(db),
+      and(equal(seekType, 'about', { indexType: 'type' })),
+      toCallback(done())
+    )
+
+    done((err) => {
+      if (err) t.fail(err)
+      const duration = Date.now() - start
+      t.pass(`duration: ${duration}ms`)
+      fs.appendFileSync(
+        reportPath,
+        `| Create an index twice concurrently | ${duration}ms |\n`
+      )
+      t.end()
+    })
   })
 })
 
