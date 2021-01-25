@@ -390,6 +390,11 @@ inverted index that allows for faster queries at the cost of extra
 space. Maps don't store empty values meaning they are also a good fit
 for sparce indexes such as vote links.
 
+It is possible specifiy where in the target the prefix buffer should
+be constructed from using `prefixOffset`. This is useful for targets
+that starts with a common prefix such as % in order to increase the
+information amount.
+
 ## Low-level API
 
 First some terminology: offset refers to the byte position in the log
