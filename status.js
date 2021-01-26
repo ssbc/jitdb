@@ -24,7 +24,11 @@ module.exports = function Status() {
     if (timer.unref) timer.unref()
   }
 
-  function maybeEmit() {
+  function batchUpdate(indexes, names) {
+    for (const indexName of names) {
+      indexesStatus[indexName] = indexes[indexName].offset
+    }
+
     ++i
     if (!timer) {
       iTimer = i
@@ -33,21 +37,8 @@ module.exports = function Status() {
     }
   }
 
-  function update(indexName, offset) {
-    indexesStatus[indexName] = offset
-    maybeEmit()
-  }
-
-  function batchUpdate(indexes, names) {
-    for (const indexName of names) {
-      indexesStatus[indexName] = indexes[indexName].offset
-    }
-    maybeEmit()
-  }
-
   return {
     obv,
-    update,
     batchUpdate,
   }
 }
