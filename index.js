@@ -449,7 +449,9 @@ module.exports = function (log, indexesPath) {
           else updateIndexValue(op, index, buffer, seq)
         }
 
-        status.batchUpdate(indexes, indexNamesForStatus)
+        if (seq % 1000 === 0) {
+          status.batchUpdate(indexes, indexNamesForStatus)
+        }
 
         seq++
       },
@@ -570,8 +572,10 @@ module.exports = function (log, indexesPath) {
           else updateIndexValue(op, newIndexes[op.data.indexName], buffer, seq)
         })
 
-        status.batchUpdate(indexes, coreIndexNames)
-        status.batchUpdate(newIndexes, newIndexNames)
+        if (seq % 1000 === 0) {
+          status.batchUpdate(indexes, coreIndexNames)
+          status.batchUpdate(newIndexes, newIndexNames)
+        }
 
         seq++
       },
