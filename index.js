@@ -8,6 +8,7 @@ const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
 const multicb = require('multicb')
 const debug = require('debug')('jitdb')
+const Status = require('./status')
 const {
   saveTypedArrayFile,
   loadTypedArrayFile,
@@ -26,6 +27,8 @@ module.exports = function (log, indexesPath) {
   let bitsetCache = new WeakMap()
   let sortedCache = { ascending: new WeakMap(), descending: new WeakMap() }
   let cacheOffset = -1
+
+  const status = Status()
 
   const indexes = {}
   let isReady = false
@@ -55,6 +58,8 @@ module.exports = function (log, indexesPath) {
         tarr: new Uint32Array(16 * 1000),
       }
     }
+
+    status.batchUpdate(indexes, ['seq', 'timestamp', 'sequence'])
 
     isReady = true
     for (let i = 0; i < waiting.length; ++i) waiting[i]()
@@ -381,6 +386,13 @@ module.exports = function (log, indexesPath) {
   function updateIndex(op, cb) {
     const index = indexes[op.data.indexName]
 
+    const indexNamesForStatus = [
+      'seq',
+      'timestamp',
+      'sequence',
+      op.data.indexName,
+    ]
+
     const waitingKey = op.data.indexName
     if (waitingIndexUpdate.has(waitingKey)) {
       waitingIndexUpdate.get(waitingKey).push(cb)
@@ -437,6 +449,8 @@ module.exports = function (log, indexesPath) {
           else updateIndexValue(op, index, buffer, seq)
         }
 
+        status.batchUpdate(indexes, indexNamesForStatus)
+
         seq++
       },
       end: () => {
@@ -460,6 +474,8 @@ module.exports = function (log, indexesPath) {
           else saveIndex(op.data.indexName, index)
         }
 
+        status.batchUpdate(indexes, indexNamesForStatus)
+
         waitingIndexUpdate.get(waitingKey).forEach((cb) => cb())
         waitingIndexUpdate.delete(waitingKey)
 
@@ -474,9 +490,10 @@ module.exports = function (log, indexesPath) {
   function createIndexes(opsMissingIndexes, cb) {
     const newIndexes = {}
 
-    const waitingKey = opsMissingIndexes
-      .map((op) => op.data.indexName)
-      .join('|')
+    const coreIndexNames = ['seq', 'timestamp', 'sequence']
+    const newIndexNames = opsMissingIndexes.map((op) => op.data.indexName)
+
+    const waitingKey = newIndexNames.join('|')
     if (waitingIndexCreate.has(waitingKey)) {
       waitingIndexCreate.get(waitingKey).push(cb)
       return // wait for other index update
@@ -553,6 +570,9 @@ module.exports = function (log, indexesPath) {
           else updateIndexValue(op, newIndexes[op.data.indexName], buffer, seq)
         })
 
+        status.batchUpdate(indexes, coreIndexNames)
+        status.batchUpdate(newIndexes, newIndexNames)
+
         seq++
       },
       end: () => {
@@ -575,6 +595,9 @@ module.exports = function (log, indexesPath) {
           else if (index.prefix) savePrefixIndex(indexName, index, count)
           else saveIndex(indexName, index)
         }
+
+        status.batchUpdate(indexes, coreIndexNames)
+        status.batchUpdate(newIndexes, newIndexNames)
 
         waitingIndexCreate.get(waitingKey).forEach((cb) => cb())
         waitingIndexCreate.delete(waitingKey)
@@ -1061,6 +1084,7 @@ module.exports = function (log, indexesPath) {
     paginate,
     all,
     live,
+    status: status.obv,
 
     // testing
     indexes,
