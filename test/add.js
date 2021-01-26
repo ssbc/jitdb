@@ -148,13 +148,21 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     },
   }
 
+  t.equal(typeof db.status, 'function')
+  t.equal(db.status.value['seq'], -1)
+  t.equal(typeof db.status.value['type_post'], 'undefined')
+
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     db.all(typeQuery, 0, false, false, (err, results) => {
       t.equal(results.length, 1)
+      t.equal(db.status.value['seq'], 0)
+      t.equal(db.status.value['type_post'], 0)
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
+          t.equal(db.status.value['seq'], 352)
+          t.equal(db.status.value['type_post'], 352)
           t.end()
         })
       })
