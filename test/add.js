@@ -202,7 +202,7 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
         t.notOk(db.status.value['type_about'])
 
         let about = { type: 'about', text: 'Testing' }
-        for (var i = 0; i < 10000; ++i) {
+        for (var i = 0; i < 30000; ++i) {
           about.text = 'Testing ' + i
           state = validate.appendNew(state, null, keys, about, Date.now() + i)
         }
