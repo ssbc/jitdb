@@ -170,6 +170,72 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
+  let post = { type: 'post', text: 'Testing' }
+
+  let state = validate.initial()
+  for (var i = 0; i < 10; ++i) {
+    post.text = 'Testing ' + i
+    state = validate.appendNew(state, null, keys, post, Date.now() + i)
+  }
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'type_post',
+    },
+  }
+
+  push(
+    push.values(state.queue),
+    push.asyncMap((q, cb) => {
+      addMsg(q.value, raf, cb)
+    }),
+    push.collect(() => {
+      db.paginate(typeQuery, 0, 1, false, false, () => {
+        t.pass(JSON.stringify(db.status.value))
+        t.ok(db.status.value['seq'])
+        t.ok(db.status.value['type_post'])
+        t.notOk(db.status.value['type_about'])
+
+        let about = { type: 'about', text: 'Testing' }
+        for (var i = 0; i < 10000; ++i) {
+          about.text = 'Testing ' + i
+          state = validate.appendNew(state, null, keys, about, Date.now() + i)
+        }
+        const aboutQuery = {
+          type: 'EQUAL',
+          data: {
+            seek: helpers.seekType,
+            value: Buffer.from('about'),
+            indexType: 'type',
+            indexName: 'type_about',
+          },
+        }
+
+        push(
+          push.values(state.queue),
+          push.asyncMap((q, cb) => {
+            addMsg(q.value, raf, cb)
+          }),
+          push.collect(() => {
+            db.paginate(aboutQuery, 0, 1, false, false, () => {
+              t.pass(JSON.stringify(db.status.value))
+              t.ok(db.status.value['seq'])
+              t.notOk(db.status.value['type_post'])
+              t.ok(db.status.value['type_about'])
+              t.end()
+            })
+          })
+        )
+      })
+    })
+  )
+})
+
 prepareAndRunTest('grow', dir, (t, db, raf) => {
   let msg = { type: 'post', text: 'Testing' }
 
