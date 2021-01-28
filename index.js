@@ -1069,8 +1069,17 @@ module.exports = function (log, indexesPath) {
 
   function count(operation, seq, descending, cb) {
     onReady(() => {
+      const start = Date.now()
       executeOperation(operation, (bitset) => {
-        cb(null, countBitsetSlice(bitset, seq, descending))
+        const total = countBitsetSlice(bitset, seq, descending)
+        const duration = Date.now() - start
+        debugQuery.enabled &&
+          debugQuery(
+            `count(${getNameFromOperation(
+              operation
+            )}): ${duration}ms, total messages: ${total}`
+          )
+        cb(null, total)
       })
     })
   }
