@@ -983,7 +983,6 @@ module.exports = function (log, indexesPath) {
     cb
   ) {
     seq = seq || 0
-    const start = Date.now()
 
     const sorted = sortedByTimestamp(bitset, descending)
     const sliced =
@@ -1004,7 +1003,6 @@ module.exports = function (log, indexesPath) {
         cb(err, {
           results: results,
           total: sorted.length,
-          duration: Date.now() - start,
         })
       })
     )
@@ -1017,6 +1015,7 @@ module.exports = function (log, indexesPath) {
 
   function paginate(operation, seq, limit, descending, onlyOffset, cb) {
     onReady(() => {
+      const start = Date.now()
       executeOperation(operation, (bitset) => {
         getMessagesFromBitsetSlice(
           bitset,
@@ -1027,6 +1026,7 @@ module.exports = function (log, indexesPath) {
           (err, answer) => {
             if (err) cb(err)
             else {
+              answer.duration = Date.now() - start
               debugQuery.enabled &&
                 debugQuery(
                   `paginate(${getNameFromOperation(operation)}): ${
@@ -1043,6 +1043,7 @@ module.exports = function (log, indexesPath) {
 
   function all(operation, seq, descending, onlyOffset, cb) {
     onReady(() => {
+      const start = Date.now()
       executeOperation(operation, (bitset) => {
         getMessagesFromBitsetSlice(
           bitset,
@@ -1053,6 +1054,7 @@ module.exports = function (log, indexesPath) {
           (err, answer) => {
             if (err) cb(err)
             else {
+              answer.duration = Date.now() - start
               debugQuery.enabled &&
                 debugQuery(
                   `all(${getNameFromOperation(operation)}): ${
