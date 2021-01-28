@@ -465,7 +465,7 @@ some after processing that you wouldn't create and index for, but the
 overhead of decoding the buffers is small enough that I don't think it
 makes sense.
 
-### all(operation, seq, limit, descending, onlyOffset, cb)
+### all(operation, seq, descending, onlyOffset, cb)
 
 Similar to `paginate` except there is no `limit` argument and the result
 will be the messages directly.
