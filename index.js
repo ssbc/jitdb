@@ -799,15 +799,23 @@ module.exports = function (log, indexesPath) {
     } else if (op.type === 'AND') {
       if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
 
-      return `AND(${getNameFromOperation(op.data[0])},${getNameFromOperation(
-        op.data[1]
-      )})`
+      const op1name = getNameFromOperation(op.data[0])
+      const op2name = getNameFromOperation(op.data[1])
+
+      if (!op1name) return op2name
+      if (!op2name) return op1name
+
+      return `AND(${op1name},${op2name})`
     } else if (op.type === 'OR') {
       if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
 
-      return `OR(${getNameFromOperation(op.data[0])},${getNameFromOperation(
-        op.data[1]
-      )})`
+      const op1name = getNameFromOperation(op.data[0])
+      const op2name = getNameFromOperation(op.data[1])
+
+      if (!op1name) return op2name
+      if (!op2name) return op1name
+
+      return `OR(${op1name},${op2name})`
     } else if (op.type === 'NOT') {
       return `NOT(${getNameFromOperation(op.data[0])})`
     }
