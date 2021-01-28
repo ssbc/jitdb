@@ -8,6 +8,7 @@ const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
 const multicb = require('multicb')
 const debug = require('debug')('jitdb')
+const debugQuery = debug.extend('query')
 const Status = require('./status')
 const {
   saveTypedArrayFile,
@@ -773,6 +774,45 @@ module.exports = function (log, indexesPath) {
     return op
   }
 
+  function getNameFromOperation(op) {
+    if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
+      const value = op.data.value
+        ? op.data.value.toString().substring(0, 10)
+        : ''
+      return `${op.data.indexType}(${value})`
+    } else if (
+      op.type === 'GT' ||
+      op.type === 'GTE' ||
+      op.type === 'LT' ||
+      op.type === 'LTE'
+    ) {
+      const value = op.data.value
+        ? op.data.value.toString().substring(0, 10)
+        : ''
+      return `${op.type}(${value})`
+    } else if (op.type === 'SEQS') {
+      return `SEQS(${op.seqs.toString().substring(0, 10)})`
+    } else if (op.type === 'OFFSETS') {
+      return `OFFSETS(${op.offsets.toString().substring(0, 10)})`
+    } else if (op.type === 'LIVESEQS') {
+      return `LIVESEQS()`
+    } else if (op.type === 'AND') {
+      if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
+
+      return `AND(${getNameFromOperation(op.data[0])},${getNameFromOperation(
+        op.data[1]
+      )})`
+    } else if (op.type === 'OR') {
+      if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
+
+      return `OR(${getNameFromOperation(op.data[0])},${getNameFromOperation(
+        op.data[1]
+      )})`
+    } else if (op.type === 'NOT') {
+      return `NOT(${getNameFromOperation(op.data[0])})`
+    }
+  }
+
   function getBitsetForOperation(op, cb) {
     if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
       if (op.data.prefix) {
@@ -982,8 +1022,10 @@ module.exports = function (log, indexesPath) {
           (err, answer) => {
             if (err) cb(err)
             else {
-              debug(
-                `paginate(): ${answer.duration}ms, total messages: ${answer.total}`
+              debugQuery(
+                `paginate(${getNameFromOperation(operation)}): ${
+                  answer.duration
+                }ms, total messages: ${answer.total}`
               )
               cb(err, answer)
             }
@@ -1005,8 +1047,10 @@ module.exports = function (log, indexesPath) {
           (err, answer) => {
             if (err) cb(err)
             else {
-              debug(
-                `all(): ${answer.duration}ms, total messages: ${answer.total}`
+              debugQuery(
+                `all(${getNameFromOperation(operation)}): ${
+                  answer.duration
+                }ms, total messages: ${answer.total}`
               )
               cb(err, answer.results)
             }
