@@ -1022,11 +1022,12 @@ module.exports = function (log, indexesPath) {
           (err, answer) => {
             if (err) cb(err)
             else {
-              debugQuery(
-                `paginate(${getNameFromOperation(operation)}): ${
-                  answer.duration
-                }ms, total messages: ${answer.total}`
-              )
+              debugQuery.enabled &&
+                debugQuery(
+                  `paginate(${getNameFromOperation(operation)}): ${
+                    answer.duration
+                  }ms, total messages: ${answer.total}`
+                )
               cb(err, answer)
             }
           }
@@ -1047,11 +1048,12 @@ module.exports = function (log, indexesPath) {
           (err, answer) => {
             if (err) cb(err)
             else {
-              debugQuery(
-                `all(${getNameFromOperation(operation)}): ${
-                  answer.duration
-                }ms, total messages: ${answer.total}`
-              )
+              debugQuery.enabled &&
+                debugQuery(
+                  `all(${getNameFromOperation(operation)}): ${
+                    answer.duration
+                  }ms, total messages: ${answer.total}`
+                )
               cb(err, answer.results)
             }
           }
