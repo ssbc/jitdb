@@ -15,6 +15,7 @@ const {
   and,
   or,
   equal,
+  count,
   toCallback,
   toPullStream,
   paginate,
@@ -120,6 +121,28 @@ test('query one huge index (second run)', (t) => {
         fs.appendFileSync(
           reportPath,
           `| Query 1 big index (2nd run) | ${duration}ms |\n`
+        )
+        t.end()
+      })
+    )
+  })
+})
+
+test('count one huge index (third run)', (t) => {
+  db.onReady(() => {
+    const start = Date.now()
+    query(
+      fromDB(db),
+      and(equal(seekType, 'post', { indexType: 'type' })),
+      count(),
+      toCallback((err, total) => {
+        if (err) t.fail(err)
+        const duration = Date.now() - start
+        if (total !== 23310) t.fail('total is wrong: ' + total)
+        t.pass(`duration: ${duration}ms`)
+        fs.appendFileSync(
+          reportPath,
+          `| Count 1 big index (3rd run) | ${duration}ms |\n`
         )
         t.end()
       })

@@ -27,6 +27,7 @@ const {
   paginate,
   startFrom,
   live,
+  count,
   descending,
   toCallback,
   toPromise,
@@ -543,6 +544,55 @@ prepareAndRunTest('not operator', dir, (t, db, raf) => {
           t.equal(msgs.length, 1, 'page has one messages')
           t.equal(msgs[0].value.author, bob.id)
           t.equal(msgs[0].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
+prepareAndRunTest('count operator toCallback', dir, (t, db, raf) => {
+  const msg = { type: 'food', text: 'Lunch' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        and(slowEqual('value.content.type', 'food')),
+        count(),
+        toCallback((err, total) => {
+          t.error(err, 'no error')
+          t.equal(total, 2)
+          t.end()
+        })
+      )
+    })
+  })
+})
+
+prepareAndRunTest('count operator toPullStream', dir, (t, db, raf) => {
+  const msg = { type: 'drink', text: 'Juice' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      pull(
+        query(
+          fromDB(db),
+          and(slowEqual('value.content.type', 'drink')),
+          count(),
+          toPullStream()
+        ),
+        pull.collect((err, results) => {
+          t.error(err, 'no error')
+          console.log(results)
+          t.equal(results.length, 1)
+          t.equal(results[0], 2)
           t.end()
         })
       )
