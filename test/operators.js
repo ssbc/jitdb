@@ -58,8 +58,16 @@ prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
-  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
-  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+  t.equal(
+    typeof queryTree.meta.jitdb,
+    'object',
+    'queryTree contains meta.jitdb'
+  )
+  t.equal(
+    typeof queryTree.meta.jitdb.onReady,
+    'function',
+    'meta.jitdb looks correct'
+  )
 
   t.end()
 })
@@ -80,8 +88,16 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
-  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
-  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+  t.equal(
+    typeof queryTree.meta.jitdb,
+    'object',
+    'queryTree contains meta.jitdb'
+  )
+  t.equal(
+    typeof queryTree.meta.jitdb.onReady,
+    'function',
+    'meta.jitdb looks correct'
+  )
 
   t.end()
 })
@@ -103,8 +119,16 @@ prepareAndRunTest('query ignores non-function arguments', dir, (t, db, raf) => {
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
-  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
-  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+  t.equal(
+    typeof queryTree.meta.jitdb,
+    'object',
+    'queryTree contains meta.jitdb'
+  )
+  t.equal(
+    typeof queryTree.meta.jitdb.onReady,
+    'function',
+    'meta.jitdb looks correct'
+  )
 
   t.end()
 })
@@ -128,8 +152,16 @@ prepareAndRunTest('and() ignores non-function arguments', dir, (t, db, raf) => {
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
-  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
-  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+  t.equal(
+    typeof queryTree.meta.jitdb,
+    'object',
+    'queryTree contains meta.jitdb'
+  )
+  t.equal(
+    typeof queryTree.meta.jitdb.onReady,
+    'function',
+    'meta.jitdb looks correct'
+  )
 
   t.end()
 })
@@ -153,8 +185,16 @@ prepareAndRunTest('or() ignores non-function arguments', dir, (t, db, raf) => {
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
-  t.equal(typeof queryTree.meta.db, 'object', 'queryTree contains meta.db')
-  t.equal(typeof queryTree.meta.db.onReady, 'function', 'meta.db looks correct')
+  t.equal(
+    typeof queryTree.meta.jitdb,
+    'object',
+    'queryTree contains meta.jitdb'
+  )
+  t.equal(
+    typeof queryTree.meta.jitdb.onReady,
+    'function',
+    'meta.jitdb looks correct'
+  )
 
   t.end()
 })
