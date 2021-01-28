@@ -318,6 +318,10 @@ function live(opts) {
   else return (ops) => updateMeta(ops, 'live', 'liveOnly')
 }
 
+function count() {
+  return (ops) => updateMeta(ops, 'count', true)
+}
+
 function descending() {
   return (ops) => updateMeta(ops, 'descending', true)
 }
@@ -370,7 +374,8 @@ function toCallback(cb) {
     executeDeferredOps(rawOps, meta)
       .then((ops) => {
         const seq = meta.seq || 0
-        if (meta.pageSize)
+        if (meta.count) meta.db.count(ops, seq, meta.descending, cb)
+        else if (meta.pageSize)
           meta.db.paginate(ops, seq, meta.pageSize, meta.descending, false, cb)
         else meta.db.all(ops, seq, meta.descending, false, cb)
       })
@@ -394,25 +399,31 @@ function toPullStream() {
       let seq = meta.seq || 0
       let total = Infinity
       const limit = meta.pageSize || 1
+      let shouldEnd = false
       return function readable(end, cb) {
         if (end) return cb(end)
-        if (seq >= total) return cb(true)
-        meta.db.paginate(
-          ops,
-          seq,
-          limit,
-          meta.descending,
-          false,
-          (err, answer) => {
-            if (err) return cb(err)
-            else if (answer.total === 0) cb(true)
-            else {
-              total = answer.total
-              seq += limit
-              cb(null, !meta.pageSize ? answer.results[0] : answer.results)
+        if (seq >= total || shouldEnd) return cb(true)
+        if (meta.count) {
+          shouldEnd = true
+          meta.db.count(ops, seq, meta.descending, cb)
+        } else {
+          meta.db.paginate(
+            ops,
+            seq,
+            limit,
+            meta.descending,
+            false,
+            (err, answer) => {
+              if (err) return cb(err)
+              else if (answer.total === 0) cb(true)
+              else {
+                total = answer.total
+                seq += limit
+                cb(null, !meta.pageSize ? answer.results[0] : answer.results)
+              }
             }
-          }
-        )
+          )
+        }
       }
     }
 
@@ -467,6 +478,7 @@ module.exports = {
   offsets,
 
   descending,
+  count,
   startFrom,
   paginate,
   toCallback,

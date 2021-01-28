@@ -1010,6 +1010,11 @@ module.exports = function (log, indexesPath) {
     )
   }
 
+  function countBitsetSlice(bitset, seq, descending) {
+    if (!seq) return bitset.size()
+    else return sortedByTimestamp(bitset, descending).slice(seq).length
+  }
+
   function paginate(operation, seq, limit, descending, onlyOffset, cb) {
     onReady(() => {
       executeOperation(operation, (bitset) => {
@@ -1058,6 +1063,23 @@ module.exports = function (log, indexesPath) {
             }
           }
         )
+      })
+    })
+  }
+
+  function count(operation, seq, descending, cb) {
+    onReady(() => {
+      const start = Date.now()
+      executeOperation(operation, (bitset) => {
+        const total = countBitsetSlice(bitset, seq, descending)
+        const duration = Date.now() - start
+        debugQuery.enabled &&
+          debugQuery(
+            `count(${getNameFromOperation(
+              operation
+            )}): ${duration}ms, total messages: ${total}`
+          )
+        cb(null, total)
       })
     })
   }
@@ -1133,6 +1155,7 @@ module.exports = function (log, indexesPath) {
     onReady,
     paginate,
     all,
+    count,
     live,
     status: status.obv,
 

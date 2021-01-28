@@ -343,6 +343,7 @@ const {
   liveSeqs,
   seqs,
   offsets,
+  count,
   paginate,
   startFrom,
   descending,
@@ -466,8 +467,12 @@ makes sense.
 
 ### all(operation, seq, descending, onlyOffset, cb)
 
-Similar to paginate except there is no `limit` argument and the result
+Similar to `paginate` except there is no `limit` argument and the result
 will be the messages directly.
+
+### count(operation, seq, descending, cb)
+
+Similar to `all` except it does not fetch records from the log, it only responds with a number that tells the total amount of records matching the operation.
 
 ### live(operation, cb)
 
