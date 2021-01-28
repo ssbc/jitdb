@@ -53,7 +53,7 @@ function query(...cbs) {
 function debug() {
   return (ops) => {
     const meta = JSON.stringify(ops.meta, (key, val) =>
-      key === 'db' ? void 0 : val
+      key === 'jitdb' ? void 0 : val
     )
     console.log(
       'debug',
@@ -307,9 +307,9 @@ function or(...args) {
 //#endregion
 //#region "Special operators": they only update meta
 
-function fromDB(db) {
+function fromDB(jitdb) {
   return {
-    meta: { db },
+    meta: { jitdb },
   }
 }
 
@@ -343,7 +343,7 @@ async function executeDeferredOps(ops, meta) {
   traverse.forEach(ops, function (val) {
     if (!val) return
     // this.block() means don't traverse inside these, they won't have DEFERRED
-    if (this.key === 'meta' && val.db) return this.block()
+    if (this.key === 'meta' && val.jitdb) return this.block()
     if (val.type === 'DEFERRED' && val.task) allDeferred.push([this.path, val])
     if (!(Array.isArray(val) || val.type === 'AND' || val.type === 'OR')) {
       this.block()
@@ -374,10 +374,11 @@ function toCallback(cb) {
     executeDeferredOps(rawOps, meta)
       .then((ops) => {
         const seq = meta.seq || 0
-        if (meta.count) meta.db.count(ops, seq, meta.descending, cb)
-        else if (meta.pageSize)
-          meta.db.paginate(ops, seq, meta.pageSize, meta.descending, false, cb)
-        else meta.db.all(ops, seq, meta.descending, false, cb)
+        const limit = meta.pageSize
+        if (meta.count) meta.jitdb.count(ops, seq, meta.descending, cb)
+        else if (limit)
+          meta.jitdb.paginate(ops, seq, limit, meta.descending, false, cb)
+        else meta.jitdb.all(ops, seq, meta.descending, false, cb)
       })
       .catch((err) => {
         cb(err)
@@ -405,9 +406,9 @@ function toPullStream() {
         if (seq >= total || shouldEnd) return cb(true)
         if (meta.count) {
           shouldEnd = true
-          meta.db.count(ops, seq, meta.descending, cb)
+          meta.jitdb.count(ops, seq, meta.descending, cb)
         } else {
-          meta.db.paginate(
+          meta.jitdb.paginate(
             ops,
             seq,
             limit,
@@ -435,9 +436,9 @@ function toPullStream() {
         )
       }),
       pull.map((ops) => {
-        if (meta.live === 'liveOnly') return meta.db.live(ops)
+        if (meta.live === 'liveOnly') return meta.jitdb.live(ops)
         else if (meta.live === 'liveAndOld')
-          return cat([paginateStream(ops), meta.db.live(ops)])
+          return cat([paginateStream(ops), meta.jitdb.live(ops)])
         else return paginateStream(ops)
       }),
       pull.flatten()
