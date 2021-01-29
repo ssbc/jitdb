@@ -1027,11 +1027,11 @@ module.exports = function (log, indexesPath) {
             if (err) cb(err)
             else {
               answer.duration = Date.now() - start
-              debugQuery.enabled &&
+              if (debugQuery.enabled)
                 debugQuery(
                   `paginate(${getNameFromOperation(operation)}): ${
                     answer.duration
-                  }ms, total messages: ${answer.total}`
+                  }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
                 )
               cb(err, answer)
             }
@@ -1055,11 +1055,11 @@ module.exports = function (log, indexesPath) {
             if (err) cb(err)
             else {
               answer.duration = Date.now() - start
-              debugQuery.enabled &&
+              if (debugQuery.enabled)
                 debugQuery(
                   `all(${getNameFromOperation(operation)}): ${
                     answer.duration
-                  }ms, total messages: ${answer.total}`
+                  }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
                 )
               cb(err, answer.results)
             }
@@ -1075,11 +1075,11 @@ module.exports = function (log, indexesPath) {
       executeOperation(operation, (bitset) => {
         const total = countBitsetSlice(bitset, seq, descending)
         const duration = Date.now() - start
-        debugQuery.enabled &&
+        if (debugQuery.enabled)
           debugQuery(
             `count(${getNameFromOperation(
               operation
-            )}): ${duration}ms, total messages: ${total}`
+            )}): ${duration}ms, total messages: ${total}`.replace(/%/g, '%% ')
           )
         cb(null, total)
       })
