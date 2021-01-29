@@ -1157,6 +1157,12 @@ module.exports = function (log, indexesPath) {
       }),
       pull.flatten(),
       pull.filter((record) => isValueOk([op], record.value)),
+      pull.through(() => {
+        if (debugQuery.enabled)
+          debugQuery(
+            `live(${getNameFromOperation(op)}): 1 new msg`.replace(/%/g, '%% ')
+          )
+      }),
       pull.map((record) => bipf.decode(record.value, 0))
     )
   }
