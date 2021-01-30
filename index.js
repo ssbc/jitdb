@@ -612,7 +612,20 @@ module.exports = function (log, indexesPath) {
     })
   }
 
+  // concurrent index load
+  const waitingIndexLoad = new Map()
+
+  function runWaitingIndexLoadCbs(indexName) {
+    waitingIndexLoad.get(indexName).forEach((cb) => cb())
+    waitingIndexLoad.delete(indexName)
+  }
+
   function loadLazyIndex(indexName, cb) {
+    if (waitingIndexLoad.has(indexName)) {
+      waitingIndexLoad.get(indexName).push(cb)
+      return // wait for other index load
+    } else waitingIndexLoad.set(indexName, [])
+
     debug('lazy loading %s', indexName)
     let index = indexes[indexName]
     if (index.prefix && index.map) {
@@ -624,6 +637,9 @@ module.exports = function (log, indexesPath) {
         index.count = count
         index.map = map
         index.lazy = false
+
+        runWaitingIndexLoadCbs(indexName)
+
         cb()
       })
     } else if (index.prefix) {
@@ -635,6 +651,9 @@ module.exports = function (log, indexesPath) {
         index.count = count
         index.tarr = tarr
         index.lazy = false
+
+        runWaitingIndexLoadCbs(indexName)
+
         cb()
       })
     } else {
@@ -645,6 +664,9 @@ module.exports = function (log, indexesPath) {
         index.offset = offset
         index.bitset = bitset
         index.lazy = false
+
+        runWaitingIndexLoadCbs(indexName)
+
         cb()
       })
     }
