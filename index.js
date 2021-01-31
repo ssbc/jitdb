@@ -381,6 +381,19 @@ module.exports = function (log, indexesPath) {
     newIndexes[indexName].bitset.add(seq)
   }
 
+  // concurrent index helpers
+  function onlyOneIndexAtATime(waitingMap, indexName, cb) {
+    if (waitingMap.has(indexName)) {
+      waitingMap.get(indexName).push(cb)
+      return true // wait for other index update
+    } else waitingMap.set(indexName, [])
+  }
+
+  function runWaitingIndexLoadCbs(waitingMap, indexName) {
+    waitingMap.get(indexName).forEach((cb) => cb())
+    waitingMap.delete(indexName)
+  }
+
   // concurrent index update
   const waitingIndexUpdate = new Map()
 
@@ -395,10 +408,7 @@ module.exports = function (log, indexesPath) {
     ]
 
     const waitingKey = op.data.indexName
-    if (waitingIndexUpdate.has(waitingKey)) {
-      waitingIndexUpdate.get(waitingKey).push(cb)
-      return // wait for other index update
-    } else waitingIndexUpdate.set(waitingKey, [])
+    if (onlyOneIndexAtATime(waitingIndexUpdate, waitingKey, cb)) return
 
     // find the next possible seq
     let seq = 0
@@ -479,8 +489,7 @@ module.exports = function (log, indexesPath) {
 
         status.batchUpdate(indexes, indexNamesForStatus)
 
-        waitingIndexUpdate.get(waitingKey).forEach((cb) => cb())
-        waitingIndexUpdate.delete(waitingKey)
+        runWaitingIndexLoadCbs(waitingIndexUpdate, waitingKey)
 
         cb()
       },
@@ -497,10 +506,7 @@ module.exports = function (log, indexesPath) {
     const newIndexNames = opsMissingIndexes.map((op) => op.data.indexName)
 
     const waitingKey = newIndexNames.join('|')
-    if (waitingIndexCreate.has(waitingKey)) {
-      waitingIndexCreate.get(waitingKey).push(cb)
-      return // wait for other index update
-    } else waitingIndexCreate.set(waitingKey, [])
+    if (onlyOneIndexAtATime(waitingIndexCreate, waitingKey, cb)) return
 
     opsMissingIndexes.forEach((op) => {
       if (op.data.prefix && op.data.useMap) {
@@ -604,8 +610,7 @@ module.exports = function (log, indexesPath) {
         status.batchUpdate(indexes, coreIndexNames)
         status.batchUpdate(newIndexes, newIndexNames)
 
-        waitingIndexCreate.get(waitingKey).forEach((cb) => cb())
-        waitingIndexCreate.delete(waitingKey)
+        runWaitingIndexLoadCbs(waitingIndexCreate, waitingKey)
 
         cb()
       },
@@ -615,16 +620,8 @@ module.exports = function (log, indexesPath) {
   // concurrent index load
   const waitingIndexLoad = new Map()
 
-  function runWaitingIndexLoadCbs(indexName) {
-    waitingIndexLoad.get(indexName).forEach((cb) => cb())
-    waitingIndexLoad.delete(indexName)
-  }
-
   function loadLazyIndex(indexName, cb) {
-    if (waitingIndexLoad.has(indexName)) {
-      waitingIndexLoad.get(indexName).push(cb)
-      return // wait for other index load
-    } else waitingIndexLoad.set(indexName, [])
+    if (onlyOneIndexAtATime(waitingIndexLoad, indexName, cb)) return
 
     debug('lazy loading %s', indexName)
     let index = indexes[indexName]
@@ -638,7 +635,7 @@ module.exports = function (log, indexesPath) {
         index.map = map
         index.lazy = false
 
-        runWaitingIndexLoadCbs(indexName)
+        runWaitingIndexLoadCbs(waitingIndexLoad, indexName)
 
         cb()
       })
@@ -652,7 +649,7 @@ module.exports = function (log, indexesPath) {
         index.tarr = tarr
         index.lazy = false
 
-        runWaitingIndexLoadCbs(indexName)
+        runWaitingIndexLoadCbs(waitingIndexLoad, indexName)
 
         cb()
       })
@@ -665,7 +662,7 @@ module.exports = function (log, indexesPath) {
         index.bitset = bitset
         index.lazy = false
 
-        runWaitingIndexLoadCbs(indexName)
+        runWaitingIndexLoadCbs(waitingIndexLoad, indexName)
 
         cb()
       })
