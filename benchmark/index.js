@@ -8,6 +8,7 @@ const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const multicb = require('multicb')
 const ssbKeys = require('ssb-keys')
+const TypedFastBitSet = require('typedfastbitset')
 const JITDB = require('../index')
 const {
   query,
@@ -211,6 +212,7 @@ test('query three indexes (first run)', (t) => {
 test('query three indexes (second run)', (t) => {
   const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
   const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
+
   db.onReady(() => {
     const start = Date.now()
     query(
@@ -233,6 +235,60 @@ test('query three indexes (second run)', (t) => {
         t.end()
       })
     )
+  })
+})
+
+test('load two indexes concurrently', (t) => {
+  const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
+  const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
+
+  db.onReady(() => {
+    const done = multicb({ pluck: 1 })
+    const start = Date.now()
+
+    db.indexes['type_about'] = {
+      offset: 0,
+      bitset: new TypedFastBitSet(),
+      lazy: true,
+      filepath: path.join(indexesDir, 'type_about.index'),
+    }
+    db.indexes['type_contact'] = {
+      offset: 0,
+      bitset: new TypedFastBitSet(),
+      lazy: true,
+      filepath: path.join(indexesDir, 'type_contact.index'),
+    }
+
+    query(
+      fromDB(db),
+      or(
+        and(equal(seekType, 'contact', { indexType: 'type' })),
+        and(equal(seekAuthor, alice.id, { indexType: 'author', prefix: 32 })),
+        and(equal(seekAuthor, bob.id, { indexType: 'author', prefix: 32 }))
+      ),
+      toCallback(done())
+    )
+
+    query(
+      fromDB(db),
+      or(
+        and(equal(seekType, 'contact', { indexType: 'type' })),
+        and(equal(seekAuthor, alice.id, { indexType: 'author', prefix: 32 })),
+        and(equal(seekAuthor, bob.id, { indexType: 'author', prefix: 32 }))
+      ),
+      toCallback(done())
+    )
+
+    done((err) => {
+      if (err) t.fail(err)
+      const duration = Date.now() - start
+      t.pass(`duration: ${duration}ms`)
+      fs.appendFileSync(
+        reportPath,
+        `| Load two indexes concurrently | ${duration}ms |\n`
+      )
+      t.end()
+    })
   })
 })
 
