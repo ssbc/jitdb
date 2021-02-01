@@ -246,12 +246,6 @@ test('load two indexes concurrently', (t) => {
     const done = multicb({ pluck: 1 })
     const start = Date.now()
 
-    db.indexes['type_about'] = {
-      offset: 0,
-      bitset: new TypedFastBitSet(),
-      lazy: true,
-      filepath: path.join(indexesDir, 'type_about.index'),
-    }
     db.indexes['type_contact'] = {
       offset: 0,
       bitset: new TypedFastBitSet(),
