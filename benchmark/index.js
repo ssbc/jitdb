@@ -190,8 +190,20 @@ test('query three indexes (first run)', (t) => {
       fromDB(db),
       or(
         and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(equal(seekAuthor, alice.id, { indexType: 'author', prefix: 32 })),
-        and(equal(seekAuthor, bob.id, { indexType: 'author', prefix: 32 }))
+        and(
+          equal(seekAuthor, alice.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        ),
+        and(
+          equal(seekAuthor, bob.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        )
       ),
       toCallback((err, msgs) => {
         if (err) t.fail(err)
@@ -219,8 +231,20 @@ test('query three indexes (second run)', (t) => {
       fromDB(db),
       or(
         and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(equal(seekAuthor, alice.id, { indexType: 'author', prefix: 32 })),
-        and(equal(seekAuthor, bob.id, { indexType: 'author', prefix: 32 }))
+        and(
+          equal(seekAuthor, alice.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        ),
+        and(
+          equal(seekAuthor, bob.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        )
       ),
       toCallback((err, msgs) => {
         if (err) t.fail(err)
@@ -257,8 +281,20 @@ test('load two indexes concurrently', (t) => {
       fromDB(db),
       or(
         and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(equal(seekAuthor, alice.id, { indexType: 'author', prefix: 32 })),
-        and(equal(seekAuthor, bob.id, { indexType: 'author', prefix: 32 }))
+        and(
+          equal(seekAuthor, alice.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        ),
+        and(
+          equal(seekAuthor, bob.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        )
       ),
       toCallback(done())
     )
@@ -267,8 +303,20 @@ test('load two indexes concurrently', (t) => {
       fromDB(db),
       or(
         and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(equal(seekAuthor, alice.id, { indexType: 'author', prefix: 32 })),
-        and(equal(seekAuthor, bob.id, { indexType: 'author', prefix: 32 }))
+        and(
+          equal(seekAuthor, alice.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        ),
+        and(
+          equal(seekAuthor, bob.id, {
+            indexType: 'author',
+            prefix: 32,
+            prefixOffset: 1,
+          })
+        )
       ),
       toCallback(done())
     )
@@ -338,6 +386,7 @@ test('query a prefix map (first run)', (t) => {
                   indexType: 'value_content_vote_link',
                   useMap: true,
                   prefix: 32,
+                  prefixOffset: 1,
                 })
               ),
               paginate(5),
@@ -386,6 +435,7 @@ test('query a prefix map (second run)', (t) => {
                   indexType: 'value_content_vote_link',
                   useMap: true,
                   prefix: 32,
+                  prefixOffset: 1,
                 })
               ),
               paginate(5),
