@@ -411,3 +411,31 @@ prepareAndRunTest('Prefix offset', dir, (t, db, raf) => {
     })
   })
 })
+
+prepareAndRunTest('Prefix offset 1 on empty', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', root: '', text: 'Testing!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    const typeQuery = {
+      type: 'EQUAL',
+      data: {
+        seek: helpers.seekRoot,
+        value: Buffer.from('test'),
+        indexType: 'root',
+        indexName: 'value_content_root',
+        useMap: true,
+        prefix: 32,
+        prefixOffset: 1,
+      },
+    }
+
+    db.all(typeQuery, 0, false, false, (err, results) => {
+      t.equal(results.length, 1)
+      t.equal(results[0].value.content.text, 'Testing 2!')
+      t.end()
+    })
+  })
+})
