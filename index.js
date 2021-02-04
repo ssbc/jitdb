@@ -312,9 +312,10 @@ module.exports = function (log, indexesPath) {
     if (buf.length < 4) {
       const bigger = Buffer.alloc(4)
       buf.copy(bigger)
-      return bigger.readUInt32LE(prefixOffset)
+      return bigger.readUInt32LE(0)
     } else {
-      return buf.readUInt32LE(prefixOffset)
+      if (buf.length === 4) return buf.readUInt32LE(0)
+      else return buf.readUInt32LE(prefixOffset)
     }
   }
 

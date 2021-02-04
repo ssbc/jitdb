@@ -413,7 +413,7 @@ prepareAndRunTest('Prefix offset', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('Prefix offset 1 on empty', dir, (t, db, raf) => {
-  const msg1 = { type: 'post', root: '', text: 'Testing!' }
+  const msg1 = { type: 'post', root: 'test', text: 'Testing!' }
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
@@ -434,7 +434,7 @@ prepareAndRunTest('Prefix offset 1 on empty', dir, (t, db, raf) => {
 
     db.all(typeQuery, 0, false, false, (err, results) => {
       t.equal(results.length, 1)
-      t.equal(results[0].value.content.text, 'Testing 2!')
+      t.equal(results[0].value.content.text, 'Testing!')
       t.end()
     })
   })
