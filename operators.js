@@ -105,6 +105,7 @@ function slowEqual(seekDesc, target, opts) {
       useMap: opts.useMap,
       indexAll: opts.indexAll,
       prefix: opts.prefix,
+      prefixOffset: opts.prefixOffset,
     },
   }
 }
@@ -127,6 +128,7 @@ function equal(seek, target, opts) {
       useMap: opts.useMap,
       indexAll: opts.indexAll,
       prefix: opts.prefix,
+      prefixOffset: opts.prefixOffset,
     },
   }
 }
