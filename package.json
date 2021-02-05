@@ -2,10 +2,10 @@
   "name": "jitdb",
   "description": "A database on top of a flumelog with automatic index generation and maintenance",
   "version": "2.0.5",
-  "homepage": "https://github.com/arj03/jitdb",
+  "homepage": "https://github.com/ssb-ngi-pointer/jitdb",
   "repository": {
     "type": "git",
-    "url": "git://github.com/arj03/jitdb.git"
+    "url": "git://github.com/ssb-ngi-pointer/jitdb.git"
   },
   "dependencies": {
     "atomically-universal": "^0.1.0",
