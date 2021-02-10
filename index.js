@@ -427,12 +427,16 @@ module.exports = function (log, indexesPath) {
     let updatedSeqIndex = false
     let updatedTimestampIndex = false
     let updatedSequenceIndex = false
+    const startSeq = seq
     const start = Date.now()
 
     const indexNeedsUpdate =
       op.data.indexName !== 'sequence' &&
       op.data.indexName !== 'timestamp' &&
       op.data.indexName !== 'seq'
+
+    const logstreamId = Math.ceil(Math.random() * 1000)
+    debug(`log.stream #${logstreamId} started, to update index ${waitingKey}`)
 
     log.stream({ gt: index.offset }).pipe({
       paused: false,
@@ -470,7 +474,11 @@ module.exports = function (log, indexesPath) {
       },
       end: () => {
         const count = seq // incremented at end
-        debug(`time: ${Date.now() - start}ms, total items: ${count}`)
+        debug(
+          `log.stream #${logstreamId} done ${seq - startSeq} records in ${
+            Date.now() - start
+          }ms`
+        )
 
         if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
 
@@ -539,6 +547,9 @@ module.exports = function (log, indexesPath) {
     let updatedSequenceIndex = false
     const start = Date.now()
 
+    const logstreamId = Math.ceil(Math.random() * 1000)
+    debug(`log.stream #${logstreamId} started, to create indexes ${waitingKey}`)
+
     log.stream({}).pipe({
       paused: false,
       write: function (record) {
@@ -590,7 +601,11 @@ module.exports = function (log, indexesPath) {
       },
       end: () => {
         const count = seq // incremented at end
-        debug(`time: ${Date.now() - start}ms, total items: ${count}`)
+        debug(
+          `log.stream #${logstreamId} done ${count} records in ${
+            Date.now() - start
+          }ms`
+        )
 
         if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
 
@@ -1173,6 +1188,8 @@ module.exports = function (log, indexesPath) {
             offset === -1
               ? { live: true, gt: indexes['seq'].offset }
               : { live: true, gt: offset }
+          const logstreamId = Math.ceil(Math.random() * 1000)
+          debug(`log.stream #${logstreamId} started, for a live query`)
           recordStream = toPull(log.stream(opts))
         }
 
