@@ -1058,7 +1058,9 @@ module.exports = function (log, indexesPath) {
               answer.duration = Date.now() - start
               if (debugQuery.enabled)
                 debugQuery(
-                  `paginate(${getNameFromOperation(operation)}): ${
+                  `paginate(${getNameFromOperation(
+                    operation
+                  )}), seq: ${seq}, limit: ${limit}: ${
                     answer.duration
                   }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
                 )
