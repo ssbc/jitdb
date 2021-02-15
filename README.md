@@ -347,6 +347,7 @@ const {
   paginate,
   startFrom,
   descending,
+  asOffsets,
   debug,
   toCallback,
   toPullStream,

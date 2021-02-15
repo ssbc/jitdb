@@ -29,6 +29,7 @@ const {
   live,
   count,
   descending,
+  asOffsets,
   toCallback,
   toPromise,
   toPullStream,
@@ -931,6 +932,29 @@ prepareAndRunTest('chainless-or inside deferred', dir, (t, db, raf) => {
           t.equal(msgs.length, 1, 'toCallback got one message')
           t.equal(msgs[0].value.author, alice.id)
           t.equal(msgs[0].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
+prepareAndRunTest('asOffsets', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        asOffsets(),
+        toCallback((err, offsets) => {
+          t.error(err, 'toCallback got no error')
+          t.equal(offsets.length, 2, 'toCallback got two message')
+          t.equal(offsets[0], 0)
+          t.equal(offsets[1], 352)
           t.end()
         })
       )

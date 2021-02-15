@@ -336,6 +336,10 @@ function paginate(pageSize) {
   return (ops) => updateMeta(ops, 'pageSize', pageSize)
 }
 
+function asOffsets() {
+  return (ops) => updateMeta(ops, 'asOffsets', true)
+}
+
 //#endregion
 //#region "Consumer operators": they execute the query tree
 
@@ -380,11 +384,11 @@ function toCallback(cb) {
     executeDeferredOps(rawOps, meta)
       .then((ops) => {
         const seq = meta.seq || 0
-        const limit = meta.pageSize
-        if (meta.count) meta.jitdb.count(ops, seq, meta.descending, cb)
-        else if (limit)
-          meta.jitdb.paginate(ops, seq, limit, meta.descending, false, cb)
-        else meta.jitdb.all(ops, seq, meta.descending, false, cb)
+        const { pageSize, descending, asOffsets } = meta
+        if (meta.count) meta.jitdb.count(ops, seq, descending, cb)
+        else if (pageSize)
+          meta.jitdb.paginate(ops, seq, pageSize, descending, asOffsets, cb)
+        else meta.jitdb.all(ops, seq, descending, asOffsets, cb)
       })
       .catch((err) => {
         cb(err)
@@ -419,7 +423,7 @@ function toPullStream() {
             seq,
             limit,
             meta.descending,
-            false,
+            meta.asOffsets,
             (err, answer) => {
               if (err) return cb(err)
               else if (answer.total === 0) cb(true)
@@ -488,6 +492,7 @@ module.exports = {
   count,
   startFrom,
   paginate,
+  asOffsets,
   toCallback,
   toPullStream,
   toPromise,
