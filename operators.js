@@ -356,7 +356,11 @@ async function executeDeferredOps(ops, meta) {
   // Execute all deferred tasks and collect the results (and the paths)
   const allResults = await Promise.all(
     allDeferred.map(([path, obj]) =>
-      promisify(obj.task)(meta).then((result) => [path, result || {}])
+      promisify(obj.task)(meta).then((result) => {
+        if (!result) return [path, {}]
+        else if (typeof result === 'function') return [path, result()]
+        else return [path, result]
+      })
     )
   )
 
