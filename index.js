@@ -1066,7 +1066,7 @@ module.exports = function (log, indexesPath) {
 
   function countBitsetSlice(bitset, seq, descending) {
     if (!seq) return bitset.size()
-    else return
+    else return bitset.size() - seq
   }
 
   function paginate(operation, seq, limit, descending, onlyOffset, cb) {
