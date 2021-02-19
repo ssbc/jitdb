@@ -614,6 +614,29 @@ prepareAndRunTest('count operator toCallback', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('count with seq operator toCallback', dir, (t, db, raf) => {
+  const msg = { type: 'food', text: 'Lunch' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        and(slowEqual('value.content.type', 'food')),
+        startFrom(1),
+        count(),
+        toCallback((err, total) => {
+          t.error(err, 'no error')
+          t.equal(total, 1)
+          t.end()
+        })
+      )
+    })
+  })
+})
+
 prepareAndRunTest('count operator toPullStream', dir, (t, db, raf) => {
   const msg = { type: 'drink', text: 'Juice' }
   let state = validate.initial()
@@ -631,7 +654,6 @@ prepareAndRunTest('count operator toPullStream', dir, (t, db, raf) => {
         ),
         pull.collect((err, results) => {
           t.error(err, 'no error')
-          console.log(results)
           t.equal(results.length, 1)
           t.equal(results[0], 2)
           t.end()
