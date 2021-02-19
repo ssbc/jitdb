@@ -709,10 +709,12 @@ prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
   const msg2 = { type: 'post', text: '2nd' }
   const msg3 = { type: 'post', text: '3rd' }
 
+  const start = Date.now()
+
   let state = validate.initial()
-  state = validate.appendNew(state, null, keys, msg1, Date.now() + 3000)
-  state = validate.appendNew(state, null, keys, msg2, Date.now() + 2000)
-  state = validate.appendNew(state, null, keys, msg3, Date.now() + 1000)
+  state = validate.appendNew(state, null, keys, msg1, start + 3000)
+  state = validate.appendNew(state, null, keys, msg2, start + 2000)
+  state = validate.appendNew(state, null, keys, msg3, start + 1000)
 
   const authorQuery = {
     type: 'EQUAL',
