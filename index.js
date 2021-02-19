@@ -429,11 +429,31 @@ module.exports = function (log, indexesPath) {
     let updatedSequenceIndex = false
     const startSeq = seq
     const start = Date.now()
+    let lastSaved = start
 
     const indexNeedsUpdate =
       op.data.indexName !== 'sequence' &&
       op.data.indexName !== 'timestamp' &&
       op.data.indexName !== 'seq'
+
+    function save(count, offset) {
+      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
+
+      if (updatedTimestampIndex)
+        saveCoreIndex('timestamp', indexes['timestamp'], count)
+
+      if (updatedSequenceIndex)
+        saveCoreIndex('sequence', indexes['sequence'], count)
+
+      index.offset = offset
+
+      if (indexNeedsUpdate) {
+        if (index.prefix && index.map)
+          savePrefixMapIndex(op.data.indexName, index, count)
+        else if (index.prefix) savePrefixIndex(op.data.indexName, index, count)
+        else saveIndex(op.data.indexName, index)
+      }
+    }
 
     const logstreamId = Math.ceil(Math.random() * 1000)
     debug(`log.stream #${logstreamId} started, to update index ${waitingKey}`)
@@ -468,6 +488,11 @@ module.exports = function (log, indexesPath) {
 
         if (seq % 1000 === 0) {
           status.batchUpdate(indexes, indexNamesForStatus)
+          const now = Date.now()
+          if (now - lastSaved >= 60e3) {
+            lastSaved = now
+            save(seq, offset)
+          }
         }
 
         seq++
@@ -480,22 +505,7 @@ module.exports = function (log, indexesPath) {
           }ms`
         )
 
-        if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
-
-        if (updatedTimestampIndex)
-          saveCoreIndex('timestamp', indexes['timestamp'], count)
-
-        if (updatedSequenceIndex)
-          saveCoreIndex('sequence', indexes['sequence'], count)
-
-        index.offset = indexes['seq'].offset
-        if (indexNeedsUpdate) {
-          if (index.prefix && index.map)
-            savePrefixMapIndex(op.data.indexName, index, count)
-          else if (index.prefix)
-            savePrefixIndex(op.data.indexName, index, count)
-          else saveIndex(op.data.indexName, index)
-        }
+        save(count, indexes['seq'].offset)
 
         status.batchUpdate(indexes, indexNamesForStatus)
 
@@ -546,6 +556,27 @@ module.exports = function (log, indexesPath) {
     let updatedTimestampIndex = false
     let updatedSequenceIndex = false
     const start = Date.now()
+    let lastSaved = start
+
+    function save(count, offset, done) {
+      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
+
+      if (updatedTimestampIndex)
+        saveCoreIndex('timestamp', indexes['timestamp'], count)
+
+      if (updatedSequenceIndex)
+        saveCoreIndex('sequence', indexes['sequence'], count)
+
+      for (var indexName in newIndexes) {
+        const index = newIndexes[indexName]
+        if (done) indexes[indexName] = index
+        index.offset = offset
+        if (index.prefix && index.map)
+          savePrefixMapIndex(indexName, index, count)
+        else if (index.prefix) savePrefixIndex(indexName, index, count)
+        else saveIndex(indexName, index)
+      }
+    }
 
     const logstreamId = Math.ceil(Math.random() * 1000)
     debug(`log.stream #${logstreamId} started, to create indexes ${waitingKey}`)
@@ -595,6 +626,11 @@ module.exports = function (log, indexesPath) {
         if (seq % 1000 === 0) {
           status.batchUpdate(indexes, coreIndexNames)
           status.batchUpdate(newIndexes, newIndexNames)
+          const now = Date.now()
+          if (now - lastSaved >= 60e3) {
+            lastSaved = now
+            save(seq, offset, false)
+          }
         }
 
         seq++
@@ -607,22 +643,7 @@ module.exports = function (log, indexesPath) {
           }ms`
         )
 
-        if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
-
-        if (updatedTimestampIndex)
-          saveCoreIndex('timestamp', indexes['timestamp'], count)
-
-        if (updatedSequenceIndex)
-          saveCoreIndex('sequence', indexes['sequence'], count)
-
-        for (var indexName in newIndexes) {
-          const index = (indexes[indexName] = newIndexes[indexName])
-          index.offset = indexes['seq'].offset
-          if (index.prefix && index.map)
-            savePrefixMapIndex(indexName, index, count)
-          else if (index.prefix) savePrefixIndex(indexName, index, count)
-          else saveIndex(indexName, index)
-        }
+        save(count, indexes['seq'].offset, true)
 
         status.batchUpdate(indexes, coreIndexNames)
         status.batchUpdate(newIndexes, newIndexNames)
