@@ -1012,8 +1012,7 @@ module.exports = function (log, indexesPath) {
   function sortedByTimestamp(bitset, descending) {
     updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
-    if (sortedCache[order].has(bitset))
-      return sortedCache[order].get(bitset).clone()
+    if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
     const fpq = new FastPriorityQueue(
       descending ? compareDescending : compareAscending
     )
@@ -1023,7 +1022,8 @@ module.exports = function (log, indexesPath) {
         timestamp: indexes['timestamp'].tarr[seq],
       })
     })
-    sortedCache[order].set(bitset, fpq.clone())
+    fpq.trim()
+    sortedCache[order].set(bitset, fpq)
     return fpq
   }
 
@@ -1037,15 +1037,18 @@ module.exports = function (log, indexesPath) {
   ) {
     seq = seq || 0
 
-    const sorted = sortedByTimestamp(bitset, descending)
+    let sorted = sortedByTimestamp(bitset, descending)
     const resultSize = sorted.size
 
-    const sliced = []
-    for (var i = 0; i < seq; ++i) sorted.poll()
-
-    while (!sorted.isEmpty()) {
-      sliced.push(sorted.poll())
-      if (limit !== null && sliced.length == limit) break
+    let sliced
+    if (seq === 0 && limit === 1) {
+      sliced = [sorted.peek()]
+    } else {
+      if (seq > 0) {
+        sorted = sorted.clone()
+        sorted.removeMany(() => true, seq)
+      }
+      sliced = sorted.kSmallest(limit || Infinity)
     }
 
     push(
