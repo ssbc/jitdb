@@ -1,7 +1,7 @@
 {
   "name": "jitdb",
   "description": "A database on top of a flumelog with automatic index generation and maintenance",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "homepage": "https://github.com/ssb-ngi-pointer/jitdb",
   "repository": {
     "type": "git",
