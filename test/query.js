@@ -709,10 +709,12 @@ prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
   const msg2 = { type: 'post', text: '2nd' }
   const msg3 = { type: 'post', text: '3rd' }
 
+  const start = Date.now()
+
   let state = validate.initial()
-  state = validate.appendNew(state, null, keys, msg1, Date.now() + 3000)
-  state = validate.appendNew(state, null, keys, msg2, Date.now() + 2000)
-  state = validate.appendNew(state, null, keys, msg3, Date.now() + 1000)
+  state = validate.appendNew(state, null, keys, msg1, start + 3000)
+  state = validate.appendNew(state, null, keys, msg2, start + 2000)
+  state = validate.appendNew(state, null, keys, msg3, start + 1000)
 
   const authorQuery = {
     type: 'EQUAL',
@@ -724,17 +726,20 @@ prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
     },
   }
 
-  addMsg(state.queue[0].value, raf, (err, m1) => {
-    addMsg(state.queue[1].value, raf, (err, m2) => {
-      addMsg(state.queue[2].value, raf, (err, m3) => {
-        db.all(authorQuery, 0, false, false, (err, results) => {
-          t.equal(results.length, 3)
-          t.equal(results[0].value.content.text, '1st', '1st ok')
-          t.equal(results[1].value.content.text, '2nd', '2nd ok')
-          t.equal(results[2].value.content.text, '3rd', '3rd ok')
-          t.end()
+  // we need to wait for the declared timestamps to win over arrival
+  setTimeout(() => {
+    addMsg(state.queue[0].value, raf, (err, m1) => {
+      addMsg(state.queue[1].value, raf, (err, m2) => {
+        addMsg(state.queue[2].value, raf, (err, m3) => {
+          db.all(authorQuery, 0, false, false, (err, results) => {
+            t.equal(results.length, 3)
+            t.equal(results[0].value.content.text, '3rd', '3rd ok')
+            t.equal(results[1].value.content.text, '2nd', '2nd ok')
+            t.equal(results[2].value.content.text, '1st', '1st ok')
+            t.end()
+          })
         })
       })
     })
-  })
+  }, 3000)
 })

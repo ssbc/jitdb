@@ -7,6 +7,7 @@ const pullAsync = require('pull-async')
 const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
 const multicb = require('multicb')
+const FastPriorityQueue = require('fastpriorityqueue')
 const debug = require('debug')('jitdb')
 const debugQuery = debug.extend('query')
 const Status = require('./status')
@@ -1021,22 +1022,30 @@ module.exports = function (log, indexesPath) {
     })
   }
 
+  function compareAscending(a, b) {
+    return b.timestamp > a.timestamp
+  }
+
+  function compareDescending(a, b) {
+    return a.timestamp > b.timestamp
+  }
+
   function sortedByTimestamp(bitset, descending) {
     updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
     if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
-    const timestamped = bitset.array().map((seq) => {
-      return {
+    const fpq = new FastPriorityQueue(
+      descending ? compareDescending : compareAscending
+    )
+    bitset.array().forEach((seq) => {
+      fpq.add({
         seq,
         timestamp: indexes['timestamp'].tarr[seq],
-      }
+      })
     })
-    const sorted = timestamped.sort((a, b) => {
-      if (descending) return b.timestamp - a.timestamp
-      else return a.timestamp - b.timestamp
-    })
-    sortedCache[order].set(bitset, sorted)
-    return sorted
+    fpq.trim()
+    sortedCache[order].set(bitset, fpq)
+    return fpq
   }
 
   function getMessagesFromBitsetSlice(
@@ -1049,13 +1058,19 @@ module.exports = function (log, indexesPath) {
   ) {
     seq = seq || 0
 
-    const sorted = sortedByTimestamp(bitset, descending)
-    const sliced =
-      limit != null
-        ? sorted.slice(seq, seq + limit)
-        : seq > 0
-        ? sorted.slice(seq)
-        : sorted
+    let sorted = sortedByTimestamp(bitset, descending)
+    const resultSize = sorted.size
+
+    let sliced
+    if (seq === 0 && limit === 1) {
+      sliced = [sorted.peek()]
+    } else {
+      if (seq > 0) {
+        sorted = sorted.clone()
+        sorted.removeMany(() => true, seq)
+      }
+      sliced = sorted.kSmallest(limit || Infinity)
+    }
 
     push(
       push.values(sliced),
@@ -1067,7 +1082,7 @@ module.exports = function (log, indexesPath) {
       push.collect((err, results) => {
         cb(err, {
           results: results,
-          total: sorted.length,
+          total: resultSize,
         })
       })
     )
@@ -1075,7 +1090,7 @@ module.exports = function (log, indexesPath) {
 
   function countBitsetSlice(bitset, seq, descending) {
     if (!seq) return bitset.size()
-    else return sortedByTimestamp(bitset, descending).slice(seq).length
+    else return bitset.size() - seq
   }
 
   function paginate(operation, seq, limit, descending, onlyOffset, cb) {

@@ -334,7 +334,10 @@ test('load two indexes concurrently', (t) => {
   })
 })
 
-test('paginate one huge index', (t) => {
+test('paginate big index with small pageSize', (t) => {
+  const TOTAL = 20000
+  const PAGESIZE = 5
+  const NUMPAGES = TOTAL / PAGESIZE
   db.onReady(() => {
     const start = Date.now()
     let i = 0
@@ -342,10 +345,10 @@ test('paginate one huge index', (t) => {
       query(
         fromDB(db),
         and(equal(seekType, 'post', { indexType: 'type' })),
-        paginate(5),
+        paginate(PAGESIZE),
         toPullStream()
       ),
-      pull.take(4000),
+      pull.take(NUMPAGES),
       pull.drain(
         (msgs) => {
           i++
@@ -353,11 +356,46 @@ test('paginate one huge index', (t) => {
         (err) => {
           if (err) t.fail(err)
           const duration = Date.now() - start
-          if (i !== 4000) t.fail('wrong number of pages read: ' + i)
+          if (i !== NUMPAGES) t.fail('wrong number of pages read: ' + i)
           t.pass(`duration: ${duration}ms`)
           fs.appendFileSync(
             reportPath,
-            `| Paginate 1 big index | ${duration}ms |\n`
+            `| Paginate ${TOTAL} msgs with pageSize=${PAGESIZE} | ${duration}ms |\n`
+          )
+          t.end()
+        }
+      )
+    )
+  })
+})
+
+test('paginate big index with big pageSize', (t) => {
+  const TOTAL = 20000
+  const PAGESIZE = 500
+  const NUMPAGES = TOTAL / PAGESIZE
+  db.onReady(() => {
+    const start = Date.now()
+    let i = 0
+    pull(
+      query(
+        fromDB(db),
+        and(equal(seekType, 'post', { indexType: 'type' })),
+        paginate(PAGESIZE),
+        toPullStream()
+      ),
+      pull.take(NUMPAGES),
+      pull.drain(
+        (msgs) => {
+          i++
+        },
+        (err) => {
+          if (err) t.fail(err)
+          const duration = Date.now() - start
+          if (i !== NUMPAGES) t.fail('wrong number of pages read: ' + i)
+          t.pass(`duration: ${duration}ms`)
+          fs.appendFileSync(
+            reportPath,
+            `| Paginate ${TOTAL} msgs with pageSize=${PAGESIZE} | ${duration}ms |\n`
           )
           t.end()
         }
