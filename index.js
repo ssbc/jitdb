@@ -1062,7 +1062,9 @@ module.exports = function (log, indexesPath) {
     const resultSize = sorted.size
 
     let sliced
-    if (seq === 0 && limit === 1) {
+    if (resultSize === 0) {
+      sliced = []
+    } else if (seq === 0 && limit === 1) {
       sliced = [sorted.peek()]
     } else {
       if (seq > 0) {
