@@ -220,6 +220,35 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Paginate empty', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st' }
+  const msg2 = { type: 'post', text: '2nd' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('blog'),
+      indexType: 'type',
+      indexName: 'type_blog',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err1, msg) => {
+    addMsg(state.queue[1].value, raf, (err2, msg) => {
+      db.paginate(typeQuery, 0, 1, false, false, (err3, { results }) => {
+        t.error(err3)
+        t.equal(results.length, 0)
+        t.end()
+      })
+    })
+  })
+})
+
 prepareAndRunTest('Seq', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing!' }
   const msg2 = { type: 'contact', text: 'Testing!' }
