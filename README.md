@@ -1,7 +1,8 @@
 # JITDB
 
 A database on top of a [flumelog] (the recommended being
-[async-flumelog]) with automatic index generation and maintenance.
+[async-append-only-log]) with automatic index generation and
+maintenance.
 
 The motivation for this database is that it should be:
 
@@ -9,7 +10,7 @@ The motivation for this database is that it should be:
 - easy to understand
 - run in the browser and in node
 
-Async flumelog takes care of persistance of the main log. It is
+Async append only log takes care of persistance of the main log. It is
 expected to use [bipf] to encode data. On top of this, JITDB lazily
 creates and maintains indexes based on the way the data is queried.
 Meaning if you search for messages of type `post` an author `x` two
@@ -31,15 +32,16 @@ messages.
 
 ### Setup
 
-Before using JITDB, you have to setup an instance of [async-flumelog]
-located at a certain path. Then you can instantiate JITDB, and it
-requires a **path to the directory where the indexes** will live.
+Before using JITDB, you have to setup an instance of
+[async-append-only-log] located at a certain path. Then you can
+instantiate JITDB, and it requires a **path to the directory where the
+indexes** will live.
 
 ```js
-const FlumeLog = require('async-flumelog')
+const Log = require('async-append-only-log')
 const JITDB = require('jitdb')
 
-const raf = FlumeLog('/home/me/path/to/async-flumelog', {
+const raf = Log('/home/me/path/to/async-log', {
   blockSize: 64 * 1024,
 })
 const db = JITDB(raf, '/home/me/path/to/indexes')
@@ -56,11 +58,11 @@ query the database. You can load these operators from
 `require('jitdb/operators')`.
 
 ```js
-const FlumeLog = require('async-flumelog')
+const Log = require('async-append-only-log')
 const JITDB = require('jitdb')
 const { query, fromDB, and, slowEqual, toCallback } = require('jitdb/operators')
 
-const raf = FlumeLog('/home/me/path/to/async-flumelog', {
+const raf = Log('/home/me/path/to/async-log', {
   blockSize: 64 * 1024,
 })
 const db = JITDB(raf, '/home/me/path/to/indexes')
@@ -489,6 +491,6 @@ one live seqs stream is supported.
 Will call when all existing indexes have been loaded.
 
 [flumelog]: https://github.com/flumedb/
-[async-flumelog]: https://github.com/flumedb/async-flumelog
+[async-append-only-log]: https://github.com/ssb-ngi-pointer/async-append-only-log
 [bipf]: https://github.com/dominictarr/bipf/
 [pull-stream]: https://github.com/pull-stream/pull-stream
