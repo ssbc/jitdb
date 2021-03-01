@@ -955,6 +955,10 @@ module.exports = function (log, indexesPath) {
           op.type === 'SEQS' ||
           op.type === 'LIVESEQS' ||
           op.type === 'OFFSETS' ||
+          op.type === 'LT' ||
+          op.type === 'LTE' ||
+          op.type === 'GT' ||
+          op.type === 'GTE' ||
           !op.type // e.g. query(fromDB, toCallback), or empty deferred()
         );
         else debug('Unknown operator type: ' + op.type)
