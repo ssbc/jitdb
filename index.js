@@ -1062,7 +1062,7 @@ module.exports = function (log, indexesPath) {
     const resultSize = sorted.size
 
     let sliced
-    if (resultSize === 0 || limit < 0) {
+    if (resultSize === 0 || limit <= 0) {
       sliced = []
     } else if (seq === 0 && limit === 1) {
       sliced = [sorted.peek()]
@@ -1132,7 +1132,7 @@ module.exports = function (log, indexesPath) {
         getMessagesFromBitsetSlice(
           bitset,
           seq,
-          null,
+          Infinity,
           descending,
           onlyOffset,
           (err, answer) => {
