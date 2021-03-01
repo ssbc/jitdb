@@ -876,6 +876,8 @@ module.exports = function (log, indexesPath) {
       return `OR(${op1name},${op2name})`
     } else if (op.type === 'NOT') {
       return `NOT(${getNameFromOperation(op.data[0])})`
+    } else {
+      return '*'
     }
   }
 
