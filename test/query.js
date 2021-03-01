@@ -96,6 +96,31 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Limit -1', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing limit -1' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'type_post',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    db.paginate(typeQuery, 0, -1, true, false, (err2, { results }) => {
+      t.error(err2)
+      t.equal(results.length, 0)
+      t.end()
+    })
+  })
+})
+
 prepareAndRunTest('Includes', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: '1st', animals: ['cat', 'dog', 'bird'] }
   const msg2 = { type: 'contact', text: '2nd', animals: ['bird'] }
