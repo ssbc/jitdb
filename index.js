@@ -1043,7 +1043,7 @@ module.exports = function (log, indexesPath) {
     const fpq = new FastPriorityQueue(
       descending ? compareDescending : compareAscending
     )
-    bitset.array().forEach((seq) => {
+    bitset.forEach((seq) => {
       fpq.add({
         seq,
         timestamp: indexes['timestamp'].tarr[seq],
