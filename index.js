@@ -1064,15 +1064,16 @@ module.exports = function (log, indexesPath) {
   ) {
     seq = seq || 0
 
+    const returnTrue = () => true
     let sorted = sortedByTimestamp(bitset, descending)
-    const resultSize = sorted.size
+    const total = sorted.size
     let sliced
-    if (limit < 1 || resultSize < 1) {
+    if (limit < 1 || total < 1) {
       sliced = []
     } else {
       if (seq > 0) {
         sorted = sorted.clone()
-        sorted.removeMany(() => true, seq)
+        sorted.removeMany(returnTrue, seq)
       }
       if (limit < 2) {
         sliced = [sorted.peek()]
@@ -1080,18 +1081,29 @@ module.exports = function (log, indexesPath) {
         sliced = sorted.kSmallest(limit || Infinity)
       }
     }
+    let asyncMapFn
+    let filterFn
+    if (onlyOffset) {
+      const indexTarr = indexes['seq'].tarr
+      asyncMapFn = ({ seq }, cb) => {
+        cb(null, indexTarr[seq])
+      }
+      filterFn = returnTrue
+    } else {
+      asyncMapFn = ({ seq }, cb) => {
+        getMessage(seq, cb)
+      }
+      filterFn = (x) => x
+    }
 
     push(
       push.values(sliced),
-      push.asyncMap(({ seq }, cb) => {
-        if (onlyOffset) cb(null, indexes['seq'].tarr[seq])
-        else getMessage(seq, cb)
-      }),
-      push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
+      push.asyncMap(asyncMapFn),
+      push.filter(filterFn), // removes deleted messages
       push.collect((err, results) => {
         cb(err, {
-          results: results,
-          total: resultSize,
+          results,
+          total,
         })
       })
     )
