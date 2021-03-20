@@ -1086,7 +1086,7 @@ module.exports = function (log, indexesPath) {
         if (onlyOffset) cb(null, indexes['seq'].tarr[seq])
         else getMessage(seq, cb)
       }),
-      push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
+      push.filter((x) => onlyOffset || x), // removes deleted messages
       push.collect((err, results) => {
         cb(err, {
           results: results,
