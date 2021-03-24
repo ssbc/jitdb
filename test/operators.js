@@ -663,6 +663,28 @@ prepareAndRunTest('count operator toPullStream', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('operators - or - top-level', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        and(slowEqual('value.author', alice.id)),
+        or(slowEqual('value.author', bob.id)),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error')
+          t.equal(msgs.length, 0, 'toCallback got no messages')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
 prepareAndRunTest('operators fromDB then toCallback', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()

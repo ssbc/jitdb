@@ -290,18 +290,16 @@ function or(...args) {
       .map((arg) => (typeof arg === 'function' ? arg(ops, true) : arg))
       .filter((arg) => !!arg)
     const res =
-      ops && ops.type && !isSpecialOps
-        ? {
-            type: 'OR',
-            data: [ops, ...rhs],
-          }
-        : rhs.length > 1
+      rhs.length > 1
         ? {
             type: 'OR',
             data: rhs,
           }
         : rhs[0]
     if (ops) copyMeta(ops, res)
+    if (!isSpecialOps) {
+      return and(res)(ops, isSpecialOps)
+    }
     return res
   }
 }
