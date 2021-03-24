@@ -52,6 +52,7 @@ jobs:
           echo ::set-output name=body::$body
       - name: Publish comment
         uses: mshick/add-pr-comment@v1
+        continue-on-error: true
         with:
           message: ${{ steps.get-comment-body.outputs.body }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
