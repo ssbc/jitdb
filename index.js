@@ -1075,7 +1075,9 @@ module.exports = function (log, indexesPath) {
     } else {
       if (seq > 0) {
         sorted = sorted.clone()
-        sorted.removeMany(() => true, seq)
+        for (let j = 0; j < seq && !sorted.isEmpty(); j++) {
+          sorted.poll()
+        }
       }
       sliced = sorted.kSmallest(limit || Infinity)
     }
