@@ -405,7 +405,7 @@ First some terminology: offset refers to the byte position in the log
 of a message. Seq refers to the 0-based position of a message in the
 log.
 
-### paginate(operation, seqs, limit, descending, onlyOffset, cb)
+### paginate(operation, seq, limit, descending, onlyOffset, cb)
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
