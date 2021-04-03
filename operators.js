@@ -44,6 +44,16 @@ function seekFromDesc(desc) {
   }
 }
 
+function getIndexName(opts, indexType, valueName) {
+  return safeFilename(
+    opts.prefix
+      ? opts.useMap
+        ? indexType + '__map'
+        : indexType
+      : indexType + '_' + valueName
+  )
+}
+
 function query(...cbs) {
   let res = cbs[0]
   for (let i = 1, n = cbs.length; i < n; i++) if (cbs[i]) res = cbs[i](res)
@@ -77,16 +87,6 @@ function debug() {
 
 //#endregion
 //#region "Unit operators": they create objects that JITDB interprets
-
-function getIndexName(opts, indexType, valueName) {
-  return safeFilename(
-    opts.prefix
-      ? opts.useMap
-        ? indexType + '__map'
-        : indexType
-      : indexType + '_' + valueName
-  )
-}
 
 function slowEqual(seekDesc, target, opts) {
   opts = opts || {}
@@ -263,45 +263,18 @@ function not(ops) {
 }
 
 function and(...args) {
-  return (ops, isSpecialOps) => {
-    const rhs = args
-      .map((arg) => (typeof arg === 'function' ? arg(ops, true) : arg))
-      .filter((arg) => !!arg)
-    const res =
-      ops && ops.type && !isSpecialOps
-        ? {
-            type: 'AND',
-            data: [ops, ...rhs],
-          }
-        : rhs.length > 1
-        ? {
-            type: 'AND',
-            data: rhs,
-          }
-        : rhs[0]
-    if (ops) copyMeta(ops, res)
-    return res
-  }
+  return { type: 'AND', data: args }
 }
 
 function or(...args) {
-  return (ops, isSpecialOps) => {
-    const rhs = args
-      .map((arg) => (typeof arg === 'function' ? arg(ops, true) : arg))
-      .filter((arg) => !!arg)
-    const res =
-      ops && ops.type && !isSpecialOps
-        ? {
-            type: 'OR',
-            data: [ops, ...rhs],
-          }
-        : rhs.length > 1
-        ? {
-            type: 'OR',
-            data: rhs,
-          }
-        : rhs[0]
-    if (ops) copyMeta(ops, res)
+  return { type: 'OR', data: args }
+}
+
+function where(nextOp) {
+  return (prevOp) => {
+    if (!nextOp) return prevOp
+    const res = prevOp.type ? { type: 'AND', data: [prevOp, nextOp] } : nextOp
+    copyMeta(prevOp, res)
     return res
   }
 }
@@ -475,6 +448,7 @@ module.exports = {
   equal,
   slowIncludes,
   includes,
+  where,
   not,
   gt,
   gte,

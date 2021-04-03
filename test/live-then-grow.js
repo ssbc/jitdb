@@ -6,7 +6,7 @@ const mkdirp = require('mkdirp')
 const pull = require('pull-stream')
 const { addMsg, prepareAndRunTest } = require('./common')()
 const {
-  and,
+  where,
   query,
   fromDB,
   live,
@@ -31,7 +31,7 @@ prepareAndRunTest('Live toPullStream from empty log', dir, (t, db, raf) => {
   pull(
     query(
       fromDB(db),
-      and(slowEqual('value.content.type', 'post')),
+      where(slowEqual('value.content.type', 'post')),
       live(),
       toPullStream()
     ),

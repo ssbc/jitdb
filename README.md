@@ -60,7 +60,7 @@ query the database. You can load these operators from
 ```js
 const Log = require('async-append-only-log')
 const JITDB = require('jitdb')
-const { query, fromDB, and, slowEqual, toCallback } = require('jitdb/operators')
+const {query, fromDB, where, slowEqual, toCallback} = require('jitdb/operators')
 
 const raf = Log('/home/me/path/to/async-log', {
   blockSize: 64 * 1024,
@@ -70,7 +70,7 @@ const db = JITDB(raf, '/home/me/path/to/indexes')
 db.onReady(() => {
   query(
     fromDB(db),
-    and(slowEqual('value.content.type', 'post')),
+    where(slowEqual('value.content.type', 'post')),
     toCallback((err, msgs) => {
       console.log(msgs)
     })
@@ -82,22 +82,24 @@ The essential operators are `fromDB`, `query`, and `toCallback`.
 
 - **fromDB** specifies which JITDB instance we are interested in
 - **query** wraps all the operators, chaining them together
+- **where** wraps *descriptor operators* (see below) that narrow down the data
 - **toCallback** delivers the results of the query to a callback
 
-Then there are filtering operators that scope down the results to your
-desired set of messages: `and`, `or`, `equal`, `slowEqual`.
+Then there are *descriptor operator* that help scope down the results to your
+desired set of messages: `and`, `or`, `not`, `equal`, `slowEqual`, and others.
 
-- **and** filters for messages that satisfy **all** of the arguments provided
-- **or** filters for messages that satisfy **at least one** of the arguments provided
-- **equal** filters for messages that have a specific _field_, arguments are:
+- `and(...args)` filters for messages that satisfy **all** `args`
+- `or(...args)` filters for messages that satisfy **at least one** of the `args`
+- `not(arg)` filters for messages that do not safisfy `arg`
+- `equal(seek, value, opts)` filters for messages where a specific _field_ matches a specific _value_:
   - `seek` is a function that takes a [bipf] buffer as input and uses
     `bipf.seekKey` to return a pointer to the _field_
   - `value` is a string or buffer which is the value we want the _field_'s value to match
   - `opts` are additional configurations:
     - `indexType` is a name used to identify the index produced by this query
     - `prefix` boolean or number `32` that tells this query to use [prefix indexes](#prefix-indexes)
-- **slowEqual** is a more ergonomic (but slower) way of performing `equal`, the arguments are:
-  - `seekDescriptor` a string in the shape `"foo.bar.baz"` which specifies the nested field `"baz"`
+- `slowEqual(objPath, value, opts)` is a more ergonomic (but slower) way of performing `equal`:
+  - `objPath` a string in the shape `"foo.bar.baz"` which specifies the nested field `"baz"` inside `"bar"` inside `"foo"`
   - `value` is the same as `value` in the `equal` operator
   - `opts` same as the opts for `equal()`
 
@@ -108,7 +110,7 @@ Some examples:
 ```js
 query(
   fromDB(db),
-  and(slowEqual('value.content.type', 'post')),
+  where(slowEqual('value.content.type', 'post')),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages of type "post"')
   })
@@ -120,7 +122,7 @@ query(
 ```js
 query(
   fromDB(db),
-  and(equal(seekType, 'post', { indexType: 'type' })),
+  where(equal(seekType, 'post', { indexType: 'type' })),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages of type "post"')
   })
@@ -146,8 +148,12 @@ function seekType(buffer) {
 ```js
 query(
   fromDB(db),
-  and(slowEqual('value.content.type', 'contact')),
-  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
+  where(
+    and(
+      slowEqual('value.content.type', 'contact'),
+      or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))
+    )
+  ),
   toCallback((err, msgs) => {
     console.log('There are ' + msgs.length + ' messages')
   })
@@ -159,11 +165,13 @@ query(
 ```js
 query(
   fromDB(db),
-  and(equal(seekType, 'contact', 'type')),
-  and(
-    or(
-      equal(seekAuthor, aliceId, { indexType: 'author' }),
-      equal(seekAuthor, bobId, { indexType: 'author' })
+  where(
+    and(
+      equal(seekType, 'contact', 'type')
+      or(
+        equal(seekAuthor, aliceId, { indexType: 'author' }),
+        equal(seekAuthor, bobId, { indexType: 'author' })
+      )
     )
   ),
   toCallback((err, msgs) => {
@@ -202,8 +210,12 @@ const pull = require('pull-stream')
 
 const source = query(
   fromDB(db),
-  and(slowEqual('value.content.type', 'contact')),
-  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
+  where(
+    and(
+      slowEqual('value.content.type', 'contact')
+      or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId)),
+    ),
+  ),
   paginate(10),
   toPullStream()
 )
@@ -226,8 +238,12 @@ const pull = require('pull-stream')
 
 const source = query(
   fromDB(db),
-  and(slowEqual('value.content.type', 'contact')),
-  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
+  where(
+    and(
+      slowEqual('value.content.type', 'contact')
+      or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId)),
+    ),
+  ),
   paginate(10),
   startFrom(15),
   descending(),
@@ -252,8 +268,12 @@ at once:
 ```js
 const msgs = await query(
   fromDB(db),
-  and(slowEqual('value.content.type', 'contact')),
-  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
+  where(
+    and(
+      slowEqual('value.content.type', 'contact')
+      or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId)),
+    ),
+  ),
   toPromise()
 )
 
@@ -265,8 +285,12 @@ With pagination, **`toAsyncIter`** is like **`toPullStream`**, streaming the res
 ```js
 const results = query(
   fromDB(db),
-  and(slowEqual('value.content.type', 'contact')),
-  and(or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId))),
+  where(
+    and(
+      slowEqual('value.content.type', 'contact')
+      or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId)),
+    ),
+  ),
   paginate(10),
   startFrom(15),
   toAsyncIter()
@@ -315,7 +339,7 @@ query(
     // do something asynchronously, then deliver results to cb
     cb(null, seqs([11, 13, 17]))
   }),
-  and(slowEqual('value.author', aliceId)),
+  where(slowEqual('value.author', aliceId)),
   toCallback((err, results) => {
     console.log(results)
   })
@@ -330,6 +354,7 @@ This is a list of all the operators supported so far:
 const {
   fromDB,
   query,
+  where,
   and,
   or,
   not,
