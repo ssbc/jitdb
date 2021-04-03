@@ -160,34 +160,18 @@ prepareAndRunTest('where() ignores null argument', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('where() takes only one arguments', dir, (t, db, raf) => {
-  const queryTree = query(
-    fromDB(db),
-    where(
-      equal(helpers.seekType, 'contact', { indexType: 'type', indexAll: true }),
-      equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+  t.throws(() => {
+    query(
+      fromDB(db),
+      where(
+        equal(helpers.seekType, 'contact', {
+          indexType: 'type',
+          indexAll: true,
+        }),
+        equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+      )
     )
-  )
-
-  t.equal(typeof queryTree, 'object', 'queryTree is an object')
-
-  t.equal(queryTree.type, 'EQUAL')
-
-  t.equal(queryTree.data.indexType, 'type')
-  t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('contact'))
-  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
-
-  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
-  t.equal(
-    typeof queryTree.meta.jitdb,
-    'object',
-    'queryTree contains meta.jitdb'
-  )
-  t.equal(
-    typeof queryTree.meta.jitdb.onReady,
-    'function',
-    'meta.jitdb looks correct'
-  )
+  }, 'where() accepts only one argument')
 
   t.end()
 })

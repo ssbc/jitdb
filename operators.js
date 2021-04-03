@@ -270,8 +270,10 @@ function or(...args) {
   return { type: 'OR', data: args }
 }
 
-function where(nextOp) {
+function where(...args) {
   return (prevOp) => {
+    if (args.length !== 1) throw new Error('where() accepts only one argument')
+    const nextOp = args[0]
     if (!nextOp) return prevOp
     const res = prevOp.type ? { type: 'AND', data: [prevOp, nextOp] } : nextOp
     copyMeta(prevOp, res)
