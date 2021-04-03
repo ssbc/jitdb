@@ -13,7 +13,7 @@ const JITDB = require('../index')
 const {
   query,
   fromDB,
-  and,
+  where,
   or,
   equal,
   count,
@@ -90,7 +90,7 @@ test('query one huge index (first run)', (t) => {
     const start = Date.now()
     query(
       fromDB(db),
-      and(equal(seekType, 'post', { indexType: 'type' })),
+      where(equal(seekType, 'post', { indexType: 'type' })),
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
@@ -112,7 +112,7 @@ test('query one huge index (second run)', (t) => {
     const start = Date.now()
     query(
       fromDB(db),
-      and(equal(seekType, 'post', { indexType: 'type' })),
+      where(equal(seekType, 'post', { indexType: 'type' })),
       toCallback((err, msgs) => {
         if (err) t.fail(err)
         const duration = Date.now() - start
@@ -134,7 +134,7 @@ test('count one huge index (third run)', (t) => {
     const start = Date.now()
     query(
       fromDB(db),
-      and(equal(seekType, 'post', { indexType: 'type' })),
+      where(equal(seekType, 'post', { indexType: 'type' })),
       count(),
       toCallback((err, total) => {
         if (err) t.fail(err)
@@ -158,13 +158,13 @@ test('create an index twice concurrently', (t) => {
 
     query(
       fromDB(db),
-      and(equal(seekType, 'about', { indexType: 'type' })),
+      where(equal(seekType, 'about', { indexType: 'type' })),
       toCallback(done())
     )
 
     query(
       fromDB(db),
-      and(equal(seekType, 'about', { indexType: 'type' })),
+      where(equal(seekType, 'about', { indexType: 'type' })),
       toCallback(done())
     )
 
@@ -188,16 +188,14 @@ test('query three indexes (first run)', (t) => {
     const start = Date.now()
     query(
       fromDB(db),
-      or(
-        and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(
+      where(
+        or(
+          equal(seekType, 'contact', { indexType: 'type' }),
           equal(seekAuthor, alice.id, {
             indexType: 'author',
             prefix: 32,
             prefixOffset: 1,
-          })
-        ),
-        and(
+          }),
           equal(seekAuthor, bob.id, {
             indexType: 'author',
             prefix: 32,
@@ -229,16 +227,14 @@ test('query three indexes (second run)', (t) => {
     const start = Date.now()
     query(
       fromDB(db),
-      or(
-        and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(
+      where(
+        or(
+          equal(seekType, 'contact', { indexType: 'type' }),
           equal(seekAuthor, alice.id, {
             indexType: 'author',
             prefix: 32,
             prefixOffset: 1,
-          })
-        ),
-        and(
+          }),
           equal(seekAuthor, bob.id, {
             indexType: 'author',
             prefix: 32,
@@ -279,16 +275,14 @@ test('load two indexes concurrently', (t) => {
 
     query(
       fromDB(db),
-      or(
-        and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(
+      where(
+        or(
+          equal(seekType, 'contact', { indexType: 'type' }),
           equal(seekAuthor, alice.id, {
             indexType: 'author',
             prefix: 32,
             prefixOffset: 1,
-          })
-        ),
-        and(
+          }),
           equal(seekAuthor, bob.id, {
             indexType: 'author',
             prefix: 32,
@@ -301,16 +295,14 @@ test('load two indexes concurrently', (t) => {
 
     query(
       fromDB(db),
-      or(
-        and(equal(seekType, 'contact', { indexType: 'type' })),
-        and(
+      where(
+        or(
+          equal(seekType, 'contact', { indexType: 'type' }),
           equal(seekAuthor, alice.id, {
             indexType: 'author',
             prefix: 32,
             prefixOffset: 1,
-          })
-        ),
-        and(
+          }),
           equal(seekAuthor, bob.id, {
             indexType: 'author',
             prefix: 32,
@@ -344,7 +336,7 @@ test('paginate big index with small pageSize', (t) => {
     pull(
       query(
         fromDB(db),
-        and(equal(seekType, 'post', { indexType: 'type' })),
+        where(equal(seekType, 'post', { indexType: 'type' })),
         paginate(PAGESIZE),
         toPullStream()
       ),
@@ -379,7 +371,7 @@ test('paginate big index with big pageSize', (t) => {
     pull(
       query(
         fromDB(db),
-        and(equal(seekType, 'post', { indexType: 'type' })),
+        where(equal(seekType, 'post', { indexType: 'type' })),
         paginate(PAGESIZE),
         toPullStream()
       ),
@@ -419,7 +411,7 @@ test('query a prefix map (first run)', (t) => {
           pull(
             query(
               fromDB(db),
-              and(
+              where(
                 equal(seekVoteLink, rootKey, {
                   indexType: 'value_content_vote_link',
                   useMap: true,
@@ -468,7 +460,7 @@ test('query a prefix map (second run)', (t) => {
           pull(
             query(
               fromDB(db),
-              and(
+              where(
                 equal(seekVoteLink, rootKey, {
                   indexType: 'value_content_vote_link',
                   useMap: true,
