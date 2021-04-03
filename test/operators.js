@@ -12,6 +12,7 @@ const {
   or,
   not,
   equal,
+  where,
   slowEqual,
   includes,
   slowIncludes,
@@ -46,7 +47,9 @@ const bob = ssbKeys.generate('ed25519', Buffer.alloc(32, 'b'))
 prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true }))
+    where(
+      equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+    )
   )
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
@@ -76,7 +79,7 @@ prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
 prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(slowEqual('value.content.type', 'post'))
+    where(slowEqual('value.content.type', 'post'))
   )
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
@@ -106,7 +109,9 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
 prepareAndRunTest('query ignores non-function arguments', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })),
+    where(
+      equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+    ),
     null
   )
 
@@ -134,23 +139,10 @@ prepareAndRunTest('query ignores non-function arguments', dir, (t, db, raf) => {
   t.end()
 })
 
-prepareAndRunTest('and() ignores non-function arguments', dir, (t, db, raf) => {
-  const queryTree = query(
-    fromDB(db),
-    and(
-      null,
-      equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
-    )
-  )
+prepareAndRunTest('where() ignores null argument', dir, (t, db, raf) => {
+  const queryTree = query(fromDB(db), where(null))
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
-
-  t.equal(queryTree.type, 'EQUAL')
-
-  t.equal(queryTree.data.indexType, 'type')
-  t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
-  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
   t.equal(
@@ -167,35 +159,19 @@ prepareAndRunTest('and() ignores non-function arguments', dir, (t, db, raf) => {
   t.end()
 })
 
-prepareAndRunTest('or() ignores non-function arguments', dir, (t, db, raf) => {
-  const queryTree = query(
-    fromDB(db),
-    or(
-      null,
-      equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+prepareAndRunTest('where() takes only one arguments', dir, (t, db, raf) => {
+  t.throws(() => {
+    query(
+      fromDB(db),
+      where(
+        equal(helpers.seekType, 'contact', {
+          indexType: 'type',
+          indexAll: true,
+        }),
+        equal(helpers.seekType, 'post', { indexType: 'type', indexAll: true })
+      )
     )
-  )
-
-  t.equal(typeof queryTree, 'object', 'queryTree is an object')
-
-  t.equal(queryTree.type, 'EQUAL')
-
-  t.equal(queryTree.data.indexType, 'type')
-  t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
-  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
-
-  t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
-  t.equal(
-    typeof queryTree.meta.jitdb,
-    'object',
-    'queryTree contains meta.jitdb'
-  )
-  t.equal(
-    typeof queryTree.meta.jitdb.onReady,
-    'function',
-    'meta.jitdb looks correct'
-  )
+  }, 'where() accepts only one argument')
 
   t.end()
 })
@@ -299,11 +275,11 @@ prepareAndRunTest('includes()', dir, (t, db, raf) => {
   t.end()
 })
 
-prepareAndRunTest('operators API supports and or', dir, (t, db, raf) => {
+prepareAndRunTest('operators API supports or()', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(slowEqual('value.content.type', 'post')),
-    and(
+    where(slowEqual('value.content.type', 'post')),
+    where(
       or(slowEqual('value.author', alice.id), slowEqual('value.author', bob.id))
     )
   )
@@ -340,10 +316,12 @@ prepareAndRunTest('operators API supports and or', dir, (t, db, raf) => {
 prepareAndRunTest('operators multi and', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(
-      slowEqual('value.content.type', 'post'),
-      slowEqual('value.author', alice.id),
-      slowEqual('value.author', bob.id)
+    where(
+      and(
+        slowEqual('value.content.type', 'post'),
+        slowEqual('value.author', alice.id),
+        slowEqual('value.author', bob.id)
+      )
     )
   )
 
@@ -362,10 +340,12 @@ prepareAndRunTest('operators multi and', dir, (t, db, raf) => {
 prepareAndRunTest('operators multi or', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    or(
-      slowEqual('value.content.type', 'post'),
-      slowEqual('value.author', alice.id),
-      slowEqual('value.author', bob.id)
+    where(
+      or(
+        slowEqual('value.content.type', 'post'),
+        slowEqual('value.author', alice.id),
+        slowEqual('value.author', bob.id)
+      )
     )
   )
 
@@ -387,25 +367,25 @@ prepareAndRunTest(
   (t, db, raf) => {
     const queryTreePaginate = query(
       fromDB(db),
-      and(slowEqual('value.content.type', 'post')),
+      where(slowEqual('value.content.type', 'post')),
       paginate(10)
     )
 
     const queryTreeStartFrom = query(
       fromDB(db),
-      and(slowEqual('value.content.type', 'post')),
+      where(slowEqual('value.content.type', 'post')),
       startFrom(5)
     )
 
     const queryTreeDescending = query(
       fromDB(db),
-      and(slowEqual('value.content.type', 'post')),
+      where(slowEqual('value.content.type', 'post')),
       descending()
     )
 
     const queryTreeAll = query(
       fromDB(db),
-      and(slowEqual('value.content.type', 'post')),
+      where(slowEqual('value.content.type', 'post')),
       startFrom(5),
       paginate(10),
       descending()
@@ -426,9 +406,11 @@ prepareAndRunTest(
 prepareAndRunTest('operator gt', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(
-      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
-      gt(2, 'sequence')
+    where(
+      and(
+        equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+        gt(2, 'sequence')
+      )
     )
   )
 
@@ -452,9 +434,11 @@ prepareAndRunTest('operator gt', dir, (t, db, raf) => {
 prepareAndRunTest('operator gte', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(
-      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
-      gte(2, 'sequence')
+    where(
+      and(
+        equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+        gte(2, 'sequence')
+      )
     )
   )
 
@@ -475,9 +459,11 @@ prepareAndRunTest('operator gte', dir, (t, db, raf) => {
 prepareAndRunTest('operator lt', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(
-      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
-      lt(2, 'sequence')
+    where(
+      and(
+        equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+        lt(2, 'sequence')
+      )
     )
   )
 
@@ -498,9 +484,11 @@ prepareAndRunTest('operator lt', dir, (t, db, raf) => {
 prepareAndRunTest('operator lte', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
-    and(
-      equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
-      lte(2, 'sequence')
+    where(
+      and(
+        equal(helpers.seekAuthor, alice.id, { indexType: 'author' }),
+        lte(2, 'sequence')
+      )
     )
   )
 
@@ -536,7 +524,7 @@ prepareAndRunTest('operators gt lt gte lte numbers only', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('operator seqs', dir, (t, db, raf) => {
-  const queryTree = query(fromDB(db), and(seqs([10, 20])))
+  const queryTree = query(fromDB(db), where(seqs([10, 20])))
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
 
@@ -550,7 +538,7 @@ prepareAndRunTest('operator seqs', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('operator offsets', dir, (t, db, raf) => {
-  const queryTree = query(fromDB(db), and(offsets([11, 12])))
+  const queryTree = query(fromDB(db), where(offsets([11, 12])))
 
   t.equal(typeof queryTree, 'object', 'queryTree is an object')
 
@@ -574,7 +562,7 @@ prepareAndRunTest('not operator', dir, (t, db, raf) => {
       pull(
         query(
           fromDB(db),
-          and(not(slowEqual('value.author', alice.id))),
+          where(not(slowEqual('value.author', alice.id))),
           paginate(2),
           toPullStream()
         ),
@@ -602,7 +590,7 @@ prepareAndRunTest('count operator toCallback', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        and(slowEqual('value.content.type', 'food')),
+        where(slowEqual('value.content.type', 'food')),
         count(),
         toCallback((err, total) => {
           t.error(err, 'no error')
@@ -624,7 +612,7 @@ prepareAndRunTest('count with seq operator toCallback', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        and(slowEqual('value.content.type', 'food')),
+        where(slowEqual('value.content.type', 'food')),
         startFrom(1),
         count(),
         toCallback((err, total) => {
@@ -648,7 +636,7 @@ prepareAndRunTest('count operator toPullStream', dir, (t, db, raf) => {
       pull(
         query(
           fromDB(db),
-          and(slowEqual('value.content.type', 'drink')),
+          where(slowEqual('value.content.type', 'drink')),
           count(),
           toPullStream()
         ),
@@ -697,9 +685,11 @@ prepareAndRunTest('operators toCallback', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(
-          slowEqual('value.author', alice.id),
-          slowEqual('value.author', bob.id)
+        where(
+          or(
+            slowEqual('value.author', alice.id),
+            slowEqual('value.author', bob.id)
+          )
         ),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error')
@@ -725,9 +715,11 @@ prepareAndRunTest('operators toPromise', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(
-          slowEqual('value.author', alice.id),
-          slowEqual('value.author', bob.id)
+        where(
+          or(
+            slowEqual('value.author', alice.id),
+            slowEqual('value.author', bob.id)
+          )
         ),
         toPromise()
       ).then(
@@ -758,9 +750,11 @@ prepareAndRunTest('operators toPullStream', dir, (t, db, raf) => {
       pull(
         query(
           fromDB(db),
-          or(
-            slowEqual('value.author', alice.id),
-            slowEqual('value.author', bob.id)
+          where(
+            or(
+              slowEqual('value.author', alice.id),
+              slowEqual('value.author', bob.id)
+            )
           ),
           paginate(2),
           toPullStream()
@@ -793,9 +787,11 @@ prepareAndRunTest('operators toAsyncIter', dir, (t, db, raf) => {
         let i = 0
         const results = query(
           fromDB(db),
-          or(
-            slowEqual('value.author', alice.id),
-            slowEqual('value.author', bob.id)
+          where(
+            or(
+              slowEqual('value.author', alice.id),
+              slowEqual('value.author', bob.id)
+            )
           ),
           paginate(2),
           toAsyncIter()
@@ -828,9 +824,11 @@ prepareAndRunTest('operators toCallback with startFrom', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(
-          slowEqual('value.author', alice.id),
-          slowEqual('value.author', bob.id)
+        where(
+          or(
+            slowEqual('value.author', alice.id),
+            slowEqual('value.author', bob.id)
+          )
         ),
         startFrom(1),
         toCallback((err, msgs) => {
@@ -855,9 +853,11 @@ prepareAndRunTest('operators toCallback with descending', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(
-          slowEqual('value.author', alice.id),
-          slowEqual('value.author', bob.id)
+        where(
+          or(
+            slowEqual('value.author', alice.id),
+            slowEqual('value.author', bob.id)
+          )
         ),
         descending(),
         toCallback((err, msgs) => {
@@ -884,68 +884,10 @@ prepareAndRunTest('support deferred operations', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        and(
+        where(
           deferred((meta, cb) => {
             setTimeout(() => {
               cb(null, slowEqual('value.author', alice.id))
-            }, 100)
-          })
-        ),
-        toCallback((err, msgs) => {
-          t.error(err, 'toCallback got no error')
-          t.equal(msgs.length, 1, 'toCallback got one message')
-          t.equal(msgs[0].value.author, alice.id)
-          t.equal(msgs[0].value.content.type, 'post')
-          t.end()
-        })
-      )
-    })
-  })
-})
-
-prepareAndRunTest('chainless-and inside deferred', dir, (t, db, raf) => {
-  const msg = { type: 'post', text: 'Testing!' }
-  let state = validate.initial()
-  state = validate.appendNew(state, null, alice, msg, Date.now())
-  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
-
-  addMsg(state.queue[0].value, raf, (e1, msg1) => {
-    addMsg(state.queue[1].value, raf, (e2, msg2) => {
-      query(
-        fromDB(db),
-        and(
-          deferred((meta, cb) => {
-            setTimeout(() => {
-              cb(null, and(slowEqual('value.author', alice.id)))
-            }, 100)
-          })
-        ),
-        toCallback((err, msgs) => {
-          t.error(err, 'toCallback got no error')
-          t.equal(msgs.length, 1, 'toCallback got one message')
-          t.equal(msgs[0].value.author, alice.id)
-          t.equal(msgs[0].value.content.type, 'post')
-          t.end()
-        })
-      )
-    })
-  })
-})
-
-prepareAndRunTest('chainless-or inside deferred', dir, (t, db, raf) => {
-  const msg = { type: 'post', text: 'Testing!' }
-  let state = validate.initial()
-  state = validate.appendNew(state, null, alice, msg, Date.now())
-  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
-
-  addMsg(state.queue[0].value, raf, (e1, msg1) => {
-    addMsg(state.queue[1].value, raf, (e2, msg2) => {
-      query(
-        fromDB(db),
-        and(
-          deferred((meta, cb) => {
-            setTimeout(() => {
-              cb(null, or(slowEqual('value.author', alice.id)))
             }, 100)
           })
         ),
@@ -994,13 +936,15 @@ prepareAndRunTest('support deferred operations and', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        and(
-          slowEqual('value.content.type', 'post'),
-          deferred((meta, cb) => {
-            setTimeout(() => {
-              cb(null, slowEqual('value.author', alice.id))
-            }, 100)
-          })
+        where(
+          and(
+            slowEqual('value.content.type', 'post'),
+            deferred((meta, cb) => {
+              setTimeout(() => {
+                cb(null, slowEqual('value.author', alice.id))
+              }, 100)
+            })
+          )
         ),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error')
@@ -1024,13 +968,15 @@ prepareAndRunTest('support deferred operations or', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        or(
-          slowEqual('value.content.type', 'post'),
-          deferred((meta, cb) => {
-            setTimeout(() => {
-              cb(null, slowEqual('value.author', alice.id))
-            }, 100)
-          })
+        where(
+          or(
+            slowEqual('value.content.type', 'post'),
+            deferred((meta, cb) => {
+              setTimeout(() => {
+                cb(null, slowEqual('value.author', alice.id))
+              }, 100)
+            })
+          )
         ),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error')
@@ -1056,7 +1002,7 @@ prepareAndRunTest('support empty deferred operations', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        and(
+        where(
           deferred((meta, cb) => {
             setTimeout(() => {
               cb(null, null)
@@ -1087,11 +1033,13 @@ prepareAndRunTest('empty deferred AND equal', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
       query(
         fromDB(db),
-        and(
-          deferred((meta, cb) => {
-            setTimeout(cb, 100)
-          }),
-          slowEqual('value.author', alice.id)
+        where(
+          and(
+            deferred((meta, cb) => {
+              setTimeout(cb, 100)
+            }),
+            slowEqual('value.author', alice.id)
+          )
         ),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error')
@@ -1116,7 +1064,7 @@ prepareAndRunTest('support live seq operations', dir, (t, db, raf) => {
   query(
     fromDB(db),
     live(),
-    and(
+    where(
       deferred((meta, cb) => {
         setTimeout(() => {
           cb(null, liveSeqs(ps))
@@ -1155,7 +1103,7 @@ prepareAndRunTest(
       let i = 0
       query(
         fromDB(db),
-        and(slowEqual('value.content.type', 'post')),
+        where(slowEqual('value.content.type', 'post')),
         live({ old: true }), // to make sure the next one overrides this one
         live(),
         toPullStream(),
@@ -1184,7 +1132,7 @@ prepareAndRunTest('support live operations async iter', dir, (t, db, raf) => {
     let i = 0
     const results = query(
       fromDB(db),
-      and(slowEqual('value.content.type', 'post')),
+      where(slowEqual('value.content.type', 'post')),
       live(), // to make sure the next one overrides this one
       live({ old: true }),
       toAsyncIter()
@@ -1211,33 +1159,8 @@ prepareAndRunTest('support live operations', dir, (t, db, raf) => {
     let i = 0
     query(
       fromDB(db),
-      and(slowEqual('value.content.type', 'post')),
+      where(slowEqual('value.content.type', 'post')),
       live({ old: true }),
-      toPullStream(),
-      pull.drain((msg) => {
-        if (i++ == 0) {
-          t.equal(msg.value.author, alice.id)
-          addMsg(state.queue[1].value, raf, (e2, msg2) => {})
-        } else {
-          t.equal(msg.value.author, bob.id)
-          t.end()
-        }
-      })
-    )
-  })
-})
-
-prepareAndRunTest('support live inside and', dir, (t, db, raf) => {
-  const msg = { type: 'post', text: 'Testing!' }
-  let state = validate.initial()
-  state = validate.appendNew(state, null, alice, msg, Date.now())
-  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
-
-  addMsg(state.queue[0].value, raf, (e1, msg1) => {
-    let i = 0
-    query(
-      fromDB(db),
-      and(live({ old: true }), slowEqual('value.content.type', 'post')),
       toPullStream(),
       pull.drain((msg) => {
         if (i++ == 0) {
@@ -1262,7 +1185,7 @@ prepareAndRunTest('support live with not', dir, (t, db, raf) => {
     let i = 0
     query(
       fromDB(db),
-      and(not(slowEqual('value.content.type', 'about'))),
+      where(not(slowEqual('value.content.type', 'about'))),
       live({ old: true }),
       toPullStream(),
       pull.drain((msg) => {
@@ -1313,7 +1236,7 @@ prepareAndRunTest('live AND empty deferred', dir, (t, db, raf) => {
     let i = 0
     query(
       fromDB(db),
-      and(
+      where(
         deferred((meta, cb) => {
           setTimeout(cb, 100)
         })
@@ -1348,7 +1271,7 @@ prepareAndRunTest('support slowIncludes', dir, (t, db, raf) => {
       addMsg(state.queue[2].value, raf, (e3, m3) => {
         query(
           fromDB(db),
-          and(slowIncludes('value.content.animals', 'bird')),
+          where(slowIncludes('value.content.animals', 'bird')),
           toCallback((err, msgs) => {
             t.error(err, 'got no error')
             t.equal(msgs.length, 2, 'got two messages')
@@ -1389,7 +1312,9 @@ prepareAndRunTest('support slowIncludes and pluck', dir, (t, db, raf) => {
       addMsg(state.queue[2].value, raf, (e3, m3) => {
         query(
           fromDB(db),
-          and(slowIncludes('value.content.animals', 'cat', { pluck: 'word' })),
+          where(
+            slowIncludes('value.content.animals', 'cat', { pluck: 'word' })
+          ),
           toCallback((err, msgs) => {
             t.error(err, 'got no error')
             t.equal(msgs.length, 2, 'got two messages')
