@@ -778,13 +778,28 @@ module.exports = function (log, indexesPath) {
       ? safeReadUint32(target, op.data.prefixOffset)
       : 0
     const bitset = new TypedFastBitSet()
-    const done = multicb({ pluck: 1 })
+    const bitsetFilters = {}
+
+    const seek = op.data.seek
+    function checker(value) {
+      if (!value) return false // deleted
+
+      const fieldStart = seek(value)
+      const candidate = bipf.slice(value, fieldStart)
+      if (target) {
+        if (Buffer.compare(candidate, target)) return false
+      } else {
+        if (~fieldStart) return false
+      }
+
+      return true
+    }
 
     if (prefixIndex.map) {
       if (prefixIndex.map[targetPrefix]) {
         prefixIndex.map[targetPrefix].forEach((seq) => {
           bitset.add(seq)
-          getRecord(seq, done())
+          bitsetFilters[seq] = [checker]
         })
       }
     } else {
@@ -793,32 +808,12 @@ module.exports = function (log, indexesPath) {
       for (let seq = 0; seq < count; ++seq) {
         if (tarr[seq] === targetPrefix) {
           bitset.add(seq)
-          getRecord(seq, done())
+          bitsetFilters[seq] = [checker]
         }
       }
     }
 
-    done((err, recs) => {
-      // FIXME: handle error better, this cb() should support 2 args
-      if (err) return console.error(err)
-      const seek = op.data.seek
-      for (let i = 0, len = recs.length; i < len; ++i) {
-        const { value, seq } = recs[i]
-        if (!value) {
-          // deleted
-          bitset.remove(seq)
-          continue
-        }
-        const fieldStart = seek(value)
-        const candidate = bipf.slice(value, fieldStart)
-        if (target) {
-          if (Buffer.compare(candidate, target)) bitset.remove(seq)
-        } else {
-          if (~fieldStart) bitset.remove(seq)
-        }
-      }
-      cb(bitset)
-    })
+    cb(bitset, bitsetFilters)
   }
 
   function nestLargeOpsArray(ops, type) {
@@ -913,23 +908,31 @@ module.exports = function (log, indexesPath) {
     } else if (op.type === 'AND') {
       if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'AND')
 
-      getBitsetForOperation(op.data[0], (op1) => {
-        getBitsetForOperation(op.data[1], (op2) => {
-          cb(op1.new_intersection(op2))
+      getBitsetForOperation(op.data[0], (op1, filters1) => {
+        getBitsetForOperation(op.data[1], (op2, filters2) => {
+          const filters = filters1 || {}
+          for (var k in filters2)
+            filters[k] = [...(filters[k] || []), ...filters2[k]]
+
+          cb(op1.new_intersection(op2), filters)
         })
       })
     } else if (op.type === 'OR') {
       if (op.data.length > 2) op = nestLargeOpsArray(op.data, 'OR')
 
-      getBitsetForOperation(op.data[0], (op1) => {
-        getBitsetForOperation(op.data[1], (op2) => {
-          cb(op1.new_union(op2))
+      getBitsetForOperation(op.data[0], (op1, filters1) => {
+        getBitsetForOperation(op.data[1], (op2, filters2) => {
+          const filters = filters1 || {}
+          for (var k in filters2)
+            filters[k] = [...(filters[k] || []), ...filters2[k]]
+
+          cb(op1.new_union(op2), filters)
         })
       })
     } else if (op.type === 'NOT') {
-      getBitsetForOperation(op.data[0], (op1) => {
+      getBitsetForOperation(op.data[0], (op1, filters) => {
         getFullBitset((fullBitset) => {
-          cb(fullBitset.difference(op1))
+          cb(fullBitset.difference(op1), filters)
         })
       })
     } else if (!op.type) {
@@ -940,7 +943,7 @@ module.exports = function (log, indexesPath) {
 
   function executeOperation(operation, cb) {
     updateCacheWithLog()
-    if (bitsetCache.has(operation)) return cb(bitsetCache.get(operation))
+    if (bitsetCache.has(operation)) return cb(...bitsetCache.get(operation))
 
     const opsMissingIndexes = []
     const lazyIndexes = []
@@ -968,9 +971,9 @@ module.exports = function (log, indexesPath) {
     }
 
     function getBitset() {
-      getBitsetForOperation(operation, (bitset) => {
-        bitsetCache.set(operation, bitset)
-        cb(bitset)
+      getBitsetForOperation(operation, (bitset, filters) => {
+        bitsetCache.set(operation, [bitset, filters])
+        cb(bitset, filters)
       })
     }
 
@@ -1012,7 +1015,8 @@ module.exports = function (log, indexesPath) {
     else return true
   }
 
-  function getMessage(seq, cb) {
+  function getMessage(seq, valueCache, cb) {
+    if (valueCache[seq]) return cb(null, bipf.decode(valueCache[seq], 0))
     const offset = indexes['seq'].tarr[seq]
     log.get(offset, (err, value) => {
       if (err && err.code === 'flumelog:deleted') cb()
@@ -1054,8 +1058,40 @@ module.exports = function (log, indexesPath) {
     return fpq
   }
 
+  function filterRecords(seq, filters, valueCache, cb) {
+    getRecord(seq, (err, record) => {
+      if (err) return cb(err)
+
+      let ok = true
+      const seqFilters = filters[seq]
+      if (seqFilters) ok = seqFilters.every((filter) => filter(record.value))
+
+      if (ok) {
+        valueCache[seq] = record.value
+        cb(null, seq)
+      } else cb()
+    })
+  }
+
+  function sliceResults(sorted, seq, limit) {
+    if (sorted.size === 0 || limit <= 0) {
+      return []
+    } else if (seq === 0 && limit === 1) {
+      return [sorted.peek()]
+    } else {
+      if (seq > 0) {
+        sorted = sorted.clone()
+        for (let j = 0; j < seq && !sorted.isEmpty(); j++) {
+          sorted.poll()
+        }
+      }
+      return sorted.kSmallest(limit || Infinity)
+    }
+  }
+
   function getMessagesFromBitsetSlice(
     bitset,
+    filters,
     seq,
     limit,
     descending,
@@ -1067,35 +1103,67 @@ module.exports = function (log, indexesPath) {
     let sorted = sortedByTimestamp(bitset, descending)
     const resultSize = sorted.size
 
-    let sliced
-    if (resultSize === 0 || limit <= 0) {
-      sliced = []
-    } else if (seq === 0 && limit === 1) {
-      sliced = [sorted.peek()]
-    } else {
-      if (seq > 0) {
-        sorted = sorted.clone()
-        for (let j = 0; j < seq && !sorted.isEmpty(); j++) {
-          sorted.poll()
-        }
-      }
-      sliced = sorted.kSmallest(limit || Infinity)
+    // seq -> value
+    let valueCache = {}
+
+    function processResults(err, seqs, resultSize) {
+      push(
+        push.values(seqs),
+        push.asyncMap((seq, cb) => {
+          if (onlyOffset) cb(null, indexes['seq'].tarr[seq])
+          else getMessage(seq, valueCache, cb)
+        }),
+        push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
+        push.collect((err, results) => {
+          cb(err, {
+            results: results,
+            total: resultSize,
+          })
+        })
+      )
     }
 
-    push(
-      push.values(sliced),
-      push.asyncMap(({ seq }, cb) => {
-        if (onlyOffset) cb(null, indexes['seq'].tarr[seq])
-        else getMessage(seq, cb)
-      }),
-      push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
-      push.collect((err, results) => {
-        cb(err, {
-          results: results,
-          total: resultSize,
-        })
-      })
-    )
+    if (filters) {
+      function ensureEnoughResults(err, startSeq, seqs) {
+        const rawLength = seqs.length
+        seqs = seqs.filter((x) => x !== undefined)
+        const moreResults = startSeq + seqs.length < sorted.size
+
+        if (seqs.length < limit && moreResults)
+          // results were filtered or deleted
+          getMoreResults(
+            startSeq + rawLength,
+            limit - seqs.length,
+            seqs,
+            (err, seqs) => ensureEnoughResults(err, startSeq + rawLength, seqs)
+          )
+        else processResults(err, seqs, resultSize, cb)
+      }
+
+      function getMoreResults(startSeq, remaining, seqs, resultCb) {
+        const done = multicb({ pluck: 1 })
+
+        // existing results
+        for (var i = 0; i < seqs.length; ++i) done()(null, seqs[i])
+
+        const sliced = sliceResults(sorted, startSeq, remaining)
+        for (var i = 0; i < sliced.length; ++i)
+          filterRecords(sliced[i].seq, filters, valueCache, done())
+
+        done(resultCb)
+      }
+
+      getMoreResults(seq, limit, [], (err, seqs) =>
+        ensureEnoughResults(err, seq, seqs)
+      )
+    } else {
+      const sliced = sliceResults(sorted, seq, limit)
+      processResults(
+        null,
+        sliced.map((s) => s.seq),
+        resultSize
+      )
+    }
   }
 
   function countBitsetSlice(bitset, seq, descending) {
@@ -1106,9 +1174,10 @@ module.exports = function (log, indexesPath) {
   function paginate(operation, seq, limit, descending, onlyOffset, cb) {
     onReady(() => {
       const start = Date.now()
-      executeOperation(operation, (bitset) => {
+      executeOperation(operation, (bitset, filters) => {
         getMessagesFromBitsetSlice(
           bitset,
+          filters,
           seq,
           limit,
           descending,
@@ -1136,9 +1205,10 @@ module.exports = function (log, indexesPath) {
   function all(operation, seq, descending, onlyOffset, cb) {
     onReady(() => {
       const start = Date.now()
-      executeOperation(operation, (bitset) => {
+      executeOperation(operation, (bitset, filters) => {
         getMessagesFromBitsetSlice(
           bitset,
+          filters,
           seq,
           Infinity,
           descending,
