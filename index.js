@@ -778,7 +778,7 @@ module.exports = function (log, indexesPath) {
       ? safeReadUint32(target, op.data.prefixOffset)
       : 0
     const bitset = new TypedFastBitSet()
-    const bitsetFilters = {}
+    const bitsetFilters = new Map()
 
     const seek = op.data.seek
     function checker(value) {
@@ -799,7 +799,7 @@ module.exports = function (log, indexesPath) {
       if (prefixIndex.map[targetPrefix]) {
         prefixIndex.map[targetPrefix].forEach((seq) => {
           bitset.add(seq)
-          bitsetFilters[seq] = [checker]
+          bitsetFilters.set(seq, [checker])
         })
       }
     } else {
@@ -808,7 +808,7 @@ module.exports = function (log, indexesPath) {
       for (let seq = 0; seq < count; ++seq) {
         if (tarr[seq] === targetPrefix) {
           bitset.add(seq)
-          bitsetFilters[seq] = [checker]
+          bitsetFilters.set(seq, [checker])
         }
       }
     }
@@ -910,9 +910,10 @@ module.exports = function (log, indexesPath) {
 
       getBitsetForOperation(op.data[0], (op1, filters1) => {
         getBitsetForOperation(op.data[1], (op2, filters2) => {
-          const filters = filters1 || {}
-          for (var k in filters2)
-            filters[k] = [...(filters[k] || []), ...filters2[k]]
+          const filters = filters1 || new Map()
+          if (filters2)
+            for (let k of filters2.keys())
+              filters.set(k, [...(filters.get(k) || []), ...filters2.get(k)])
 
           cb(op1.new_intersection(op2), filters)
         })
@@ -922,9 +923,10 @@ module.exports = function (log, indexesPath) {
 
       getBitsetForOperation(op.data[0], (op1, filters1) => {
         getBitsetForOperation(op.data[1], (op2, filters2) => {
-          const filters = filters1 || {}
-          for (var k in filters2)
-            filters[k] = [...(filters[k] || []), ...filters2[k]]
+          const filters = filters1 || new Map()
+          if (filters2)
+            for (let k of filters2.keys())
+              filters.set(k, [...(filters.get(k) || []), ...filters2.get(k)])
 
           cb(op1.new_union(op2), filters)
         })
@@ -1063,7 +1065,7 @@ module.exports = function (log, indexesPath) {
       if (err) return cb(err)
 
       let ok = true
-      const seqFilters = filters[seq]
+      const seqFilters = filters.get(seq)
       if (seqFilters) ok = seqFilters.every((filter) => filter(record.value))
 
       if (ok) {
