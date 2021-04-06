@@ -175,8 +175,22 @@ test('query one huge index (second run)', (t) => {
 
 test('count one huge index (third run)', (t) => {
   runBenchmark(
-    'Query 1 big index (3rd run)',
-    runHugeIndexQuery,
+    'Count 1 big index (3rd run)',
+    (cb) => {
+      query(
+        fromDB(db),
+        where(equal(seekType, 'post', { indexType: 'type' })),
+        count(),
+        toCallback((err, total) => {
+          if (err) {
+            cb(err)
+          } else if (total !== 23310) {
+            cb(new Error('total is wrong: ' + total))
+          }
+          cb()
+        })
+      )
+    },
     (cb) => {
       closeLog((err) => {
         if (err) cb(err)
