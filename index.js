@@ -36,7 +36,12 @@ module.exports = function (log, indexesPath) {
   let isReady = false
   let waiting = []
 
-  loadIndexes(() => {
+  loadIndexes((err) => {
+    if (err) {
+      for (let i = 0; i < waiting.length; ++i) waiting[i](err)
+      waiting = []
+      return
+    }
     debug('loaded indexes', Object.keys(indexes))
 
     if (!indexes['seq']) {
@@ -80,6 +85,10 @@ module.exports = function (log, indexesPath) {
   // FIXME: handle the errors in these callbacks
   function loadIndexes(cb) {
     function parseIndexes(err, files) {
+      if (err) {
+        cb(err)
+        return
+      }
       push(
         push.values(files),
         push.asyncMap((file, cb) => {
