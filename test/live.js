@@ -50,7 +50,7 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('Live and', dir, (t, db, raf) => {
+prepareAndRunTest('Live AND', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing ' + keys.id }
   const msg2 = { type: 'post', text: 'Testing ' + keys2.id }
   let state = validate.initial()
@@ -103,7 +103,7 @@ prepareAndRunTest('Live and', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('Live or', dir, (t, db, raf) => {
+prepareAndRunTest('Live OR', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing ' + keys.id }
   const msg2 = { type: 'post', text: 'Testing ' + keys2.id }
   const msg3 = { type: 'post', text: 'Testing ' + keys3.id }

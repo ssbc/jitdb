@@ -1,7 +1,7 @@
 {
   "name": "jitdb",
   "description": "A database on top of a flumelog with automatic index generation and maintenance",
-  "version": "2.3.5",
+  "version": "3.0.0",
   "homepage": "https://github.com/ssb-ngi-pointer/jitdb",
   "repository": {
     "type": "git",
@@ -10,7 +10,7 @@
   "dependencies": {
     "atomically-universal": "^0.1.0",
     "binary-search-bounds": "^2.0.4",
-    "bipf": "^1.4.0",
+    "bipf": "^1.5.0",
     "debug": "^4.2.0",
     "fastpriorityqueue": "^0.7.1",
     "idb-kv-store": "^4.5.0",
@@ -43,11 +43,11 @@
     "pull-pushable": "^2.2.0",
     "rimraf": "^3.0.2",
     "ssb-fixtures": "2.2.0",
-    "ssb-keys": "^8.0.1",
+    "ssb-keys": "^8.1.0",
     "ssb-ref": "^2.14.3",
     "ssb-validate": "^4.1.1",
     "tap-spec": "^5.0.0",
-    "tape": "^5.1.1"
+    "tape": "^5.2.2"
   },
   "scripts": {
     "test": "tape test/*.js | tap-spec",

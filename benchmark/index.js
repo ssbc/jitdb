@@ -14,7 +14,7 @@ const JITDB = require('../index')
 const {
   query,
   fromDB,
-  and,
+  where,
   or,
   equal,
   count,
@@ -114,7 +114,7 @@ test('core indexes', (t) => {
 const runHugeIndexQuery = (cb) => {
   query(
     fromDB(db),
-    and(equal(seekType, 'post', { indexType: 'type' })),
+    where(equal(seekType, 'post', { indexType: 'type' })),
     toCallback((err, msgs) => {
       if (err) {
         cb(err)
@@ -208,13 +208,13 @@ test('create an index twice concurrently', (t) => {
     (cb) => {
       query(
         fromDB(db),
-        and(equal(seekType, 'about', { indexType: 'type' })),
+        where(equal(seekType, 'about', { indexType: 'type' })),
         toCallback(done())
       )
 
       query(
         fromDB(db),
-        and(equal(seekType, 'about', { indexType: 'type' })),
+        where(equal(seekType, 'about', { indexType: 'type' })),
         toCallback(done())
       )
 
@@ -245,16 +245,14 @@ test('create an index twice concurrently', (t) => {
 const runThreeIndexQuery = (cb) => {
   query(
     fromDB(db),
-    or(
-      and(equal(seekType, 'contact', { indexType: 'type' })),
-      and(
+    where(
+      or(
+        equal(seekType, 'contact', { indexType: 'type' }),
         equal(seekAuthor, alice.id, {
           indexType: 'author',
           prefix: 32,
           prefixOffset: 1,
-        })
-      ),
-      and(
+        }),
         equal(seekAuthor, bob.id, {
           indexType: 'author',
           prefix: 32,
@@ -325,16 +323,14 @@ test('load two indexes concurrently', (t) => {
     (cb) => {
       query(
         fromDB(db),
-        or(
-          and(equal(seekType, 'contact', { indexType: 'type' })),
-          and(
+        where(
+          or(
+            equal(seekType, 'contact', { indexType: 'type' }),
             equal(seekAuthor, alice.id, {
               indexType: 'author',
               prefix: 32,
               prefixOffset: 1,
-            })
-          ),
-          and(
+            }),
             equal(seekAuthor, bob.id, {
               indexType: 'author',
               prefix: 32,
@@ -347,16 +343,14 @@ test('load two indexes concurrently', (t) => {
 
       query(
         fromDB(db),
-        or(
-          and(equal(seekType, 'contact', { indexType: 'type' })),
-          and(
+        where(
+          or(
+            equal(seekType, 'contact', { indexType: 'type' }),
             equal(seekAuthor, alice.id, {
               indexType: 'author',
               prefix: 32,
               prefixOffset: 1,
-            })
-          ),
-          and(
+            }),
             equal(seekAuthor, bob.id, {
               indexType: 'author',
               prefix: 32,
@@ -416,7 +410,7 @@ test('paginate big index with small pageSize', (t) => {
       pull(
         query(
           fromDB(db),
-          and(equal(seekType, 'post', { indexType: 'type' })),
+          where(equal(seekType, 'post', { indexType: 'type' })),
           paginate(PAGESIZE),
           toPullStream()
         ),
@@ -477,7 +471,7 @@ test('paginate big index with big pageSize', (t) => {
       pull(
         query(
           fromDB(db),
-          and(equal(seekType, 'post', { indexType: 'type' })),
+          where(equal(seekType, 'post', { indexType: 'type' })),
           paginate(PAGESIZE),
           toPullStream()
         ),
@@ -548,7 +542,7 @@ const getPrefixMapQueries = () => {
       pull(
         query(
           fromDB(db),
-          and(
+          where(
             equal(seekVoteLink, rootKey, {
               indexType: 'value_content_vote_link',
               useMap: true,
