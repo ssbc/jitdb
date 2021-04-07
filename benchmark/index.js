@@ -263,15 +263,11 @@ test('load two indexes concurrently', (t) => {
   const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
 
   function waitForFile(filename, cb) {
-    fs.exists(filename, function(exists) {
-      if (exists) cb()
-      else setTimeout(() => waitForFile(filename, cb), 250)
-    })
+    if (fs.existsSync(filename)) cb()
+    else setTimeout(waitForFile, 250, filename, cb)
   }
 
   db.onReady(() => {
-    const done = multicb({ pluck: 1 })
-    const start = Date.now()
     const contact_index_filename = path.join(indexesDir, 'type_contact.index')
 
     // we need to wait for the other tests to write the index file
@@ -282,6 +278,9 @@ test('load two indexes concurrently', (t) => {
         lazy: true,
         filepath: contact_index_filename,
       }
+
+      const done = multicb({ pluck: 1 })
+      const start = Date.now()
 
       query(
         fromDB(db),
