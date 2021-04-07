@@ -1,35 +1,32 @@
-const prettyBytes = require('pretty-bytes');
-const gc = require('expose-gc/function');
-const nodemark = require('nodemark');
+const prettyBytes = require('pretty-bytes')
+const gc = require('expose-gc/function')
+const nodemark = require('nodemark')
+
+const roundError = e => Math.round(e * 10000) / 100
+
+const heapToString = function() {
+  return `${prettyBytes(this.mean)} \xb1${roundError(this.error)}%`
+}
+
+const statsToString = function() {
+  return `| ${this.name} | ${this.ops.milliseconds(2)}ms \xb1${roundError(this.ops.error)}% | ${this.heap} | ${this.ops.count} |\n`
+}
 
 function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedFn) {
-  let countMem = 0;
-  let streamingTotalMem = 0;
-  let streamingMeanMem = 0;
-  let streamingMaxMem = 0;
-  let streamingMinMem = Number.MAX_VALUE;
-  let streamingVarianceTotal = 0;
-  let oldMemory;
+  let samples
+  let oldMemory
   function calcMemUsage() {
-    const newMemory = process.memoryUsage().heapUsed;
-    if (countMem === 0) {
-      oldMemory = newMemory;
-      countMem++;
+    const newMemory = process.memoryUsage().heapUsed
+    if (oldMemory === void 0) {
+      oldMemory = newMemory
     } else {
-      const memDiff = newMemory - oldMemory;
-      streamingMaxMem = Math.max(streamingMaxMem, memDiff);
-      streamingMinMem = Math.min(streamingMinMem, memDiff);
-      streamingTotalMem += memDiff;
-      const newMean = (streamingTotalMem / countMem) | 0;
-      streamingVarianceTotal += (memDiff - newMean) * (memDiff - streamingMeanMem);
-      streamingMeanMem = newMean;
-      countMem++;
-      oldMemory = newMemory;
+      samples.push(newMemory - oldMemory)
+      oldMemory = newMemory
     }
   }
 
   function onCycle(cb) {
-    calcMemUsage();
+    calcMemUsage()
     if (notCountedFn) {
       notCountedFn(function(err) {
         if (err) cb(err)
@@ -41,21 +38,28 @@ function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedF
     }
   }
   function onStart(cb) {
-    countMem = 0;
-    streamingTotalMem = 0;
-    streamingMeanMem = 0;
-    streamingMaxMem = 0;
-    streamingMinMem = Number.MAX_VALUE;
-    streamingVarianceTotal = 0;
-    gc();
+    samples = []
+    gc()
     cb()
   }
-  function getFormattedResult(name, result) {
-    const heapChange = `max: ${prettyBytes(streamingMaxMem)
-    }, min:${prettyBytes(streamingMinMem)
-    }, mean:${prettyBytes(streamingMeanMem)
-    }, std dev:${prettyBytes(Math.sqrt((streamingVarianceTotal / (countMem - 1)) | 0) | 0)}`
-    return `| ${name} | ${result} | ${heapChange} |\n`
+  function getTestStats(name, ops) {
+    // Remove part before v8 optimizations, mimicking nodemark
+    samples = samples.slice(samples.length - ops.count)
+    const mean = (samples.reduce((a,s) => a+s, 0) / samples.length) | 0
+    const error = (Math.sqrt(
+      (samples.reduce((agg, diff) => agg + (diff - mean) * (diff - mean), 0) / (samples.length - 1)) | 0
+    ) | 0) / Math.abs(mean)
+    const heap = {
+      mean,
+      error,
+      toString: heapToString
+    }
+    return {
+      name,
+      ops,
+      heap,
+      toString: statsToString
+    }
   }
 
   onStart(function(err) {
@@ -69,11 +73,11 @@ function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedF
         })
       }
     ).then(result => {
-      callback(null, getFormattedResult(benchmarkName, result))
+      callback(null, getTestStats(benchmarkName, result))
     }).catch(e => {
       callback(e)
     })
   })
 }
 
-module.exports = runBenchmark;
+module.exports = runBenchmark

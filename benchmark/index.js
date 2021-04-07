@@ -9,7 +9,7 @@ const mkdirp = require('mkdirp')
 const multicb = require('multicb')
 const ssbKeys = require('ssb-keys')
 const TypedFastBitSet = require('typedfastbitset')
-const runBenchmark = require('./helpers/run_benchmark');
+const runBenchmark = require('./helpers/run_benchmark')
 const JITDB = require('../index')
 const {
   query,
@@ -56,7 +56,7 @@ if (!skipCreate) {
       t.pass(`authors = ${AUTHORS}`)
       t.true(fs.existsSync(oldLogPath), 'log.offset was created')
       fs.appendFileSync(reportPath, '## Benchmark results\n\n')
-      fs.appendFileSync(reportPath, '| Part | Speed | Heap Change |\n|---|---|---|\n')
+      fs.appendFileSync(reportPath, '| Part | Speed | Heap Change | Samples |\n|---|---|---|---|\n')
       t.end()
     })
   })
@@ -82,7 +82,7 @@ const getJitdbReady = (cb) => {
   db.onReady((err) => {
     cb(err)
   })
-};
+}
 
 const closeLog = (cb) => {
   if (raf) {
@@ -414,8 +414,8 @@ test('load two indexes concurrently', (t) => {
 })
 
 test('paginate big index with small pageSize', (t) => {
-  const TOTAL = 20000
-  const PAGESIZE = 5
+  const TOTAL = 4000
+  const PAGESIZE = 1
   const NUMPAGES = TOTAL / PAGESIZE
   runBenchmark(
     `Paginate ${TOTAL} msgs with pageSize=${PAGESIZE}`,
@@ -475,8 +475,8 @@ test('paginate big index with small pageSize', (t) => {
 })
 
 test('paginate big index with big pageSize', (t) => {
-  const TOTAL = 20000
-  const PAGESIZE = 500
+  const TOTAL = 4000
+  const PAGESIZE = 100
   const NUMPAGES = TOTAL / PAGESIZE
   runBenchmark(
     `Paginate ${TOTAL} msgs with pageSize=${PAGESIZE}`,
