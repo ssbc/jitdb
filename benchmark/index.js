@@ -30,8 +30,6 @@ const oldLogPath = path.join(dir, 'flume', 'log.offset')
 const newLogPath = path.join(dir, 'flume', 'log.bipf')
 const reportPath = path.join(dir, 'benchmark.md')
 const indexesDir = path.join(dir, 'indexes')
-const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
-const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
 
 const skipCreate = process.argv[2] === 'noCreate'
 
@@ -63,21 +61,48 @@ if (!skipCreate) {
 
   test('move flumelog-offset to async-log', (t) => {
     copy(oldLogPath, newLogPath, (err) => {
-      if (err) t.fail(err)
-      setTimeout(() => {
-        t.true(fs.existsSync(newLogPath), 'log.bipf was created')
+      if (err) {
+        t.fail(err)
         t.end()
-      }, 4000)
+        return
+      }
+      let fileSize = 0
+      const maxNotExistsTime = 4000
+      let notExistsTime = 0
+      function checkComplete() {
+        fs.stat(newLogPath, (err, stats) => {
+          if (err) {
+            if (notExistsTime >= maxNotExistsTime) {
+              t.fail(err)
+              t.end()
+            } else {
+              setTimeout(() => {
+                notExistsTime += 1000
+                checkComplete()
+              }, 1000)
+            }
+          } else if (stats.size > fileSize) {
+            fileSize = stats.size
+            setTimeout(checkComplete, 4000)
+          } else {
+            t.pass('log.bipf was created')
+            t.end()
+          }
+        })
+      }
+      checkComplete()
     })
   })
 }
+
+const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
+const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
 
 let raf
 let db
 
 const getJitdbReady = (cb) => {
   raf = Log(newLogPath, { blockSize: 64 * 1024 })
-  rimraf.sync(indexesDir)
   db = JITDB(raf, indexesDir)
   db.onReady((err) => {
     cb(err)
@@ -86,9 +111,12 @@ const getJitdbReady = (cb) => {
 
 const closeLog = (cb) => {
   if (raf) {
-    raf.close(cb)
+    raf.close((err) => {
+      if (err) cb(err)
+      else rimraf(indexesDir, cb)
+    })
   } else {
-    cb()
+    rimraf(indexesDir, cb)
   }
 }
 
