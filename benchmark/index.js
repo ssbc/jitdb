@@ -414,8 +414,8 @@ test('load two indexes concurrently', (t) => {
 })
 
 test('paginate big index with small pageSize', (t) => {
-  const TOTAL = 4000
-  const PAGESIZE = 1
+  const TOTAL = 20000
+  const PAGESIZE = 5
   const NUMPAGES = TOTAL / PAGESIZE
   runBenchmark(
     `Paginate ${TOTAL} msgs with pageSize=${PAGESIZE}`,
@@ -475,8 +475,8 @@ test('paginate big index with small pageSize', (t) => {
 })
 
 test('paginate big index with big pageSize', (t) => {
-  const TOTAL = 4000
-  const PAGESIZE = 100
+  const TOTAL = 20000
+  const PAGESIZE = 500
   const NUMPAGES = TOTAL / PAGESIZE
   runBenchmark(
     `Paginate ${TOTAL} msgs with pageSize=${PAGESIZE}`,
