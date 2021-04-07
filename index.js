@@ -876,6 +876,17 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function mergeFilters(filters1, filters2) {
+    const filters = filters1 || new Map()
+    if (!filters2) return filters
+    for (let seq of filters2.keys()) {
+      const f1 = filters.get(seq) || []
+      const f2 = filters2.get(seq)
+      filters.set(seq, [...f1, ...f2])
+    }
+    return filters
+  }
+
   function getBitsetForOperation(op, cb) {
     if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
       if (op.data.prefix) {
@@ -910,12 +921,7 @@ module.exports = function (log, indexesPath) {
 
       getBitsetForOperation(op.data[0], (op1, filters1) => {
         getBitsetForOperation(op.data[1], (op2, filters2) => {
-          const filters = filters1 || new Map()
-          if (filters2)
-            for (let k of filters2.keys())
-              filters.set(k, [...(filters.get(k) || []), ...filters2.get(k)])
-
-          cb(op1.new_intersection(op2), filters)
+          cb(op1.new_intersection(op2), mergeFilters(filters1, filters2))
         })
       })
     } else if (op.type === 'OR') {
@@ -923,12 +929,7 @@ module.exports = function (log, indexesPath) {
 
       getBitsetForOperation(op.data[0], (op1, filters1) => {
         getBitsetForOperation(op.data[1], (op2, filters2) => {
-          const filters = filters1 || new Map()
-          if (filters2)
-            for (let k of filters2.keys())
-              filters.set(k, [...(filters.get(k) || []), ...filters2.get(k)])
-
-          cb(op1.new_union(op2), filters)
+          cb(op1.new_union(op2), mergeFilters(filters1, filters2))
         })
       })
     } else if (op.type === 'NOT') {
@@ -1017,12 +1018,17 @@ module.exports = function (log, indexesPath) {
     else return true
   }
 
-  function getMessage(seq, valueCache, cb) {
-    if (valueCache[seq]) return cb(null, bipf.decode(valueCache[seq], 0))
+  function getMessage(seq, recBufferCache, cb) {
+    if (recBufferCache[seq]) {
+      const recBuffer = recBufferCache[seq]
+      const message = bipf.decode(recBuffer, 0)
+      cb(null, message)
+      return
+    }
     const offset = indexes['seq'].tarr[seq]
-    log.get(offset, (err, value) => {
+    log.get(offset, (err, recBuffer) => {
       if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, bipf.decode(value, 0))
+      else cb(err, bipf.decode(recBuffer, 0))
     })
   }
 
@@ -1060,16 +1066,17 @@ module.exports = function (log, indexesPath) {
     return fpq
   }
 
-  function filterRecords(seq, filters, valueCache, cb) {
+  function filterRecord(seq, filters, recBufferCache, cb) {
     getRecord(seq, (err, record) => {
       if (err) return cb(err)
 
+      const recBuffer = record.value
       let ok = true
       const seqFilters = filters.get(seq)
-      if (seqFilters) ok = seqFilters.every((filter) => filter(record.value))
+      if (seqFilters) ok = seqFilters.every((filter) => filter(recBuffer))
 
       if (ok) {
-        valueCache[seq] = record.value
+        recBufferCache[seq] = recBuffer
         cb(null, seq)
       } else cb()
     })
@@ -1102,18 +1109,18 @@ module.exports = function (log, indexesPath) {
   ) {
     seq = seq || 0
 
-    let sorted = sortedByTimestamp(bitset, descending)
+    const sorted = sortedByTimestamp(bitset, descending)
     const resultSize = sorted.size
 
-    // seq -> value
-    let valueCache = {}
+    // seq -> record buffer
+    const recBufferCache = {}
 
-    function processResults(err, seqs, resultSize) {
+    function processResults(seqs, resultSize) {
       push(
         push.values(seqs),
-        push.asyncMap((seq, cb) => {
-          if (onlyOffset) cb(null, indexes['seq'].tarr[seq])
-          else getMessage(seq, valueCache, cb)
+        push.asyncMap((seq, continueCB) => {
+          if (onlyOffset) continueCB(null, indexes['seq'].tarr[seq])
+          else getMessage(seq, recBufferCache, continueCB)
         }),
         push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
         push.collect((err, results) => {
@@ -1127,6 +1134,7 @@ module.exports = function (log, indexesPath) {
 
     if (filters) {
       function ensureEnoughResults(err, startSeq, seqs) {
+        if (err) return cb(err)
         const rawLength = seqs.length
         seqs = seqs.filter((x) => x !== undefined)
         const moreResults = startSeq + seqs.length < sorted.size
@@ -1137,34 +1145,30 @@ module.exports = function (log, indexesPath) {
             startSeq + rawLength,
             limit - seqs.length,
             seqs,
-            (err, seqs) => ensureEnoughResults(err, startSeq + rawLength, seqs)
+            (e, seqs) => ensureEnoughResults(e, startSeq + rawLength, seqs)
           )
-        else processResults(err, seqs, resultSize, cb)
+        else processResults(seqs, resultSize)
       }
 
-      function getMoreResults(startSeq, remaining, seqs, resultCb) {
+      function getMoreResults(startSeq, remaining, seqs, continueCB) {
         const done = multicb({ pluck: 1 })
 
         // existing results
-        for (var i = 0; i < seqs.length; ++i) done()(null, seqs[i])
+        for (let i = 0; i < seqs.length; ++i) done()(null, seqs[i])
 
         const sliced = sliceResults(sorted, startSeq, remaining)
-        for (var i = 0; i < sliced.length; ++i)
-          filterRecords(sliced[i].seq, filters, valueCache, done())
+        for (let i = 0; i < sliced.length; ++i)
+          filterRecord(sliced[i].seq, filters, recBufferCache, done())
 
-        done(resultCb)
+        done(continueCB)
       }
 
       getMoreResults(seq, limit, [], (err, seqs) =>
         ensureEnoughResults(err, seq, seqs)
       )
     } else {
-      const sliced = sliceResults(sorted, seq, limit)
-      processResults(
-        null,
-        sliced.map((s) => s.seq),
-        resultSize
-      )
+      const slicedSeqs = sliceResults(sorted, seq, limit).map((s) => s.seq)
+      processResults(slicedSeqs, resultSize)
     }
   }
 
