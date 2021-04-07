@@ -33,6 +33,8 @@ const indexesDir = path.join(dir, 'indexes')
 
 const skipCreate = process.argv[2] === 'noCreate'
 
+let alice
+let bob
 if (!skipCreate) {
   rimraf.sync(dir)
   mkdirp.sync(dir)
@@ -53,6 +55,8 @@ if (!skipCreate) {
       t.pass(`messages = ${MESSAGES}`)
       t.pass(`authors = ${AUTHORS}`)
       t.true(fs.existsSync(oldLogPath), 'log.offset was created')
+      alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
+      bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
       fs.appendFileSync(reportPath, '## Benchmark results\n\n')
       fs.appendFileSync(reportPath, '| Part | Speed | Heap Change | Samples |\n|---|---|---|---|\n')
       t.end()
@@ -93,10 +97,10 @@ if (!skipCreate) {
       checkComplete()
     })
   })
+} else {
+  alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
+  bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
 }
-
-const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
-const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
 
 let raf
 let db
