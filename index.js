@@ -881,7 +881,7 @@ module.exports = function (log, indexesPath) {
     else if (filters1 && !filters2) return filters1
     else if (!filters1 && filters2) return filters2
     else {
-      const filters = filters1
+      const filters = new Map(filters1)
       for (let seq of filters2.keys()) {
         const f1 = filters1.get(seq) || []
         const f2 = filters2.get(seq)
