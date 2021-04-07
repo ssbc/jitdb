@@ -878,14 +878,17 @@ module.exports = function (log, indexesPath) {
 
   function mergeFilters(filters1, filters2) {
     if (!filters1 && !filters2) return null
-    const filters = filters1 || new Map()
-    if (!filters2) return filters
-    for (let seq of filters2.keys()) {
-      const f1 = filters.get(seq) || []
-      const f2 = filters2.get(seq)
-      filters.set(seq, [...f1, ...f2])
+    else if (filters1 && !filters2) return filters1
+    else if (!filters1 && filters2) return filters2
+    else {
+      const filters = filters1
+      for (let seq of filters2.keys()) {
+        const f1 = filters1.get(seq) || []
+        const f2 = filters2.get(seq)
+        filters.set(seq, [...f1, ...f2])
+      }
+      return filters
     }
-    return filters
   }
 
   function getBitsetForOperation(op, cb) {
