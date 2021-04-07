@@ -877,6 +877,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function mergeFilters(filters1, filters2) {
+    if (!filters1 && !filters2) return null
     const filters = filters1 || new Map()
     if (!filters2) return filters
     for (let seq of filters2.keys()) {
