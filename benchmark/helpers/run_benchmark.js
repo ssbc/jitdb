@@ -12,7 +12,7 @@ const heapToString = function() {
 
 const statsToString = function() {
   const opsMs = this.ops.milliseconds(2)
-  const opsError = Math.round(this.ops.error * opsMs, 2)
+  const opsError = Math.round(this.ops.error * opsMs * 10000) / 100
   return `| ${this.name} | ${opsMs}ms \xb1${opsError}ms | ${this.heap} | ${this.ops.count} |\n`
 }
 
