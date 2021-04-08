@@ -7,7 +7,9 @@ const prettyBytesOptions = {
 }
 
 const heapToString = function() {
-  return `${prettyBytes(this.mean, prettyBytesOptions)} \xb1${prettyBytes(this.error, prettyBytesOptions)}`
+  const formattedMean = prettyBytes(this.mean, prettyBytesOptions)
+  const formattedStandardDeviation = prettyBytes(this.error *  this.mean, prettyBytesOptions)
+  return `${formattedMean} \xb1${formattedStandardDeviation}`
 }
 
 const statsToString = function() {
