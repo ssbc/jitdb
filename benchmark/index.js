@@ -33,6 +33,43 @@ const indexesDir = path.join(dir, 'indexes')
 
 const skipCreate = process.argv[2] === 'noCreate'
 
+/**
+ * Wait for a file to exist and for writes to that file
+ * to complete
+ * 
+ * @param {string} filepath 
+ * @param {Function} cb 
+ */
+const waitForFile = (filepath, cb) => {
+  const maxTime = 5000
+  const interval = 500
+  let timeUsed = 0
+  let fileSize = 0
+  function fileReady() {
+    fs.stat(filepath, (err, stats) => {
+      if (err) {
+        if (timeUsed < maxTime) {
+          timeUsed += interval
+          setTimeout(fileReady, interval)
+        } else {
+          cb(err)
+        }
+      } else if (stats.size > fileSize) {
+        if (timeUsed < maxTime) {
+          fileSize = stats.size
+          timeUsed += interval
+          setTimeout(fileReady, interval)
+        } else {
+          cb(new Error(`Timed out waiting for ${filepath} to finish writing`))
+        }
+      } else {
+        cb()
+      }
+    })
+  }
+  setTimeout(fileReady, interval)
+}
+
 let alice
 let bob
 if (!skipCreate) {
@@ -70,31 +107,18 @@ if (!skipCreate) {
         t.end()
         return
       }
-      let fileSize = 0
-      const maxNotExistsTime = 4000
-      let notExistsTime = 0
-      function checkComplete() {
-        fs.stat(newLogPath, (err, stats) => {
+      waitForFile(
+        newLogPath,
+        (err) => {
           if (err) {
-            if (notExistsTime >= maxNotExistsTime) {
-              t.fail(err)
-              t.end()
-            } else {
-              setTimeout(() => {
-                notExistsTime += 1000
-                checkComplete()
-              }, 1000)
-            }
-          } else if (stats.size > fileSize) {
-            fileSize = stats.size
-            setTimeout(checkComplete, 4000)
+            t.fail(err)
+            t.end()
           } else {
             t.pass('log.bipf was created')
             t.end()
           }
-        })
-      }
-      checkComplete()
+        }
+      )
     })
   })
 } else {
@@ -362,6 +386,25 @@ test('query three indexes (second run)', (t) => {
   )
 })
 
+const useContactIndex = (cb) => {
+  const filepath = path.join(indexesDir, 'type_contact.index')
+  waitForFile(
+    path.join(indexesDir, 'type_contact.index'),
+    (err) => {
+      if (err) cb(err)
+      else {
+        db.indexes['type_contact'] = {
+          offset: 0,
+          bitset: new TypedFastBitSet(),
+          lazy: true,
+          filepath,
+        }
+        cb()
+      }
+    }
+  )
+}
+
 test('load two indexes concurrently', (t) => {
   let done
   runBenchmark(
@@ -421,13 +464,7 @@ test('load two indexes concurrently', (t) => {
             if (err) cb(err)
             else {
               done = multicb({ pluck: 1 })
-              db.indexes['type_contact'] = {
-                offset: 0,
-                bitset: new TypedFastBitSet(),
-                lazy: true,
-                filepath: path.join(indexesDir, 'type_contact.index'),
-              }
-              cb()
+              useContactIndex(cb)
             }
           })
         })
@@ -482,13 +519,7 @@ test('paginate big index with small pageSize', (t) => {
             if (err) cb(err)
             else {
               done = multicb({ pluck: 1 })
-              db.indexes['type_contact'] = {
-                offset: 0,
-                bitset: new TypedFastBitSet(),
-                lazy: true,
-                filepath: path.join(indexesDir, 'type_contact.index'),
-              }
-              cb()
+              useContactIndex(cb)
             }
           })
         })
@@ -543,13 +574,7 @@ test('paginate big index with big pageSize', (t) => {
             if (err) cb(err)
             else {
               done = multicb({ pluck: 1 })
-              db.indexes['type_contact'] = {
-                offset: 0,
-                bitset: new TypedFastBitSet(),
-                lazy: true,
-                filepath: path.join(indexesDir, 'type_contact.index'),
-              }
-              cb()
+              useContactIndex(cb)
             }
           })
         })
@@ -628,13 +653,10 @@ test('query a prefix map (first run)', (t) => {
             if (err) cb(err)
             else {
               done = multicb({ pluck: 1 })
-              db.indexes['type_contact'] = {
-                offset: 0,
-                bitset: new TypedFastBitSet(),
-                lazy: true,
-                filepath: path.join(indexesDir, 'type_contact.index'),
-              }
-              prepareRootKey(cb)
+              useContactIndex(function(err) {
+                if (err) cb(err)
+                else prepareRootKey(cb)
+              })
             }
           })
         })
@@ -666,15 +688,12 @@ test('query a prefix map (second run)', (t) => {
             if (err) cb(err)
             else {
               done = multicb({ pluck: 1 })
-              db.indexes['type_contact'] = {
-                offset: 0,
-                bitset: new TypedFastBitSet(),
-                lazy: true,
-                filepath: path.join(indexesDir, 'type_contact.index'),
-              }
-              prepareRootKey((err3) => {
-                if (err3) cb(err3)
-                else queryMap(cb)
+              useContactIndex(function(err) {
+                if (err) cb(err)
+                else prepareRootKey((err3) => {
+                  if (err3) cb(err3)
+                  else queryMap(cb)
+                })
               })
             }
           })
