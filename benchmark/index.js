@@ -387,8 +387,9 @@ test('query three indexes (second run)', (t) => {
 })
 
 const useContactIndex = (cb) => {
+  const filepath = path.join(indexesDir, 'type_contact.index')
   waitForFile(
-    path.join(indexesDir, 'type_contact.index'),
+    filepath,
     (err) => {
       if (err) cb(err)
       else {
