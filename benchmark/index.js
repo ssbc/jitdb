@@ -538,7 +538,7 @@ test('paginate ten results', (t) => {
         t.pass(`duration: ${duration}ms`)
         fs.appendFileSync(
           reportPath,
-          `| paginate 10 results | ${duration}ms |\n`
+          `| Paginate 10 results | ${duration}ms |\n`
         )
         t.end()
       })

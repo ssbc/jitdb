@@ -1071,12 +1071,14 @@ module.exports = function (log, indexesPath) {
   }
 
   function filterRecord(seq, filters, recBufferCache, cb) {
+    const seqFilters = filters.get(seq)
+    if (!seqFilters) return cb(null, seq)
+
     getRecord(seq, (err, record) => {
       if (err) return cb(err)
 
       const recBuffer = record.value
       let ok = true
-      const seqFilters = filters.get(seq)
       if (seqFilters) ok = seqFilters.every((filter) => filter(recBuffer))
 
       if (ok) {
