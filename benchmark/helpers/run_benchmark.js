@@ -8,14 +8,15 @@ const prettyBytesOptions = {
 
 const heapToString = function() {
   const formattedMean = prettyBytes(this.mean, prettyBytesOptions)
-  const formattedStandardDeviation = prettyBytes(this.error *  this.mean, prettyBytesOptions)
-  return `${formattedMean} \xb1${formattedStandardDeviation}`
+  const [mean, units] = formattedMean.split(' ')
+  const formattedStandardDeviation = `${Math.round(Math.abs(this.error *  mean) * 100)/100} ${units}`
+  return `${formattedMean} \xb1 ${formattedStandardDeviation}`
 }
 
 const statsToString = function() {
   const opsMs = this.ops.milliseconds(2)
-  const opsError = Math.round(this.ops.error * opsMs * 10000) / 100
-  return `| ${this.name} | ${opsMs}ms \xb1${opsError}ms | ${this.heap} | ${this.ops.count} |\n`
+  const opsError = Math.round(this.ops.error * opsMs * 100) / 100
+  return `| ${this.name} | ${opsMs}ms \xb1 ${opsError}ms | ${this.heap} | ${this.ops.count} |\n`
 }
 
 function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedFn) {
