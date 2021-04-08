@@ -3,7 +3,7 @@ const gc = require('expose-gc/function')
 const nodemark = require('nodemark')
 
 const prettyBytesOptions = {
-  maximumFractionDigits: 4
+  maximumFractionDigits: 2
 }
 
 const heapToString = function() {
