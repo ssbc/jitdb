@@ -2,14 +2,18 @@ const prettyBytes = require('pretty-bytes')
 const gc = require('expose-gc/function')
 const nodemark = require('nodemark')
 
-const roundError = e => Math.round(e * 10000) / 100
+const prettyBytesOptions = {
+  maximumFractionDigits: 4
+}
 
 const heapToString = function() {
-  return `${prettyBytes(this.mean)} \xb1${roundError(this.error)}%`
+  return `${prettyBytes(this.mean, prettyBytesOptions)} \xb1${prettyBytes(this.error, prettyBytesOptions)}`
 }
 
 const statsToString = function() {
-  return `| ${this.name} | ${this.ops.milliseconds(2)}ms \xb1${roundError(this.ops.error)}% | ${this.heap} | ${this.ops.count} |\n`
+  const opsMs = this.ops.milliseconds(2)
+  const opsError = Math.round(this.ops.error * opsMs, 2)
+  return `| ${this.name} | ${opsMs}ms \xb1${opsError}ms | ${this.heap} | ${this.ops.count} |\n`
 }
 
 function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedFn) {
