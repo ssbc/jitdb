@@ -263,11 +263,11 @@ function not(ops) {
 }
 
 function and(...args) {
-  return { type: 'AND', data: args }
+  return { type: 'AND', data: args.filter((arg) => !!arg) }
 }
 
 function or(...args) {
-  return { type: 'OR', data: args }
+  return { type: 'OR', data: args.filter((arg) => !!arg) }
 }
 
 function where(...args) {
