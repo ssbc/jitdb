@@ -163,7 +163,7 @@ prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
   state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
-  const typeQuery = {
+  const channelQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekChannel,
@@ -177,7 +177,7 @@ prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(channelQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'First')
           t.end()
@@ -197,7 +197,7 @@ prepareAndRunTest('Prefix equal falsy', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
   state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
-  const typeQuery = {
+  const channelQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekChannel,
@@ -211,7 +211,7 @@ prepareAndRunTest('Prefix equal falsy', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(channelQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, 'Second')
           t.equal(results[1].value.content.text, 'Third')
@@ -317,7 +317,7 @@ prepareAndRunTest('Prefix equal unknown value', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
   state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
-  const typeQuery = {
+  const authorQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
@@ -331,7 +331,7 @@ prepareAndRunTest('Prefix equal unknown value', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(authorQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 0)
           t.end()
         })
@@ -389,7 +389,7 @@ prepareAndRunTest('Prefix offset', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        const typeQuery = {
+        const keyQuery = {
           type: 'EQUAL',
           data: {
             seek: helpers.seekKey,
@@ -402,7 +402,7 @@ prepareAndRunTest('Prefix offset', dir, (t, db, raf) => {
           },
         }
 
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(keyQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
           t.end()
@@ -419,7 +419,7 @@ prepareAndRunTest('Prefix offset 1 on empty', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg1, Date.now())
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    const typeQuery = {
+    const rootQuery = {
       type: 'EQUAL',
       data: {
         seek: helpers.seekRoot,
@@ -432,10 +432,83 @@ prepareAndRunTest('Prefix offset 1 on empty', dir, (t, db, raf) => {
       },
     }
 
-    db.all(typeQuery, 0, false, false, (err, results) => {
+    db.all(rootQuery, 0, false, false, (err, results) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.text, 'Testing!')
       t.end()
+    })
+  })
+})
+
+prepareAndRunTest('Prefix delete', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing!' }
+  const msg2 = { type: 'contact', text: 'Contact!' }
+  const msg3 = { type: 'post', text: 'Testing 2!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'value_content_type_post',
+      useMap: true,
+      prefix: 32,
+    },
+  }
+  const authorQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekAuthor,
+      value: Buffer.from(keys.id),
+      indexType: 'author',
+      indexName: 'value_author',
+      prefix: 32,
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg, offset1) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.all(
+          {
+            type: 'AND',
+            data: [typeQuery, authorQuery],
+          },
+          0,
+          false,
+          false,
+          (err, results) => {
+            t.equal(results.length, 2)
+            t.equal(results[0].value.content.type, 'post')
+            t.equal(results[1].value.content.type, 'post')
+
+            raf.del(offset1, () => {
+              db.paginate(
+                {
+                  type: 'AND',
+                  data: [typeQuery, authorQuery],
+                },
+                0,
+                1,
+                false,
+                false,
+                (err, answer) => {
+                  t.equal(answer.results.length, 1)
+                  t.equal(answer.results[0].value.content.text, 'Testing 2!')
+
+                  t.end()
+                }
+              )
+            })
+          }
+        )
+      })
     })
   })
 })
