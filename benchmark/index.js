@@ -715,41 +715,58 @@ test('query a prefix map (second run)', (t) => {
 })
 
 test('paginate ten results', (t) => {
-  const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
-  const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
-
-  db.onReady(() => {
-    const start = Date.now()
-    pull(
-      query(
-        fromDB(db),
-        where(
-          and(
-            equal(seekType, 'contact', { indexType: 'type' }),
-            equal(seekAuthor, alice.id, {
-              indexType: 'author',
-              prefix: 32,
-              prefixOffset: 1,
-            })
-          )
+  runBenchmark(
+    `Paginate 10 results`,
+    (cb) => {
+      pull(
+        query(
+          fromDB(db),
+          where(
+            and(
+              equal(seekType, 'contact', { indexType: 'type' }),
+              equal(seekAuthor, alice.id, {
+                indexType: 'author',
+                prefix: 32,
+                prefixOffset: 1,
+              })
+            )
+          ),
+          startFrom(0),
+          paginate(10),
+          toPullStream()
         ),
-        startFrom(0),
-        paginate(10),
-        toPullStream()
-      ),
-      pull.take(1),
-      pull.collect((err, msgs) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        if (msgs[0].length !== 10)
-          t.fail('msgs.length is wrong: ' + msgs.length)
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Paginate 10 results | ${duration}ms |\n`
-        )
-        t.end()
+        pull.take(1),
+        pull.collect((err, msgs) => {
+          if (err) cb(err)
+          else if (msgs[0].length !== 10)
+            cb(new Error('msgs.length is wrong: ' + msgs.length))
+          else cb()
+        })
+      )
+    },
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(cb)
+            }
+          })
+        })
       })
-    )
-  })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
