@@ -14,11 +14,13 @@ const {
   query,
   fromDB,
   where,
+  and,
   or,
   equal,
   count,
   toCallback,
   toPullStream,
+  startFrom,
   paginate,
 } = require('../operators')
 const { seekType, seekAuthor, seekVoteLink } = require('../test/helpers')
@@ -262,66 +264,76 @@ test('load two indexes concurrently', (t) => {
   const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
   const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
 
+  function waitForFile(filename, cb) {
+    if (fs.existsSync(filename)) cb()
+    else setTimeout(waitForFile, 250, filename, cb)
+  }
+
   db.onReady(() => {
-    const done = multicb({ pluck: 1 })
-    const start = Date.now()
+    const contact_index_filename = path.join(indexesDir, 'type_contact.index')
 
-    db.indexes['type_contact'] = {
-      offset: 0,
-      bitset: new TypedFastBitSet(),
-      lazy: true,
-      filepath: path.join(indexesDir, 'type_contact.index'),
-    }
+    // we need to wait for the other tests to write the index file
+    waitForFile(contact_index_filename, () => {
+      db.indexes['type_contact'] = {
+        offset: 0,
+        bitset: new TypedFastBitSet(),
+        lazy: true,
+        filepath: contact_index_filename,
+      }
 
-    query(
-      fromDB(db),
-      where(
-        or(
-          equal(seekType, 'contact', { indexType: 'type' }),
-          equal(seekAuthor, alice.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          }),
-          equal(seekAuthor, bob.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          })
-        )
-      ),
-      toCallback(done())
-    )
+      const done = multicb({ pluck: 1 })
+      const start = Date.now()
 
-    query(
-      fromDB(db),
-      where(
-        or(
-          equal(seekType, 'contact', { indexType: 'type' }),
-          equal(seekAuthor, alice.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          }),
-          equal(seekAuthor, bob.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          })
-        )
-      ),
-      toCallback(done())
-    )
-
-    done((err) => {
-      if (err) t.fail(err)
-      const duration = Date.now() - start
-      t.pass(`duration: ${duration}ms`)
-      fs.appendFileSync(
-        reportPath,
-        `| Load two indexes concurrently | ${duration}ms |\n`
+      query(
+        fromDB(db),
+        where(
+          or(
+            equal(seekType, 'contact', { indexType: 'type' }),
+            equal(seekAuthor, alice.id, {
+              indexType: 'author',
+              prefix: 32,
+              prefixOffset: 1,
+            }),
+            equal(seekAuthor, bob.id, {
+              indexType: 'author',
+              prefix: 32,
+              prefixOffset: 1,
+            })
+          )
+        ),
+        toCallback(done())
       )
-      t.end()
+
+      query(
+        fromDB(db),
+        where(
+          or(
+            equal(seekType, 'contact', { indexType: 'type' }),
+            equal(seekAuthor, alice.id, {
+              indexType: 'author',
+              prefix: 32,
+              prefixOffset: 1,
+            }),
+            equal(seekAuthor, bob.id, {
+              indexType: 'author',
+              prefix: 32,
+              prefixOffset: 1,
+            })
+          )
+        ),
+        toCallback(done())
+      )
+
+      done((err) => {
+        if (err) t.fail(err)
+        const duration = Date.now() - start
+        t.pass(`duration: ${duration}ms`)
+        fs.appendFileSync(
+          reportPath,
+          `| Load two indexes concurrently | ${duration}ms |\n`
+        )
+        t.end()
+      })
     })
   })
 })
@@ -489,6 +501,46 @@ test('query a prefix map (second run)', (t) => {
             )
           )
         })
+      })
+    )
+  })
+})
+
+test('paginate ten results', (t) => {
+  const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
+  const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
+
+  db.onReady(() => {
+    const start = Date.now()
+    pull(
+      query(
+        fromDB(db),
+        where(
+          and(
+            equal(seekType, 'contact', { indexType: 'type' }),
+            equal(seekAuthor, alice.id, {
+              indexType: 'author',
+              prefix: 32,
+              prefixOffset: 1,
+            })
+          )
+        ),
+        startFrom(0),
+        paginate(10),
+        toPullStream()
+      ),
+      pull.take(1),
+      pull.collect((err, msgs) => {
+        if (err) t.fail(err)
+        const duration = Date.now() - start
+        if (msgs[0].length !== 10)
+          t.fail('msgs.length is wrong: ' + msgs.length)
+        t.pass(`duration: ${duration}ms`)
+        fs.appendFileSync(
+          reportPath,
+          `| Paginate 10 results | ${duration}ms |\n`
+        )
+        t.end()
       })
     )
   })
