@@ -160,7 +160,7 @@ test('core indexes', (t) => {
         if (err || err2) {
           t.fail(err || err2)
         } else {
-          fs.appendFileSync(reportPath, result)
+          fs.appendFileSync(reportPath, result.toString())
           t.pass(result)
         }
         t.end()
@@ -198,7 +198,7 @@ test('query one huge index (first run)', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -223,7 +223,7 @@ test('query one huge index (second run)', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -265,7 +265,7 @@ test('count one huge index (third run)', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -306,7 +306,7 @@ test('create an index twice concurrently', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -355,7 +355,7 @@ test('query three indexes (first run)', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -380,7 +380,7 @@ test('query three indexes (second run)', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -476,7 +476,7 @@ test('load two indexes concurrently', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -531,7 +531,7 @@ test('paginate big index with small pageSize', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -586,7 +586,7 @@ test('paginate big index with big pageSize', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -668,7 +668,7 @@ test('query a prefix map (first run)', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -706,7 +706,7 @@ test('query a prefix map (second run)', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
@@ -763,7 +763,7 @@ test('paginate ten results', (t) => {
       if (err) {
         t.fail(err)
       } else {
-        fs.appendFileSync(reportPath, result)
+        fs.appendFileSync(reportPath, result.toString())
         t.pass(result)
       }
       t.end()
