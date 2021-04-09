@@ -19,7 +19,7 @@ const statsToString = function() {
   return `| ${this.name} | ${opsMs}ms \xb1 ${opsError}ms | ${this.heap} | ${this.ops.count} |\n`
 }
 
-function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedFn) {
+function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback) {
   let samples
   let oldMemory
   function calcMemUsage() {
@@ -34,15 +34,7 @@ function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedF
 
   function onCycle(cb) {
     calcMemUsage()
-    if (notCountedFn) {
-      notCountedFn(function(err) {
-        if (err) cb(err)
-        else gc()
-      })
-    } else {
-      gc()
-      cb()
-    }
+    cb()
   }
   function onStart(cb) {
     samples = []
@@ -76,7 +68,13 @@ function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback, notCountedF
       (cb) => {
         onCycle(function(err2) {
           if (err2) return cb(err2)
-          else setupFn(cb)
+          else setupFn(function(err3) {
+            if (err3) cb(err3)
+            else {
+              gc()
+              cb()
+            }
+          })
         })
       }
     ).then(result => {
