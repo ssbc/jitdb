@@ -15,11 +15,13 @@ const {
   query,
   fromDB,
   where,
+  and,
   or,
   equal,
   count,
   toCallback,
   toPullStream,
+  startFrom,
   paginate,
 } = require('../operators')
 const { seekType, seekAuthor, seekVoteLink } = require('../test/helpers')
@@ -695,6 +697,63 @@ test('query a prefix map (second run)', (t) => {
                   else queryMap(cb)
                 })
               })
+            }
+          })
+        })
+      })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
+})
+
+test('paginate ten results', (t) => {
+  runBenchmark(
+    `Paginate 10 results`,
+    (cb) => {
+      pull(
+        query(
+          fromDB(db),
+          where(
+            and(
+              equal(seekType, 'contact', { indexType: 'type' }),
+              equal(seekAuthor, alice.id, {
+                indexType: 'author',
+                prefix: 32,
+                prefixOffset: 1,
+              })
+            )
+          ),
+          startFrom(0),
+          paginate(10),
+          toPullStream()
+        ),
+        pull.take(1),
+        pull.collect((err, msgs) => {
+          if (err) cb(err)
+          else if (msgs[0].length !== 10)
+            cb(new Error('msgs.length is wrong: ' + msgs.length))
+          else cb()
+        })
+      )
+    },
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(cb)
             }
           })
         })
