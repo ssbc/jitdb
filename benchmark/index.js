@@ -9,6 +9,7 @@ const mkdirp = require('mkdirp')
 const multicb = require('multicb')
 const ssbKeys = require('ssb-keys')
 const TypedFastBitSet = require('typedfastbitset')
+const runBenchmark = require('./helpers/run_benchmark')
 const JITDB = require('../index')
 const {
   query,
@@ -34,6 +35,45 @@ const indexesDir = path.join(dir, 'indexes')
 
 const skipCreate = process.argv[2] === 'noCreate'
 
+/**
+ * Wait for a file to exist and for writes to that file
+ * to complete
+ * 
+ * @param {string} filepath 
+ * @param {Function} cb 
+ */
+const waitForFile = (filepath, cb) => {
+  const maxTime = 5000
+  const interval = 500
+  let timeUsed = 0
+  let fileSize = 0
+  function fileReady() {
+    fs.stat(filepath, (err, stats) => {
+      if (err) {
+        if (timeUsed < maxTime) {
+          timeUsed += interval
+          setTimeout(fileReady, interval)
+        } else {
+          cb(err)
+        }
+      } else if (stats.size > fileSize) {
+        if (timeUsed < maxTime) {
+          fileSize = stats.size
+          timeUsed += interval
+          setTimeout(fileReady, interval)
+        } else {
+          cb(new Error(`Timed out waiting for ${filepath} to finish writing`))
+        }
+      } else {
+        cb()
+      }
+    })
+  }
+  setTimeout(fileReady, interval)
+}
+
+let alice
+let bob
 if (!skipCreate) {
   rimraf.sync(dir)
   mkdirp.sync(dir)
@@ -54,236 +94,324 @@ if (!skipCreate) {
       t.pass(`messages = ${MESSAGES}`)
       t.pass(`authors = ${AUTHORS}`)
       t.true(fs.existsSync(oldLogPath), 'log.offset was created')
+      alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
+      bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
       fs.appendFileSync(reportPath, '## Benchmark results\n\n')
-      fs.appendFileSync(reportPath, '| Part | Duration |\n|---|---|\n')
+      fs.appendFileSync(reportPath, '| Part | Speed | Heap Change | Samples |\n|---|---|---|---|\n')
       t.end()
     })
   })
 
   test('move flumelog-offset to async-log', (t) => {
     copy(oldLogPath, newLogPath, (err) => {
-      if (err) t.fail(err)
-      setTimeout(() => {
-        t.true(fs.existsSync(newLogPath), 'log.bipf was created')
+      if (err) {
+        t.fail(err)
         t.end()
-      }, 4000)
+        return
+      }
+      waitForFile(
+        newLogPath,
+        (err) => {
+          if (err) {
+            t.fail(err)
+            t.end()
+          } else {
+            t.pass('log.bipf was created')
+            t.end()
+          }
+        }
+      )
     })
   })
+} else {
+  alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
+  bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
 }
 
 let raf
 let db
 
-test('core indexes', (t) => {
-  const start = Date.now()
+const getJitdbReady = (cb) => {
   raf = Log(newLogPath, { blockSize: 64 * 1024 })
-  rimraf.sync(indexesDir)
   db = JITDB(raf, indexesDir)
-  db.onReady(() => {
-    const duration = Date.now() - start
-    t.pass(`duration: ${duration}ms`)
-    fs.appendFileSync(reportPath, `| Load core indexes | ${duration}ms |\n`)
-    t.end()
+  db.onReady((err) => {
+    cb(err)
   })
-})
+}
 
-test('query one huge index (first run)', (t) => {
-  db.onReady(() => {
-    const start = Date.now()
-    query(
-      fromDB(db),
-      where(equal(seekType, 'post', { indexType: 'type' })),
-      toCallback((err, msgs) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        if (msgs.length !== 23310)
-          t.fail('msgs.length is wrong: ' + msgs.length)
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Query 1 big index (1st run) | ${duration}ms |\n`
-        )
+const closeLog = (cb) => {
+  if (raf) {
+    raf.close((err) => {
+      if (err) cb(err)
+      else rimraf(indexesDir, cb)
+    })
+  } else {
+    rimraf(indexesDir, cb)
+  }
+}
+
+test('core indexes', (t) => {
+  runBenchmark(
+    'Load core indexes',
+    getJitdbReady,
+    closeLog,
+    (err, result) => {
+      closeLog((err2) => {
+        if (err || err2) {
+          t.fail(err || err2)
+        } else {
+          fs.appendFileSync(reportPath, result)
+          t.pass(result)
+        }
         t.end()
       })
-    )
-  })
+    }
+  )
+})
+
+const runHugeIndexQuery = (cb) => {
+  query(
+    fromDB(db),
+    where(equal(seekType, 'post', { indexType: 'type' })),
+    toCallback((err, msgs) => {
+      if (err) {
+        cb(err)
+      } else if (msgs.length !== 23310) {
+        cb(new Error('msgs.length is wrong: ' + msgs.length))
+      }
+      cb()
+    })
+  )
+}
+
+test('query one huge index (first run)', (t) => {
+  runBenchmark(
+    'Query 1 big index (1st run)',
+    runHugeIndexQuery,
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady(cb)
+      })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
 test('query one huge index (second run)', (t) => {
-  db.onReady(() => {
-    const start = Date.now()
-    query(
-      fromDB(db),
-      where(equal(seekType, 'post', { indexType: 'type' })),
-      toCallback((err, msgs) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        if (msgs.length !== 23310)
-          t.fail('msgs.length is wrong: ' + msgs.length)
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Query 1 big index (2nd run) | ${duration}ms |\n`
-        )
-        t.end()
+  runBenchmark(
+    'Query 1 big index (2nd run)',
+    runHugeIndexQuery,
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err2) => {
+          if (err2) cb(err2)
+          else runHugeIndexQuery(cb)
+        })
       })
-    )
-  })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
 test('count one huge index (third run)', (t) => {
-  db.onReady(() => {
-    const start = Date.now()
-    query(
-      fromDB(db),
-      where(equal(seekType, 'post', { indexType: 'type' })),
-      count(),
-      toCallback((err, total) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        if (total !== 23310) t.fail('total is wrong: ' + total)
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Count 1 big index (3rd run) | ${duration}ms |\n`
-        )
-        t.end()
+  runBenchmark(
+    'Count 1 big index (3rd run)',
+    (cb) => {
+      query(
+        fromDB(db),
+        where(equal(seekType, 'post', { indexType: 'type' })),
+        count(),
+        toCallback((err, total) => {
+          if (err) {
+            cb(err)
+          } else if (total !== 23310) {
+            cb(new Error('total is wrong: ' + total))
+          }
+          cb()
+        })
+      )
+    },
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err2) => {
+          if (err2) cb(err2)
+          else runHugeIndexQuery((err3) => {
+            if (err3) cb(err3)
+            else runHugeIndexQuery(cb)
+          })
+        })
       })
-    )
-  })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
 test('create an index twice concurrently', (t) => {
-  db.onReady(() => {
-    const done = multicb({ pluck: 1 })
-    const start = Date.now()
-
-    query(
-      fromDB(db),
-      where(equal(seekType, 'about', { indexType: 'type' })),
-      toCallback(done())
-    )
-
-    query(
-      fromDB(db),
-      where(equal(seekType, 'about', { indexType: 'type' })),
-      toCallback(done())
-    )
-
-    done((err) => {
-      if (err) t.fail(err)
-      const duration = Date.now() - start
-      t.pass(`duration: ${duration}ms`)
-      fs.appendFileSync(
-        reportPath,
-        `| Create an index twice concurrently | ${duration}ms |\n`
+  let done
+  runBenchmark(
+    'Create an index twice concurrently',
+    (cb) => {
+      query(
+        fromDB(db),
+        where(equal(seekType, 'about', { indexType: 'type' })),
+        toCallback(done())
       )
+
+      query(
+        fromDB(db),
+        where(equal(seekType, 'about', { indexType: 'type' })),
+        toCallback(done())
+      )
+
+      done((err) => {
+        if (err) cb(err)
+        else cb()
+      })
+    },
+    (cb) => {
+      done = multicb({ pluck: 1 })
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady(cb)
+      })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
       t.end()
-    })
-  })
+    }
+  )
 })
 
+const runThreeIndexQuery = (cb) => {
+  query(
+    fromDB(db),
+    where(
+      or(
+        equal(seekType, 'contact', { indexType: 'type' }),
+        equal(seekAuthor, alice.id, {
+          indexType: 'author',
+          prefix: 32,
+          prefixOffset: 1,
+        }),
+        equal(seekAuthor, bob.id, {
+          indexType: 'author',
+          prefix: 32,
+          prefixOffset: 1,
+        })
+      )
+    ),
+    toCallback((err, msgs) => {
+      if (err) cb(err)
+      else if (msgs.length !== 24606)
+        cb(new Error('msgs.length is wrong: ' + msgs.length))
+      else cb()
+    })
+  )
+}
+
 test('query three indexes (first run)', (t) => {
-  const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
-  const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
-  db.onReady(() => {
-    const start = Date.now()
-    query(
-      fromDB(db),
-      where(
-        or(
-          equal(seekType, 'contact', { indexType: 'type' }),
-          equal(seekAuthor, alice.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          }),
-          equal(seekAuthor, bob.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          })
-        )
-      ),
-      toCallback((err, msgs) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        if (msgs.length !== 24606)
-          t.fail('msgs.length is wrong: ' + msgs.length)
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Query 3 indexes (1st run) | ${duration}ms |\n`
-        )
-        t.end()
+  runBenchmark(
+    'Query 3 indexes (1st run)',
+    runThreeIndexQuery,
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady(cb)
       })
-    )
-  })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
 test('query three indexes (second run)', (t) => {
-  const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
-  const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
-
-  db.onReady(() => {
-    const start = Date.now()
-    query(
-      fromDB(db),
-      where(
-        or(
-          equal(seekType, 'contact', { indexType: 'type' }),
-          equal(seekAuthor, alice.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          }),
-          equal(seekAuthor, bob.id, {
-            indexType: 'author',
-            prefix: 32,
-            prefixOffset: 1,
-          })
-        )
-      ),
-      toCallback((err, msgs) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        if (msgs.length !== 24606)
-          t.fail('msgs.length is wrong: ' + msgs.length)
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Query 3 indexes (2nd run) | ${duration}ms |\n`
-        )
-        t.end()
+  runBenchmark(
+    'Query 3 indexes (2nd run)',
+    runThreeIndexQuery,
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery(cb)
+        })
       })
-    )
-  })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
-test('load two indexes concurrently', (t) => {
-  const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
-  const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
-
-  function waitForFile(filename, cb) {
-    if (fs.existsSync(filename)) cb()
-    else setTimeout(waitForFile, 250, filename, cb)
-  }
-
-  db.onReady(() => {
-    const contact_index_filename = path.join(indexesDir, 'type_contact.index')
-
-    // we need to wait for the other tests to write the index file
-    waitForFile(contact_index_filename, () => {
-      db.indexes['type_contact'] = {
-        offset: 0,
-        bitset: new TypedFastBitSet(),
-        lazy: true,
-        filepath: contact_index_filename,
+const useContactIndex = (cb) => {
+  const filepath = path.join(indexesDir, 'type_contact.index')
+  waitForFile(
+    filepath,
+    (err) => {
+      if (err) cb(err)
+      else {
+        db.indexes['type_contact'] = {
+          offset: 0,
+          bitset: new TypedFastBitSet(),
+          lazy: true,
+          filepath,
+        }
+        cb()
       }
+    }
+  )
+}
 
-      const done = multicb({ pluck: 1 })
-      const start = Date.now()
-
+test('load two indexes concurrently', (t) => {
+  let done
+  runBenchmark(
+    'Load two indexes concurrently',
+    (cb) => {
       query(
         fromDB(db),
         where(
@@ -325,223 +453,320 @@ test('load two indexes concurrently', (t) => {
       )
 
       done((err) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Load two indexes concurrently | ${duration}ms |\n`
-        )
-        t.end()
+        if (err) cb(err)
+        else cb()
       })
-    })
-  })
+    },
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(cb)
+            }
+          })
+        })
+      })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
 test('paginate big index with small pageSize', (t) => {
   const TOTAL = 20000
   const PAGESIZE = 5
   const NUMPAGES = TOTAL / PAGESIZE
-  db.onReady(() => {
-    const start = Date.now()
-    let i = 0
-    pull(
-      query(
-        fromDB(db),
-        where(equal(seekType, 'post', { indexType: 'type' })),
-        paginate(PAGESIZE),
-        toPullStream()
-      ),
-      pull.take(NUMPAGES),
-      pull.drain(
-        (msgs) => {
-          i++
-        },
-        (err) => {
-          if (err) t.fail(err)
-          const duration = Date.now() - start
-          if (i !== NUMPAGES) t.fail('wrong number of pages read: ' + i)
-          t.pass(`duration: ${duration}ms`)
-          fs.appendFileSync(
-            reportPath,
-            `| Paginate ${TOTAL} msgs with pageSize=${PAGESIZE} | ${duration}ms |\n`
-          )
-          t.end()
-        }
+  runBenchmark(
+    `Paginate ${TOTAL} msgs with pageSize=${PAGESIZE}`,
+    (cb) => {
+      let i = 0
+      pull(
+        query(
+          fromDB(db),
+          where(equal(seekType, 'post', { indexType: 'type' })),
+          paginate(PAGESIZE),
+          toPullStream()
+        ),
+        pull.take(NUMPAGES),
+        pull.drain(
+          (msgs) => {
+            i++
+          },
+          (err) => {
+            if (err) cb(err)
+            else if (i !== NUMPAGES) cb(new Error('wrong number of pages read: ' + i))
+            else cb()
+          }
+        )
       )
-    )
-  })
+    },
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(cb)
+            }
+          })
+        })
+      })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
 test('paginate big index with big pageSize', (t) => {
   const TOTAL = 20000
   const PAGESIZE = 500
   const NUMPAGES = TOTAL / PAGESIZE
-  db.onReady(() => {
-    const start = Date.now()
-    let i = 0
-    pull(
-      query(
-        fromDB(db),
-        where(equal(seekType, 'post', { indexType: 'type' })),
-        paginate(PAGESIZE),
-        toPullStream()
-      ),
-      pull.take(NUMPAGES),
-      pull.drain(
-        (msgs) => {
-          i++
-        },
-        (err) => {
-          if (err) t.fail(err)
-          const duration = Date.now() - start
-          if (i !== NUMPAGES) t.fail('wrong number of pages read: ' + i)
-          t.pass(`duration: ${duration}ms`)
-          fs.appendFileSync(
-            reportPath,
-            `| Paginate ${TOTAL} msgs with pageSize=${PAGESIZE} | ${duration}ms |\n`
-          )
-          t.end()
-        }
+  runBenchmark(
+    `Paginate ${TOTAL} msgs with pageSize=${PAGESIZE}`,
+    (cb) => {
+      let i = 0
+      pull(
+        query(
+          fromDB(db),
+          where(equal(seekType, 'post', { indexType: 'type' })),
+          paginate(PAGESIZE),
+          toPullStream()
+        ),
+        pull.take(NUMPAGES),
+        pull.drain(
+          (msgs) => {
+            i++
+          },
+          (err) => {
+            if (err) cb(err)
+            else if (i !== NUMPAGES) cb(new Error('wrong number of pages read: ' + i))
+            else cb()
+          }
+        )
       )
-    )
-  })
-})
-
-test('query a prefix map (first run)', (t) => {
-  db.onReady(() => {
-    query(
-      fromDB(db),
-      paginate(1),
-      toCallback((err, { results }) => {
-        if (err) t.fail(err)
-        const rootKey = results[0].key
-
-        db.onReady(() => {
-          const start = Date.now()
-          let i = 0
-          pull(
-            query(
-              fromDB(db),
-              where(
-                equal(seekVoteLink, rootKey, {
-                  indexType: 'value_content_vote_link',
-                  useMap: true,
-                  prefix: 32,
-                  prefixOffset: 1,
-                })
-              ),
-              paginate(5),
-              toPullStream()
-            ),
-            pull.drain(
-              (msgs) => {
-                i++
-              },
-              (err) => {
-                if (err) t.fail(err)
-                const duration = Date.now() - start
-                if (i !== 92) t.fail('wrong number of pages read: ' + i)
-                t.pass(`duration: ${duration}ms`)
-                fs.appendFileSync(
-                  reportPath,
-                  `| Query a prefix map (1st run) | ${duration}ms |\n`
-                )
-                t.end()
-              }
-            )
-          )
+    },
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(cb)
+            }
+          })
         })
       })
-    )
-  })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
 
-test('query a prefix map (second run)', (t) => {
-  db.onReady(() => {
-    query(
-      fromDB(db),
-      paginate(1),
-      toCallback((err, { results }) => {
-        if (err) t.fail(err)
-        const rootKey = results[0].key
-
-        db.onReady(() => {
-          const start = Date.now()
-          let i = 0
-          pull(
-            query(
-              fromDB(db),
-              where(
-                equal(seekVoteLink, rootKey, {
-                  indexType: 'value_content_vote_link',
-                  useMap: true,
-                  prefix: 32,
-                  prefixOffset: 1,
-                })
-              ),
-              paginate(5),
-              toPullStream()
-            ),
-            pull.drain(
-              (msgs) => {
-                i++
-              },
-              (err) => {
-                if (err) t.fail(err)
-                const duration = Date.now() - start
-                if (i !== 92) t.fail('wrong number of pages read: ' + i)
-                t.pass(`duration: ${duration}ms`)
-                fs.appendFileSync(
-                  reportPath,
-                  `| Query a prefix map (2nd run) | ${duration}ms |\n`
-                )
-                t.end()
-              }
-            )
-          )
-        })
-      })
-    )
-  })
-})
-
-test('paginate ten results', (t) => {
-  const alice = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
-  const bob = ssbKeys.loadOrCreateSync(path.join(dir, 'secret-b'))
-
-  db.onReady(() => {
-    const start = Date.now()
-    pull(
+const getPrefixMapQueries = () => {
+  let rootKey
+  return {
+    prepareRootKey: (cb) => {
       query(
         fromDB(db),
-        where(
-          and(
-            equal(seekType, 'contact', { indexType: 'type' }),
-            equal(seekAuthor, alice.id, {
-              indexType: 'author',
+        paginate(1),
+        toCallback((err, { results }) => {
+          if (err) cb(err)
+          else {
+            rootKey = results[0].key
+            cb()
+          }
+        })
+      )
+    },
+    queryMap: (cb) => {
+      let i = 0
+      pull(
+        query(
+          fromDB(db),
+          where(
+            equal(seekVoteLink, rootKey, {
+              indexType: 'value_content_vote_link',
+              useMap: true,
               prefix: 32,
               prefixOffset: 1,
             })
-          )
+          ),
+          paginate(5),
+          toPullStream()
         ),
-        startFrom(0),
-        paginate(10),
-        toPullStream()
-      ),
-      pull.take(1),
-      pull.collect((err, msgs) => {
-        if (err) t.fail(err)
-        const duration = Date.now() - start
-        if (msgs[0].length !== 10)
-          t.fail('msgs.length is wrong: ' + msgs.length)
-        t.pass(`duration: ${duration}ms`)
-        fs.appendFileSync(
-          reportPath,
-          `| Paginate 10 results | ${duration}ms |\n`
+        pull.drain(
+          (msgs) => {
+            i++
+          },
+          (err) => {
+            if (err) cb(err)
+            else if (i !== 92) cb(new Error('wrong number of pages read: ' + i))
+            else cb()
+          }
         )
-        t.end()
+      )
+    },
+  }
+}
+
+test('query a prefix map (first run)', (t) => {
+  const { prepareRootKey, queryMap } = getPrefixMapQueries()
+  runBenchmark(
+    'Query a prefix map (1st run)',
+    queryMap,
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(function(err) {
+                if (err) cb(err)
+                else prepareRootKey(cb)
+              })
+            }
+          })
+        })
       })
-    )
-  })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
+})
+
+test('query a prefix map (second run)', (t) => {
+  const { prepareRootKey, queryMap } = getPrefixMapQueries()
+  runBenchmark(
+    'Query a prefix map (2nd run)',
+    queryMap,
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(function(err) {
+                if (err) cb(err)
+                else prepareRootKey((err3) => {
+                  if (err3) cb(err3)
+                  else queryMap(cb)
+                })
+              })
+            }
+          })
+        })
+      })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
+})
+
+test('paginate ten results', (t) => {
+  runBenchmark(
+    `Paginate 10 results`,
+    (cb) => {
+      pull(
+        query(
+          fromDB(db),
+          where(
+            and(
+              equal(seekType, 'contact', { indexType: 'type' }),
+              equal(seekAuthor, alice.id, {
+                indexType: 'author',
+                prefix: 32,
+                prefixOffset: 1,
+              })
+            )
+          ),
+          startFrom(0),
+          paginate(10),
+          toPullStream()
+        ),
+        pull.take(1),
+        pull.collect((err, msgs) => {
+          if (err) cb(err)
+          else if (msgs[0].length !== 10)
+            cb(new Error('msgs.length is wrong: ' + msgs.length))
+          else cb()
+        })
+      )
+    },
+    (cb) => {
+      closeLog((err) => {
+        if (err) cb(err)
+        else getJitdbReady((err) => {
+          if (err) cb(err)
+          else runThreeIndexQuery((err) => {
+            if (err) cb(err)
+            else {
+              done = multicb({ pluck: 1 })
+              useContactIndex(cb)
+            }
+          })
+        })
+      })
+    },
+    (err, result) => {
+      if (err) {
+        t.fail(err)
+      } else {
+        fs.appendFileSync(reportPath, result)
+        t.pass(result)
+      }
+      t.end()
+    }
+  )
 })
