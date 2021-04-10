@@ -89,7 +89,7 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
   t.equal(queryTree.data.indexType, 'value_content_type')
   t.notOk(queryTree.data.indexAll)
   t.deepEqual(queryTree.data.value, Buffer.from('post'))
-  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+  t.true(queryTree.data.seek.toString().includes('compiledSeek'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
   t.equal(
@@ -186,7 +186,7 @@ prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
   t.equal(queryTree.data.indexType, 'value_content_type')
   t.equal(queryTree.data.indexAll, true)
   t.deepEqual(queryTree.data.value, Buffer.from('post'))
-  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+  t.true(queryTree.data.seek.toString().includes('compiledSeek'))
 
   t.end()
 })
@@ -253,7 +253,7 @@ prepareAndRunTest('slowEqual with prefix', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'value_content_type')
   t.deepEqual(queryTree.data.value, Buffer.from('post'))
-  t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
+  t.true(queryTree.data.seek.toString().includes('compiledSeek'))
   t.equal(queryTree.data.prefix, 32)
 
   t.end()
@@ -300,14 +300,14 @@ prepareAndRunTest('operators API supports or()', dir, (t, db, raf) => {
   t.deepEqual(queryTree.data[1].data[0].data.indexType, 'value_author')
   t.deepEqual(queryTree.data[1].data[0].data.value, Buffer.from(alice.id))
   t.true(
-    queryTree.data[1].data[0].data.seek.toString().includes('bipf.seekKey')
+    queryTree.data[1].data[0].data.seek.toString().includes('compiledSeek')
   )
 
   t.equal(queryTree.data[1].data[1].type, 'EQUAL')
   t.equal(queryTree.data[1].data[1].data.indexType, 'value_author')
   t.deepEqual(queryTree.data[1].data[1].data.value, Buffer.from(bob.id))
   t.true(
-    queryTree.data[1].data[1].data.seek.toString().includes('bipf.seekKey')
+    queryTree.data[1].data[1].data.seek.toString().includes('compiledSeek')
   )
 
   t.end()

@@ -34,13 +34,11 @@ function toBufferOrFalsy(value) {
 function seekFromDesc(desc) {
   const keys = desc.split('.')
   // The 2nd arg `start` is to support plucks too
+  const compiledSeek = bipf.createSeekPath(keys)
   return (buffer, start = 0) => {
-    var p = start
-    for (let key of keys) {
-      p = bipf.seekKey(buffer, p, Buffer.from(key))
-      if (!~p) return void 0
-    }
-    return p
+    const p = compiledSeek(buffer, start)
+    if (!~p) return void 0
+    else return p
   }
 }
 
