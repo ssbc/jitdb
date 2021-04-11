@@ -28,8 +28,7 @@ jobs:
       - name: npm test
         run: DEBUG=jitdb npm test
 
-  find_benchmark_jobs:
-    needs: test
+  prepare_for_benchmarks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -53,8 +52,18 @@ jobs:
             echo $BENCHMARKS
             echo "::set-output name=matrix::{\"benchmark\":$BENCHMARKS}"
           fi
+      - name: Restore Benchmark Fixture Cache
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-benchmark-fixture
+        with:
+          path: /tmp/jitdb-benchmark
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json','**/package.json','**/benchmark/**/*.js') }}
       - name: Generate Benchmark Fixture
-        run: npm run benchmark-only-create
+        run: |
+          if [ ! -d /tmp/jitdb-benchmark ]; then
+            npm run benchmark-only-create
+          fi
       - name: Upload Benchmark Fixture
         uses: actions/upload-artifact@v2
         with:
@@ -63,11 +72,13 @@ jobs:
           retention-days: 1
 
   benchmark:
-    needs: find_benchmark_jobs
+    needs:
+      - test
+      - prepare_for_benchmarks
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.find_benchmark_jobs.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.prepare_for_benchmarks.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v2
