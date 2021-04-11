@@ -100,7 +100,7 @@ jobs:
           path: /tmp/jitdb-benchmark/benchmark.md
           retention-days: 1
 
-  benchmark-results:
+  benchmark_results:
     needs: benchmark
     runs-on: ubuntu-latest
     steps:
@@ -112,6 +112,11 @@ jobs:
         name: Gather results
         run: |
           body=$(cat /tmp/artifacts/*-md/* | awk '!x[$0]++')
+          headLineCount=$(printf "$body" | grep -hn '\--' | cut -f1 -d:)
+          totalLineCount=$(printf "$body" | wc -l | cut -f1 -d" ")
+          headLines=$(printf "$body" | head -n $headLineCount)
+          sortedTailLines=$(printf "$body" | tail -n $(($totalLineCount - $headLineCount)))
+          body=$(printf "$headLines\n$sortedTailLines")
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
