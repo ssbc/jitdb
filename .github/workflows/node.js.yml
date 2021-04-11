@@ -92,7 +92,7 @@ jobs:
           name: benchmark-fixture
           path: /tmp/jitdb-benchmark
       - name: Benchmark
-        run: CURRENT_BENCHMARK="${{matrix.benchmark}}" npm run benchmark
+        run: BENCHMARK_DURATION_MS=60000 CURRENT_BENCHMARK="${{matrix.benchmark}}" npm run benchmark
       - name: Upload Result
         uses: actions/upload-artifact@v2
         with:

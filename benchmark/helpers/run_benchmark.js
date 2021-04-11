@@ -76,7 +76,8 @@ function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback) {
             }
           })
         })
-      }
+      },
+      Number(process.env.BENCHMARK_DURATION_MS || 3000)
     ).then(result => {
       callback(null, getTestStats(benchmarkName, result))
     }).catch(e => {
