@@ -59,7 +59,7 @@ jobs:
           cache-name: cache-benchmark-fixture
         with:
           path: /tmp/jitdb-benchmark
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json','**/package.json','**/benchmark/**/*.js') }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json','**/package.json','**/benchmark/**/*.js','**/.github/**/*') }}
       - name: Generate Benchmark Fixture
         if: steps.benchmark-fixture-cache.outputs.cache-hit != 'true'
         run: npm run benchmark-only-create
