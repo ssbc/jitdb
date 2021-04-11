@@ -86,7 +86,7 @@ jobs:
       - name: Upload Result
         uses: actions/upload-artifact@v2
         with:
-          name: ${{matrix.benchmark}}.md
+          name: ${{matrix.benchmark}}-md
           path: /tmp/jitdb-benchmark/benchmark.md
           retention-days: 1
 
@@ -101,7 +101,7 @@ jobs:
       - id: get-comment-body
         name: Gather results
         run: |
-          body=$(cat /tmp/artifacts/*.md | awk '!x[$0]++')
+          body=$(cat /tmp/artifacts/*-md/* | awk '!x[$0]++')
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
