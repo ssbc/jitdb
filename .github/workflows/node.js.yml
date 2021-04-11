@@ -115,7 +115,7 @@ jobs:
           headLineCount=$(printf "$body" | grep -hn '\--' | cut -f1 -d:)
           totalLineCount=$(printf "$body" | wc -l | cut -f1 -d" ")
           headLines=$(printf "$body" | head -n $headLineCount)
-          sortedTailLines=$(printf "$body" | tail -n $(($totalLineCount - $headLineCount)))
+          sortedTailLines=$(printf "$body" | tail -n $(($totalLineCount - $headLineCount + 1)) | sort)
           body=$(printf "$headLines\n$sortedTailLines")
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
