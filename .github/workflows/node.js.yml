@@ -53,6 +53,14 @@ jobs:
             echo $BENCHMARKS
             echo "::set-output name=matrix::{\"benchmark\":$BENCHMARKS}"
           fi
+      - name: Generate Benchmark Fixture
+        run: npm run benchmark-only-create
+      - name: Upload Benchmark Fixture
+        uses: actions/upload-artifact@v2
+        with:
+          name: benchmark-fixture
+          path: /tmp/jitdb-benchmark
+          retention-days: 1
 
   benchmark:
     needs: find_benchmark_jobs
@@ -68,6 +76,11 @@ jobs:
         with:
           node-version: 12.x
       - run: npm install
+      - name: Download Benchmark Fixture
+        uses: actions/download-artifact@v2
+        with:
+          name: benchmark-fixture
+          path: /tmp/jitdb-benchmark
       - name: Benchmark
         run: CURRENT_BENCHMARK="${{matrix.benchmark}}" npm run benchmark
       - name: Upload Result
