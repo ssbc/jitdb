@@ -28,10 +28,38 @@ jobs:
       - name: npm test
         run: DEBUG=jitdb npm test
 
-  benchmark:
+  find_benchmark_jobs:
     needs: test
-
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+      - run: npm install
+      - id: set-matrix
+        run: |
+          echo "getting benchmark matrix"
+          BENCHMARKS=$(npm run --silent get-benchmark-matrix)
+          echo "checking benchmark matrix"
+          if [ -z "$BENCHMARKS" ]; then
+            echo "Failed to generate benchmarks"
+            exit 1
+          else
+            echo $BENCHMARKS
+            echo "::set-output name=matrix::{\"benchmark\":$BENCHMARKS}"
+          fi
+
+  benchmark:
+    needs: find_benchmark_jobs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.find_benchmark_jobs.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v2
@@ -41,11 +69,26 @@ jobs:
           node-version: 12.x
       - run: npm install
       - name: Benchmark
-        run: npm run benchmark
+        run: CURRENT_BENCHMARK="${{matrix.benchmark}}" npm run benchmark
+      - name: Upload Result
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{matrix.benchmark}}.md
+          path: /tmp/jitdb-benchmark/benchmark.md
+          retention-days: 1
+
+  benchmark-results:
+    needs: benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Results
+        uses: actions/download-artifact@v2
+        with:
+          path: /tmp/artifacts
       - id: get-comment-body
         name: Gather results
         run: |
-          body=$(cat /tmp/jitdb-benchmark/benchmark.md)
+          body=$(cat /tmp/artifacts/*.md | awk '!x[$0]++')
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
