@@ -53,6 +53,7 @@ jobs:
             echo "::set-output name=matrix::{\"benchmark\":$BENCHMARKS}"
           fi
       - name: Restore Benchmark Fixture Cache
+        id: benchmark-fixture-cache
         uses: actions/cache@v2
         env:
           cache-name: cache-benchmark-fixture
@@ -60,10 +61,8 @@ jobs:
           path: /tmp/jitdb-benchmark
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json','**/package.json','**/benchmark/**/*.js') }}
       - name: Generate Benchmark Fixture
-        run: |
-          if [ ! -d /tmp/jitdb-benchmark ]; then
-            npm run benchmark-only-create
-          fi
+        if: steps.benchmark-fixture-cache.outputs.cache-hit != 'true'
+        run: npm run benchmark-only-create
       - name: Upload Benchmark Fixture
         uses: actions/upload-artifact@v2
         with:
