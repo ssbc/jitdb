@@ -1,4 +1,3 @@
-const tape = require('tape')
 const fs = require('fs')
 const path = require('path')
 const pull = require('pull-stream')
@@ -26,33 +25,13 @@ const {
 } = require('../operators')
 const { seekType, seekAuthor, seekVoteLink } = require('../test/helpers')
 const copy = require('../copy-json-to-bipf-async')
+const { skipCreate, fixture, test } = require("./helpers/setup_test_functions")
 
 const dir = '/tmp/jitdb-benchmark'
 const oldLogPath = path.join(dir, 'flume', 'log.offset')
 const newLogPath = path.join(dir, 'flume', 'log.bipf')
 const reportPath = path.join(dir, 'benchmark.md')
 const indexesDir = path.join(dir, 'indexes')
-
-const skipCreate = process.argv[2] === 'noCreate' || !!process.env.GET_BENCHMARK_MATRIX
-const testList = []
-process.on('exit', ({ exit }) => {
-  console.log(JSON.stringify(testList))
-  if (exit) process.exit()
-})
-const test = (name, ...args) => {
-  if (process.env.GET_BENCHMARK_MATRIX) {
-    testList.push(name)
-  } else if (process.env.CURRENT_BENCHMARK) {
-    if (name.startsWith(process.env.CURRENT_BENCHMARK)) {
-      tape.only(name, ...args)
-    } else {
-      tape(name, ...args)
-    }
-  } else {
-      tape(name, ...args)
-  }
-}
-
 
 /**
  * Wait for a file to exist and for writes to that file
@@ -101,7 +80,7 @@ if (!skipCreate) {
   const MESSAGES = 100000
   const AUTHORS = 2000
 
-  tape('generate fixture with flumelog-offset', (t) => {
+  fixture('generate fixture with flumelog-offset', (t) => {
     generateFixture({
       outputDir: dir,
       seed: SEED,
@@ -121,7 +100,7 @@ if (!skipCreate) {
     })
   })
 
-  tape('move flumelog-offset to async-log', (t) => {
+  fixture('move flumelog-offset to async-log', (t) => {
     copy(oldLogPath, newLogPath, (err) => {
       if (err) {
         t.fail(err)

@@ -55,7 +55,8 @@
     "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\"",
     "benchmark": "node benchmark/index.js | tap-spec",
     "benchmark-no-create": "node benchmark/index.js noCreate | tap-spec",
-    "get-benchmark-matrix": "GET_BENCHMARK_MATRIX=1 node benchmark/index.js"
+    "get-benchmark-matrix": "GET_BENCHMARK_MATRIX=1 node benchmark/index.js",
+    "benchmark-only-create": "FIXTURES_ONLY=1 node benchmark/index.js"
   },
   "husky": {
     "hooks": {
