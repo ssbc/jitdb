@@ -313,6 +313,30 @@ prepareAndRunTest('operators API supports or()', dir, (t, db, raf) => {
   t.end()
 })
 
+prepareAndRunTest('operator AND ignores null', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    where(
+      and(
+        slowEqual('value.content.type', 'post'),
+        slowEqual('value.author', alice.id),
+        null
+      )
+    )
+  )
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'AND')
+  t.true(Array.isArray(queryTree.data), '.data is an array')
+
+  t.equal(queryTree.data[0].type, 'EQUAL')
+  t.equal(queryTree.data[1].type, 'EQUAL')
+  t.equal(queryTree.data.length, 2)
+
+  t.end()
+})
+
 prepareAndRunTest('operators multi and', dir, (t, db, raf) => {
   const queryTree = query(
     fromDB(db),
@@ -333,6 +357,30 @@ prepareAndRunTest('operators multi and', dir, (t, db, raf) => {
   t.equal(queryTree.data[0].type, 'EQUAL')
   t.equal(queryTree.data[1].type, 'EQUAL')
   t.equal(queryTree.data[2].type, 'EQUAL')
+
+  t.end()
+})
+
+prepareAndRunTest('operator OR ignores null', dir, (t, db, raf) => {
+  const queryTree = query(
+    fromDB(db),
+    where(
+      or(
+        slowEqual('value.content.type', 'post'),
+        slowEqual('value.author', alice.id),
+        null
+      )
+    )
+  )
+
+  t.equal(typeof queryTree, 'object', 'queryTree is an object')
+
+  t.equal(queryTree.type, 'OR')
+  t.true(Array.isArray(queryTree.data), '.data is an array')
+
+  t.equal(queryTree.data[0].type, 'EQUAL')
+  t.equal(queryTree.data[1].type, 'EQUAL')
+  t.equal(queryTree.data.length, 2)
 
   t.end()
 })
