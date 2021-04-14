@@ -26,6 +26,7 @@
     "push-stream": "^11.0.0",
     "push-stream-to-pull-stream": "^1.0.3",
     "sanitize-filename": "^1.6.3",
+    "tap-bail": "^1.0.0",
     "traverse": "^0.6.6",
     "typedarray-to-buffer": "^4.0.0",
     "typedfastbitset": "~0.2.1"
@@ -50,7 +51,7 @@
     "tape": "^5.2.2"
   },
   "scripts": {
-    "test": "tape test/*.js | tap-spec",
+    "test": "tape test/*.js | tap-bail | tap-spec",
     "format-code": "prettier --write \"*.js\" \"test/*.js\"",
     "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\"",
     "benchmark": "node benchmark/index.js | tap-spec",
