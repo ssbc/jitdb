@@ -948,21 +948,18 @@ module.exports = function (log, indexesPath) {
     } else console.error('Unknown type', op)
   }
 
-  function executeOperation(operation, cb) {
-    updateCacheWithLog()
-    if (bitsetCache.has(operation)) return cb(...bitsetCache.get(operation))
-
+  function detectMissingAndLazyIndexes(operation) {
     const opsMissingIndexes = []
     const lazyIndexes = []
 
-    function detectMissingAndLazyIndexes(ops) {
+    function detectMore(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
           const indexName = op.data.indexName
           if (!indexes[indexName]) opsMissingIndexes.push(op)
           else if (indexes[indexName].lazy) lazyIndexes.push(indexName)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
-          detectMissingAndLazyIndexes(op.data)
+          detectMore(op.data)
         else if (
           op.type === 'SEQS' ||
           op.type === 'LIVESEQS' ||
@@ -977,29 +974,59 @@ module.exports = function (log, indexesPath) {
       })
     }
 
-    function getBitset() {
-      getBitsetForOperation(operation, (bitset, filters) => {
-        bitsetCache.set(operation, [bitset, filters])
+    detectMore([operation])
+    return [opsMissingIndexes, lazyIndexes]
+  }
+
+  function executeOperation(operation, cb) {
+    updateCacheWithLog()
+    if (bitsetCache.has(operation)) return cb(...bitsetCache.get(operation))
+
+    const [opsMissingIdx, lazyIdxNames] = detectMissingAndLazyIndexes(operation)
+
+    if (opsMissingIdx.length > 0) debug('missing indexes: %o', opsMissingIdx)
+
+    push(
+      // Kick-start this chain with a dummy null value
+      push.values([null]),
+
+      // Ensure that the seq->offset index is synchronized with the log
+      push.asyncMap((_, next) => ensureSeqIndexSync(next)),
+
+      // Load lazy indexes, if any
+      push.asyncMap((_, next) => {
+        if (lazyIdxNames.length === 0) next()
+        else {
+          push(
+            push.values(lazyIdxNames),
+            push.asyncMap(loadLazyIndex),
+            push.collect(next)
+          )
+        }
+      }),
+
+      // Create missing indexes, if any
+      push.asyncMap((_, next) => {
+        if (opsMissingIdx.length === 0) next()
+        else {
+          createIndexes(opsMissingIdx, next)
+        }
+      }),
+
+      // Get bitset for the input operation, and cache it
+      push.asyncMap((_, next) => {
+        getBitsetForOperation(operation, (bitset, filters) => {
+          bitsetCache.set(operation, [bitset, filters])
+          next(null, [bitset, filters])
+        })
+      }),
+
+      // Return bitset and filter functions
+      push.collect((err, [[bitset, filters]]) => {
+        // FIXME: handle `err` and use conventional callback format for `cb`
         cb(bitset, filters)
       })
-    }
-
-    function createMissingIndexes() {
-      if (opsMissingIndexes.length > 0)
-        createIndexes(opsMissingIndexes, getBitset)
-      else getBitset()
-    }
-
-    detectMissingAndLazyIndexes([operation])
-
-    ensureSeqIndexSync(() => {
-      if (opsMissingIndexes.length > 0)
-        debug('missing indexes: %o', opsMissingIndexes)
-
-      if (lazyIndexes.length > 0)
-        loadLazyIndexes(lazyIndexes, createMissingIndexes)
-      else createMissingIndexes()
-    })
+    )
   }
 
   function isValueOk(ops, value, isOr) {
