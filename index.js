@@ -972,7 +972,7 @@ module.exports = function (log, indexesPath) {
 
   function executeOperation(operation, cb) {
     updateCacheWithLog()
-    if (bitsetCache.has(operation)) return cb(...bitsetCache.get(operation))
+    if (bitsetCache.has(operation)) return cb(null, bitsetCache.get(operation))
 
     const [opsMissingIdx, lazyIdxNames] = detectMissingAndLazyIndexes(operation)
 
@@ -1014,9 +1014,9 @@ module.exports = function (log, indexesPath) {
       }),
 
       // Return bitset and filter functions
-      push.collect((err, [[bitset, filters]]) => {
-        // FIXME: handle `err` and use conventional callback format for `cb`
-        cb(bitset, filters)
+      push.collect((err, results) => {
+        if (err) cb(err)
+        else cb(null, results[0])
       })
     )
   }
@@ -1205,7 +1205,9 @@ module.exports = function (log, indexesPath) {
   function paginate(operation, seq, limit, descending, onlyOffset, cb) {
     onReady(() => {
       const start = Date.now()
-      executeOperation(operation, (bitset, filters) => {
+      executeOperation(operation, (err0, result) => {
+        if (err0) return cb(err0)
+        const [bitset, filters] = result
         getMessagesFromBitsetSlice(
           bitset,
           filters,
@@ -1213,8 +1215,8 @@ module.exports = function (log, indexesPath) {
           limit,
           descending,
           onlyOffset,
-          (err, answer) => {
-            if (err) cb(err)
+          (err1, answer) => {
+            if (err1) cb(err1)
             else {
               answer.duration = Date.now() - start
               if (debugQuery.enabled)
@@ -1225,7 +1227,7 @@ module.exports = function (log, indexesPath) {
                     answer.duration
                   }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
                 )
-              cb(err, answer)
+              cb(null, answer)
             }
           }
         )
@@ -1236,7 +1238,9 @@ module.exports = function (log, indexesPath) {
   function all(operation, seq, descending, onlyOffset, cb) {
     onReady(() => {
       const start = Date.now()
-      executeOperation(operation, (bitset, filters) => {
+      executeOperation(operation, (err0, result) => {
+        if (err0) return cb(err0)
+        const [bitset, filters] = result
         getMessagesFromBitsetSlice(
           bitset,
           filters,
@@ -1244,8 +1248,8 @@ module.exports = function (log, indexesPath) {
           Infinity,
           descending,
           onlyOffset,
-          (err, answer) => {
-            if (err) cb(err)
+          (err1, answer) => {
+            if (err1) cb(err1)
             else {
               answer.duration = Date.now() - start
               if (debugQuery.enabled)
@@ -1254,7 +1258,7 @@ module.exports = function (log, indexesPath) {
                     answer.duration
                   }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
                 )
-              cb(err, answer.results)
+              cb(null, answer.results)
             }
           }
         )
@@ -1265,7 +1269,9 @@ module.exports = function (log, indexesPath) {
   function count(operation, seq, descending, cb) {
     onReady(() => {
       const start = Date.now()
-      executeOperation(operation, (bitset) => {
+      executeOperation(operation, (err0, result) => {
+        if (err0) return cb(err0)
+        const [bitset] = result
         const total = countBitsetSlice(bitset, seq, descending)
         const duration = Date.now() - start
         if (debugQuery.enabled)
@@ -1285,9 +1291,7 @@ module.exports = function (log, indexesPath) {
     return pull(
       pullAsync((cb) =>
         onReady(() => {
-          executeOperation(op, (bitset) => {
-            cb()
-          })
+          executeOperation(op, (err) => cb(err))
         })
       ),
       pull.map(() => {
