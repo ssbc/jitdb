@@ -520,16 +520,16 @@ module.exports = function (log, indexesPath) {
   // concurrent index create
   const waitingIndexCreate = new Map()
 
-  function createIndexes(opsMissingIndexes, cb) {
+  function createIndexes(opsMissingIdx, cb) {
     const newIndexes = {}
 
     const coreIndexNames = ['seq', 'timestamp', 'sequence']
-    const newIndexNames = opsMissingIndexes.map((op) => op.data.indexName)
+    const newIndexNames = opsMissingIdx.map((op) => op.data.indexName)
 
     const waitingKey = newIndexNames.join('|')
     if (onlyOneIndexAtATime(waitingIndexCreate, waitingKey, cb)) return
 
-    opsMissingIndexes.forEach((op) => {
+    opsMissingIdx.forEach((op) => {
       if (op.data.prefix && op.data.useMap) {
         newIndexes[op.data.indexName] = {
           offset: 0,
@@ -602,7 +602,7 @@ module.exports = function (log, indexesPath) {
         if (updateSequenceIndex(seq, offset, buffer))
           updatedSequenceIndex = true
 
-        opsMissingIndexes.forEach((op) => {
+        opsMissingIdx.forEach((op) => {
           if (op.data.prefix && op.data.useMap)
             updatePrefixMapIndex(
               op.data,
@@ -706,14 +706,6 @@ module.exports = function (log, indexesPath) {
         cb()
       })
     }
-  }
-
-  function loadLazyIndexes(indexNames, cb) {
-    push(
-      push.values(indexNames),
-      push.asyncMap(loadLazyIndex),
-      push.collect(cb)
-    )
   }
 
   function ensureIndexSync(op, cb) {
@@ -949,15 +941,15 @@ module.exports = function (log, indexesPath) {
   }
 
   function detectMissingAndLazyIndexes(operation) {
-    const opsMissingIndexes = []
-    const lazyIndexes = []
+    const opsMissingIdx = []
+    const lazyIdxNames = []
 
     function detectMore(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
           const indexName = op.data.indexName
-          if (!indexes[indexName]) opsMissingIndexes.push(op)
-          else if (indexes[indexName].lazy) lazyIndexes.push(indexName)
+          if (!indexes[indexName]) opsMissingIdx.push(op)
+          else if (indexes[indexName].lazy) lazyIdxNames.push(indexName)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
           detectMore(op.data)
         else if (
@@ -975,7 +967,7 @@ module.exports = function (log, indexesPath) {
     }
 
     detectMore([operation])
-    return [opsMissingIndexes, lazyIndexes]
+    return [opsMissingIdx, lazyIdxNames]
   }
 
   function executeOperation(operation, cb) {
