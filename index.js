@@ -987,22 +987,18 @@ module.exports = function (log, indexesPath) {
 
       // Load lazy indexes, if any
       push.asyncMap((_, next) => {
-        if (lazyIdxNames.length === 0) next()
-        else {
-          push(
-            push.values(lazyIdxNames),
-            push.asyncMap(loadLazyIndex),
-            push.collect(next)
-          )
-        }
+        if (lazyIdxNames.length === 0) return next()
+        push(
+          push.values(lazyIdxNames),
+          push.asyncMap(loadLazyIndex),
+          push.collect(next)
+        )
       }),
 
       // Create missing indexes, if any
       push.asyncMap((_, next) => {
-        if (opsMissingIdx.length === 0) next()
-        else {
-          createIndexes(opsMissingIdx, next)
-        }
+        if (opsMissingIdx.length === 0) return next()
+        createIndexes(opsMissingIdx, next)
       }),
 
       // Get bitset for the input operation, and cache it
