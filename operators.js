@@ -263,11 +263,17 @@ function not(ops) {
 }
 
 function and(...args) {
-  return { type: 'AND', data: args.filter((arg) => !!arg) }
+  const validargs = args.filter((arg) => !!arg)
+  if (validargs.length === 0) return {}
+  if (validargs.length === 1) return validargs[0]
+  return { type: 'AND', data: validargs }
 }
 
 function or(...args) {
-  return { type: 'OR', data: args.filter((arg) => !!arg) }
+  const validargs = args.filter((arg) => !!arg)
+  if (validargs.length === 0) return {}
+  if (validargs.length === 1) return validargs[0]
+  return { type: 'OR', data: validargs }
 }
 
 function where(...args) {
