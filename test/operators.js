@@ -1101,6 +1101,54 @@ prepareAndRunTest('empty deferred AND equal', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('operator AND ignores null all', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        where(and(null, null)),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error')
+          t.equal(msgs.length, 2, 'toCallback got one message')
+          t.equal(msgs[0].value.author, alice.id)
+          t.equal(msgs[0].value.content.type, 'post')
+          t.equal(msgs[1].value.author, bob.id)
+          t.equal(msgs[1].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
+prepareAndRunTest('operator AND ignores null two', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        where(and(slowEqual('value.author', alice.id), null)),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error')
+          t.equal(msgs.length, 1, 'toCallback got one message')
+          t.equal(msgs[0].value.author, alice.id)
+          t.equal(msgs[0].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
 prepareAndRunTest('support live seq operations', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
