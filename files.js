@@ -58,7 +58,8 @@ function loadTypedArrayFile(filename, Type, cb) {
 
     crc32(buf)
       .then((crc) => {
-        if (parseInt(crc, 16) !== crcFile) return cb('crc check failed')
+        if (crcFile !== 0 && parseInt(crc, 16) !== crcFile)
+          return cb('crc check failed')
 
         const version = buf.readUInt32LE(0)
         const offset = buf.readUInt32LE(FIELD_SIZE)
@@ -105,7 +106,8 @@ function loadPrefixMapFile(filename, cb) {
 
     crc32(buf)
       .then((crc) => {
-        if (parseInt(crc, 16) !== crcFile) return cb('crc check failed')
+        if (crcFile !== 0 && parseInt(crc, 16) !== crcFile)
+          return cb('crc check failed')
 
         const version = buf.readUInt32LE(0)
         const offset = buf.readUInt32LE(FIELD_SIZE)
