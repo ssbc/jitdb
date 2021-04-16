@@ -1,8 +1,9 @@
 const jsesc = require('jsesc')
 const sanitize = require('sanitize-filename')
 const TypedFastBitSet = require('typedfastbitset')
-const { readFile, writeFile } = require('atomically-universal')
+const { readFile, writeFile } = require('atomic-file-rw')
 const toBuffer = require('typedarray-to-buffer')
+const { crc32 } = require('hash-wasm')
 
 const FIELD_SIZE = 4 // bytes
 
@@ -16,13 +17,18 @@ const FIELD_SIZE = 4 // bytes
  * | 0              | version | UInt32LE |
  * | 4              | offset  | UInt32LE |
  * | 8              | count   | UInt32LE |
- * | 12             | (N/A)   | (N/A)    |
+ * | 12             | crc     | UInt32LE |
  * | 16             | body    | Buffer   |
- *
- * Note that the 4th header field (offset=12) is empty on purpose, to support
- * `new Float64Array(b,start,len)` where `start` must be a multiple of 8
- * when loading in `loadTypedArrayFile`.
  */
+
+function calculateCRCAndWriteFile(b, filename, cb) {
+  crc32(b)
+    .then((crc) => {
+      b.writeUInt32LE(parseInt(crc, 16), 3 * FIELD_SIZE)
+      writeFile(filename, b, cb)
+    })
+    .catch(cb)
+}
 
 function saveTypedArrayFile(filename, version, offset, count, tarr, cb) {
   if (!cb)
@@ -40,31 +46,38 @@ function saveTypedArrayFile(filename, version, offset, count, tarr, cb) {
   b.writeUInt32LE(count, 2 * FIELD_SIZE)
   dataBuffer.copy(b, 4 * FIELD_SIZE)
 
-  writeFile(filename, b)
-    .then(() => cb())
-    .catch(cb)
+  calculateCRCAndWriteFile(b, filename, cb)
 }
 
 function loadTypedArrayFile(filename, Type, cb) {
-  readFile(filename)
-    .then((buf) => {
-      const version = buf.readUInt32LE(0)
-      const offset = buf.readUInt32LE(FIELD_SIZE)
-      const count = buf.readUInt32LE(2 * FIELD_SIZE)
-      const body = buf.slice(4 * FIELD_SIZE)
+  readFile(filename, (err, buf) => {
+    if (err) return cb(err)
 
-      cb(null, {
-        version,
-        offset,
-        count,
-        tarr: new Type(
-          body.buffer,
-          body.offset,
-          body.byteLength / (Type === Float64Array ? 8 : 4)
-        ),
+    const crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
+    buf.writeUInt32LE(0, 3 * FIELD_SIZE)
+
+    crc32(buf)
+      .then((crc) => {
+        if (parseInt(crc, 16) !== crcFile) return cb('crc check failed')
+
+        const version = buf.readUInt32LE(0)
+        const offset = buf.readUInt32LE(FIELD_SIZE)
+        const count = buf.readUInt32LE(2 * FIELD_SIZE)
+        const body = buf.slice(4 * FIELD_SIZE)
+
+        cb(null, {
+          version,
+          offset,
+          count,
+          tarr: new Type(
+            body.buffer,
+            body.offset,
+            body.byteLength / (Type === Float64Array ? 8 : 4)
+          ),
+        })
       })
-    })
-    .catch(cb)
+      .catch(cb)
+  })
 }
 
 function savePrefixMapFile(filename, version, offset, count, map, cb) {
@@ -80,28 +93,35 @@ function savePrefixMapFile(filename, version, offset, count, map, cb) {
   b.writeUInt32LE(count, 2 * FIELD_SIZE)
   Buffer.from(jsonMap).copy(b, 4 * FIELD_SIZE)
 
-  writeFile(filename, b)
-    .then(() => cb())
-    .catch(cb)
+  calculateCRCAndWriteFile(b, filename, cb)
 }
 
 function loadPrefixMapFile(filename, cb) {
-  readFile(filename)
-    .then((buf) => {
-      const version = buf.readUInt32LE(0)
-      const offset = buf.readUInt32LE(FIELD_SIZE)
-      const count = buf.readUInt32LE(2 * FIELD_SIZE)
-      const body = buf.slice(4 * FIELD_SIZE)
-      const map = JSON.parse(body)
+  readFile(filename, (err, buf) => {
+    if (err) return cb(err)
 
-      cb(null, {
-        version,
-        offset,
-        count,
-        map,
+    const crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
+    buf.writeUInt32LE(0, 3 * FIELD_SIZE)
+
+    crc32(buf)
+      .then((crc) => {
+        if (parseInt(crc, 16) !== crcFile) return cb('crc check failed')
+
+        const version = buf.readUInt32LE(0)
+        const offset = buf.readUInt32LE(FIELD_SIZE)
+        const count = buf.readUInt32LE(2 * FIELD_SIZE)
+        const body = buf.slice(4 * FIELD_SIZE)
+        const map = JSON.parse(body)
+
+        cb(null, {
+          version,
+          offset,
+          count,
+          map,
+        })
       })
-    })
-    .catch(cb)
+      .catch(cb)
+  })
 }
 
 function saveBitsetFile(filename, version, offset, bitset, cb) {
@@ -112,13 +132,12 @@ function saveBitsetFile(filename, version, offset, bitset, cb) {
 
 function loadBitsetFile(filename, cb) {
   loadTypedArrayFile(filename, Uint32Array, (err, data) => {
-    if (err) cb(err)
-    else {
-      const { version, offset, count, tarr } = data
-      const bitset = new TypedFastBitSet()
-      bitset.words = tarr
-      cb(null, { version, offset, bitset })
-    }
+    if (err) return cb(err)
+
+    const { version, offset, count, tarr } = data
+    const bitset = new TypedFastBitSet()
+    bitset.words = tarr
+    cb(null, { version, offset, bitset })
   })
 }
 
