@@ -77,7 +77,6 @@ module.exports = function (log, indexesPath) {
   const bSequence = Buffer.from('sequence')
   const bValue = Buffer.from('value')
 
-  // FIXME: handle the errors in these callbacks
   function loadIndexes(cb) {
     function parseIndexes(err, files) {
       push(
@@ -88,8 +87,8 @@ module.exports = function (log, indexesPath) {
             loadTypedArrayFile(
               path.join(indexesPath, file),
               Uint32Array,
-              (e, idx) => {
-                indexes[indexName] = idx
+              (err, idx) => {
+                if (!err) indexes[indexName] = idx
                 cb()
               }
             )
@@ -97,8 +96,8 @@ module.exports = function (log, indexesPath) {
             loadTypedArrayFile(
               path.join(indexesPath, file),
               Float64Array,
-              (e, idx) => {
-                indexes[indexName] = idx
+              (err, idx) => {
+                if (!err) indexes[indexName] = idx
                 cb()
               }
             )
@@ -106,8 +105,8 @@ module.exports = function (log, indexesPath) {
             loadTypedArrayFile(
               path.join(indexesPath, file),
               Uint32Array,
-              (e, idx) => {
-                indexes[indexName] = idx
+              (err, idx) => {
+                if (!err) indexes[indexName] = idx
                 cb()
               }
             )
@@ -666,7 +665,12 @@ module.exports = function (log, indexesPath) {
     let index = indexes[indexName]
     if (index.prefix && index.map) {
       loadPrefixMapFile(index.filepath, (err, data) => {
-        if (err) return cb(err)
+        if (err) {
+          debug('index %s failed to load with %s', indexName, err)
+          delete indexes[indexName]
+          return cb() // don't return a error, index will be rebuild
+        }
+
         const { version, offset, count, map } = data
         index.version = version
         index.offset = offset
@@ -680,7 +684,12 @@ module.exports = function (log, indexesPath) {
       })
     } else if (index.prefix) {
       loadTypedArrayFile(index.filepath, Uint32Array, (err, data) => {
-        if (err) return cb(err)
+        if (err) {
+          debug('index %s failed to load with %s', indexName, err)
+          delete indexes[indexName]
+          return cb() // don't return a error, index will be rebuild
+        }
+
         const { version, offset, count, tarr } = data
         index.version = version
         index.offset = offset
@@ -694,7 +703,12 @@ module.exports = function (log, indexesPath) {
       })
     } else {
       loadBitsetFile(index.filepath, (err, data) => {
-        if (err) return cb(err)
+        if (err) {
+          debug('index %s failed to load with %s', indexName, err)
+          delete indexes[indexName]
+          return cb() // don't return a error, index will be rebuild
+        }
+
         const { version, offset, bitset } = data
         index.version = version
         index.offset = offset
@@ -974,18 +988,16 @@ module.exports = function (log, indexesPath) {
     updateCacheWithLog()
     if (bitsetCache.has(operation)) return cb(null, bitsetCache.get(operation))
 
-    const [opsMissingIdx, lazyIdxNames] = detectMissingAndLazyIndexes(operation)
-
-    if (opsMissingIdx.length > 0) debug('missing indexes: %o', opsMissingIdx)
+    let [opsMissingIdx, lazyIdxNames] = detectMissingAndLazyIndexes(operation)
 
     push(
-      // Kick-start this chain with a dummy null value
+      // kick-start this chain with a dummy null value
       push.values([null]),
 
-      // Ensure that the seq->offset index is synchronized with the log
+      // ensure that the seq->offset index is synchronized with the log
       push.asyncMap((_, next) => ensureSeqIndexSync(next)),
 
-      // Load lazy indexes, if any
+      // load lazy indexes, if any
       push.asyncMap((_, next) => {
         if (lazyIdxNames.length === 0) return next()
         push(
@@ -995,13 +1007,21 @@ module.exports = function (log, indexesPath) {
         )
       }),
 
-      // Create missing indexes, if any
+      // some indexes might have failed to load
+      push.asyncMap((_, next) => {
+        opsMissingIdx = detectMissingAndLazyIndexes(operation)[0]
+        if (opsMissingIdx.length > 0)
+          debug('missing indexes: %o', opsMissingIdx)
+        next()
+      }),
+
+      // create missing indexes, if any
       push.asyncMap((_, next) => {
         if (opsMissingIdx.length === 0) return next()
         createIndexes(opsMissingIdx, next)
       }),
 
-      // Get bitset for the input operation, and cache it
+      // get bitset for the input operation, and cache it
       push.asyncMap((_, next) => {
         getBitsetForOperation(operation, (bitset, filters) => {
           bitsetCache.set(operation, [bitset, filters])
@@ -1009,7 +1029,7 @@ module.exports = function (log, indexesPath) {
         })
       }),
 
-      // Return bitset and filter functions
+      // return bitset and filter functions
       push.collect((err, results) => {
         if (err) cb(err)
         else cb(null, results[0])
