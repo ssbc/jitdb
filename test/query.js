@@ -6,6 +6,7 @@ const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const { safeFilename } = require('../files')
+const { readFile, writeFile } = require('atomic-file-rw')
 
 const dir = '/tmp/jitdb-query'
 rimraf.sync(dir)
@@ -821,4 +822,60 @@ prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
       })
     })
   }, 3000)
+})
+
+prepareAndRunTest('reindex corrupt indexes', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing!' }
+  const msg2 = { type: 'contact', text: 'Testing!' }
+  const msg3 = { type: 'post', text: 'Testing 2!' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'type_post',
+    },
+  }
+
+  function corruptFile(filename, cb) {
+    readFile(filename, (err, b) => {
+      b.writeUInt32LE(123456, 4 * 4)
+      writeFile(filename, b, cb)
+    })
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.all(typeQuery, 0, false, false, (err, results) => {
+          t.equal(results.length, 2)
+
+          const dir = '/tmp/jitdb-query/indexesreindex corrupt indexes/'
+
+          setTimeout(() => {
+            // wait for save
+            corruptFile(dir + 'seq.index', () => {
+              corruptFile(dir + 'type_post.index', () => {
+                // reload
+                db = require('../index')(raf, dir)
+                db.onReady(() => {
+                  db.all(typeQuery, 0, false, false, (err, results) => {
+                    t.equal(results.length, 2)
+                    t.end()
+                  })
+                })
+              })
+            })
+          }, 2000)
+        })
+      })
+    })
+  })
 })

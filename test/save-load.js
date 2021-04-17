@@ -11,6 +11,7 @@ const {
   saveBitsetFile,
   loadBitsetFile,
 } = require('../files')
+const { readFile, writeFile } = require('atomic-file-rw')
 
 const dir = '/tmp/jitdb-save-load'
 rimraf.sync(dir)
@@ -128,5 +129,26 @@ test('load non-existing file', (t) => {
   loadBitsetFile(filename, (err, index) => {
     t.equal(err.code, 'ENOENT')
     t.end()
+  })
+})
+
+test('save and load corrupt bitset', (t) => {
+  const idxDir = path.join(dir, 'test-bitset-corrupt')
+  mkdirp.sync(idxDir)
+  const filename = path.join(idxDir, 'test.index')
+
+  var bitset = new TypedFastBitSet()
+  for (var i = 0; i < 10; i += 2) bitset.add(i)
+
+  saveBitsetFile(filename, 1, 123, bitset, (err) => {
+    readFile(filename, (err, b) => {
+      b.writeUInt32LE(123456, 4 * 4)
+      writeFile(filename, b, (err) => {
+        loadBitsetFile(filename, (err, index) => {
+          t.equal(err, 'crc check failed')
+          t.end()
+        })
+      })
+    })
   })
 })
