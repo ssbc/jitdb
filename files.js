@@ -13,21 +13,38 @@ const FIELD_SIZE = 4 // bytes
  * Each header field is 4 bytes in size.
  *
  * | offset (bytes) | name    | type     |
- * |----------------|---------|----------|
  * | 0              | version | UInt32LE |
+ * |----------------|---------|----------|
  * | 4              | offset  | UInt32LE |
  * | 8              | count   | UInt32LE |
  * | 12             | crc     | UInt32LE |
  * | 16             | body    | Buffer   |
  */
 
-function calculateCRCAndWriteFile(b, filename, cb) {
-  crc32(b)
+function calculateCRCAndWriteFile(buf, filename, cb) {
+  crc32(buf)
     .then((crc) => {
-      b.writeUInt32LE(parseInt(crc, 16), 3 * FIELD_SIZE)
-      writeFile(filename, b, cb)
+      buf.writeUInt32LE(parseInt(crc, 16), 3 * FIELD_SIZE)
+      writeFile(filename, buf, cb)
     })
     .catch(cb)
+}
+
+function readFileAndCheckCRC(filename, cb) {
+  readFile(filename, (err, buf) => {
+    if (err) return cb(err)
+
+    const crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
+    buf.writeUInt32LE(0, 3 * FIELD_SIZE)
+
+    crc32(buf)
+      .then((crc) => {
+        if (crcFile !== 0 && parseInt(crc, 16) !== crcFile)
+          return cb('crc check failed')
+        cb(null, buf)
+      })
+      .catch(cb)
+  })
 }
 
 function saveTypedArrayFile(filename, version, offset, count, tarr, cb) {
@@ -40,44 +57,34 @@ function saveTypedArrayFile(filename, version, offset, count, tarr, cb) {
   // we try to save an extra 10% so we don't have to immediately grow
   // after loading and adding again
   const saveSize = Math.min(count * 1.1, tarr.length)
-  const b = Buffer.alloc(4 * FIELD_SIZE + saveSize * tarr.BYTES_PER_ELEMENT)
-  b.writeUInt32LE(version, 0)
-  b.writeUInt32LE(offset, FIELD_SIZE)
-  b.writeUInt32LE(count, 2 * FIELD_SIZE)
-  dataBuffer.copy(b, 4 * FIELD_SIZE)
+  const buf = Buffer.alloc(4 * FIELD_SIZE + saveSize * tarr.BYTES_PER_ELEMENT)
+  buf.writeUInt32LE(version, 0)
+  buf.writeUInt32LE(offset, FIELD_SIZE)
+  buf.writeUInt32LE(count, 2 * FIELD_SIZE)
+  dataBuffer.copy(buf, 4 * FIELD_SIZE)
 
-  calculateCRCAndWriteFile(b, filename, cb)
+  calculateCRCAndWriteFile(buf, filename, cb)
 }
 
 function loadTypedArrayFile(filename, Type, cb) {
-  readFile(filename, (err, buf) => {
+  readFileAndCheckCRC(filename, (err, buf) => {
     if (err) return cb(err)
 
-    const crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
-    buf.writeUInt32LE(0, 3 * FIELD_SIZE)
+    const version = buf.readUInt32LE(0)
+    const offset = buf.readUInt32LE(FIELD_SIZE)
+    const count = buf.readUInt32LE(2 * FIELD_SIZE)
+    const body = buf.slice(4 * FIELD_SIZE)
 
-    crc32(buf)
-      .then((crc) => {
-        if (crcFile !== 0 && parseInt(crc, 16) !== crcFile)
-          return cb('crc check failed')
-
-        const version = buf.readUInt32LE(0)
-        const offset = buf.readUInt32LE(FIELD_SIZE)
-        const count = buf.readUInt32LE(2 * FIELD_SIZE)
-        const body = buf.slice(4 * FIELD_SIZE)
-
-        cb(null, {
-          version,
-          offset,
-          count,
-          tarr: new Type(
-            body.buffer,
-            body.offset,
-            body.byteLength / (Type === Float64Array ? 8 : 4)
-          ),
-        })
-      })
-      .catch(cb)
+    cb(null, {
+      version,
+      offset,
+      count,
+      tarr: new Type(
+        body.buffer,
+        body.offset,
+        body.byteLength / (Type === Float64Array ? 8 : 4)
+      ),
+    })
   })
 }
 
@@ -88,41 +95,29 @@ function savePrefixMapFile(filename, version, offset, count, map, cb) {
     }
 
   const jsonMap = JSON.stringify(map)
-  const b = Buffer.alloc(4 * FIELD_SIZE + jsonMap.length)
-  b.writeUInt32LE(version, 0)
-  b.writeUInt32LE(offset, FIELD_SIZE)
-  b.writeUInt32LE(count, 2 * FIELD_SIZE)
-  Buffer.from(jsonMap).copy(b, 4 * FIELD_SIZE)
+  const buf = Buffer.alloc(4 * FIELD_SIZE + jsonMap.length)
+  buf.writeUInt32LE(version, 0)
+  buf.writeUInt32LE(offset, FIELD_SIZE)
+  buf.writeUInt32LE(count, 2 * FIELD_SIZE)
+  Buffer.from(jsonMap).copy(buf, 4 * FIELD_SIZE)
 
-  calculateCRCAndWriteFile(b, filename, cb)
+  calculateCRCAndWriteFile(buf, filename, cb)
 }
 
 function loadPrefixMapFile(filename, cb) {
-  readFile(filename, (err, buf) => {
-    if (err) return cb(err)
+  readFileAndCheckCRC(filename, (err, buf) => {
+    const version = buf.readUInt32LE(0)
+    const offset = buf.readUInt32LE(FIELD_SIZE)
+    const count = buf.readUInt32LE(2 * FIELD_SIZE)
+    const body = buf.slice(4 * FIELD_SIZE)
+    const map = JSON.parse(body)
 
-    const crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
-    buf.writeUInt32LE(0, 3 * FIELD_SIZE)
-
-    crc32(buf)
-      .then((crc) => {
-        if (crcFile !== 0 && parseInt(crc, 16) !== crcFile)
-          return cb('crc check failed')
-
-        const version = buf.readUInt32LE(0)
-        const offset = buf.readUInt32LE(FIELD_SIZE)
-        const count = buf.readUInt32LE(2 * FIELD_SIZE)
-        const body = buf.slice(4 * FIELD_SIZE)
-        const map = JSON.parse(body)
-
-        cb(null, {
-          version,
-          offset,
-          count,
-          map,
-        })
-      })
-      .catch(cb)
+    cb(null, {
+      version,
+      offset,
+      count,
+      map,
+    })
   })
 }
 
