@@ -1007,7 +1007,7 @@ module.exports = function (log, indexesPath) {
         )
       }),
 
-      // some indexes might have failed to load
+      // some lazy indexes may have failed to load
       push.asyncMap((_, next) => {
         opsMissingIdx = detectMissingAndLazyIndexes(operation)[0]
         if (opsMissingIdx.length > 0)
