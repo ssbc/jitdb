@@ -1018,7 +1018,7 @@ module.exports = function (log, indexesPath) {
 
       // create missing indexes, if any
       //
-      // this needs* to happen after loading lazy indexes because some
+      // this needs to happen after loading lazy indexes because some
       // lazy indexes may have failed to load, and are now considered missing
       push.asyncMap((_, next) => {
         const opsMissingIdx = detectOpsMissingIndexes(operation)
