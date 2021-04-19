@@ -954,16 +954,13 @@ module.exports = function (log, indexesPath) {
     } else console.error('Unknown type', op)
   }
 
-  function detectLazyIndexesUsed(operation) {
-    const results = []
-
-    function detectMore(ops) {
+  function traverseEqualsAndIncludes(operation, fn) {
+    function traverseMore(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
-          const name = op.data.indexName
-          if (indexes[name] && indexes[name].lazy) results.push(name)
+          fn(op)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
-          detectMore(op.data)
+          traverseMore(op.data)
         else if (
           op.type === 'SEQS' ||
           op.type === 'LIVESEQS' ||
@@ -977,36 +974,23 @@ module.exports = function (log, indexesPath) {
         else debug('Unknown operator type: ' + op.type)
       })
     }
+    traverseMore([operation])
+  }
 
-    detectMore([operation])
+  function detectLazyIndexesUsed(operation) {
+    const results = []
+    traverseEqualsAndIncludes(operation, (op) => {
+      const name = op.data.indexName
+      if (indexes[name] && indexes[name].lazy) results.push(name)
+    })
     return results
   }
 
-  function detectMissingIndexes(operation) {
+  function detectOpsMissingIndexes(operation) {
     const results = []
-
-    function detectMore(ops) {
-      ops.forEach((op) => {
-        if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
-          const indexName = op.data.indexName
-          if (!indexes[indexName]) results.push(op)
-        } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
-          detectMore(op.data)
-        else if (
-          op.type === 'SEQS' ||
-          op.type === 'LIVESEQS' ||
-          op.type === 'OFFSETS' ||
-          op.type === 'LT' ||
-          op.type === 'LTE' ||
-          op.type === 'GT' ||
-          op.type === 'GTE' ||
-          !op.type // e.g. query(fromDB, toCallback), or empty deferred()
-        );
-        else debug('Unknown operator type: ' + op.type)
-      })
-    }
-
-    detectMore([operation])
+    traverseEqualsAndIncludes(operation, (op) => {
+      if (!indexes[op.data.indexName]) results.push(op)
+    })
     return results
   }
 
@@ -1037,7 +1021,7 @@ module.exports = function (log, indexesPath) {
       // this needs* to happen after loading lazy indexes because some
       // lazy indexes may have failed to load, and are now considered missing
       push.asyncMap((_, next) => {
-        const opsMissingIdx = detectMissingIndexes(operation)
+        const opsMissingIdx = detectOpsMissingIndexes(operation)
         if (opsMissingIdx.length === 0) return next()
         debug('missing indexes: %o', opsMissingIdx)
         createIndexes(opsMissingIdx, next)
