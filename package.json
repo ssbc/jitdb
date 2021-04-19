@@ -8,11 +8,12 @@
     "url": "git://github.com/ssb-ngi-pointer/jitdb.git"
   },
   "dependencies": {
-    "atomically-universal": "^0.1.0",
+    "atomic-file-rw": "^0.2.1",
     "binary-search-bounds": "^2.0.4",
     "bipf": "^1.5.0",
     "debug": "^4.2.0",
     "fastpriorityqueue": "^0.7.1",
+    "hash-wasm": "^4.6.0",
     "idb-kv-store": "^4.5.0",
     "jsesc": "^3.0.2",
     "mkdirp": "^1.0.4",
