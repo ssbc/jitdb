@@ -954,16 +954,14 @@ module.exports = function (log, indexesPath) {
     } else console.error('Unknown type', op)
   }
 
-  function detectMissingAndLazyIndexes(operation) {
-    const opsMissingIdx = []
-    const lazyIdxNames = []
+  function detectLazyIndexesUsed(operation) {
+    const results = []
 
     function detectMore(ops) {
       ops.forEach((op) => {
         if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
-          const indexName = op.data.indexName
-          if (!indexes[indexName]) opsMissingIdx.push(op)
-          else if (indexes[indexName].lazy) lazyIdxNames.push(indexName)
+          const name = op.data.indexName
+          if (indexes[name] && indexes[name].lazy) results.push(name)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
           detectMore(op.data)
         else if (
@@ -981,14 +979,40 @@ module.exports = function (log, indexesPath) {
     }
 
     detectMore([operation])
-    return [opsMissingIdx, lazyIdxNames]
+    return results
+  }
+
+  function detectMissingIndexes(operation) {
+    const results = []
+
+    function detectMore(ops) {
+      ops.forEach((op) => {
+        if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
+          const indexName = op.data.indexName
+          if (!indexes[indexName]) results.push(op)
+        } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
+          detectMore(op.data)
+        else if (
+          op.type === 'SEQS' ||
+          op.type === 'LIVESEQS' ||
+          op.type === 'OFFSETS' ||
+          op.type === 'LT' ||
+          op.type === 'LTE' ||
+          op.type === 'GT' ||
+          op.type === 'GTE' ||
+          !op.type // e.g. query(fromDB, toCallback), or empty deferred()
+        );
+        else debug('Unknown operator type: ' + op.type)
+      })
+    }
+
+    detectMore([operation])
+    return results
   }
 
   function executeOperation(operation, cb) {
     updateCacheWithLog()
     if (bitsetCache.has(operation)) return cb(null, bitsetCache.get(operation))
-
-    let [opsMissingIdx, lazyIdxNames] = detectMissingAndLazyIndexes(operation)
 
     push(
       // kick-start this chain with a dummy null value
@@ -999,6 +1023,7 @@ module.exports = function (log, indexesPath) {
 
       // load lazy indexes, if any
       push.asyncMap((_, next) => {
+        const lazyIdxNames = detectLazyIndexesUsed(operation)
         if (lazyIdxNames.length === 0) return next()
         push(
           push.values(lazyIdxNames),
@@ -1007,17 +1032,14 @@ module.exports = function (log, indexesPath) {
         )
       }),
 
-      // some lazy indexes may have failed to load
-      push.asyncMap((_, next) => {
-        opsMissingIdx = detectMissingAndLazyIndexes(operation)[0]
-        if (opsMissingIdx.length > 0)
-          debug('missing indexes: %o', opsMissingIdx)
-        next()
-      }),
-
       // create missing indexes, if any
+      //
+      // this needs* to happen after loading lazy indexes because some
+      // lazy indexes may have failed to load, and are now considered missing
       push.asyncMap((_, next) => {
+        const opsMissingIdx = detectMissingIndexes(operation)
         if (opsMissingIdx.length === 0) return next()
+        debug('missing indexes: %o', opsMissingIdx)
         createIndexes(opsMissingIdx, next)
       }),
 
