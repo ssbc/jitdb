@@ -15,7 +15,6 @@
     "fastpriorityqueue": "^0.7.1",
     "idb-kv-store": "^4.5.0",
     "jsesc": "^3.0.2",
-    "lru-cache": "^6.0.0",
     "mkdirp": "^1.0.4",
     "multicb": "1.2.2",
     "obz": "~1.0.3",
