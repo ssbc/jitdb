@@ -31,17 +31,23 @@ function toBufferOrFalsy(value) {
   return Buffer.isBuffer(value) ? value : Buffer.from(value)
 }
 
+const seekFromDescCache = new Map()
 function seekFromDesc(desc) {
-  const keys = desc.split('.')
+  if (seekFromDescCache.has(desc)) {
+    return seekFromDescCache.get(desc)
+  }
+  const keys = desc.split('.').map(Buffer.from)
   // The 2nd arg `start` is to support plucks too
-  return (buffer, start = 0) => {
+  const fn = function (buffer, start = 0) {
     var p = start
     for (let key of keys) {
-      p = bipf.seekKey(buffer, p, Buffer.from(key))
+      p = bipf.seekKey(buffer, p, key)
       if (!~p) return void 0
     }
     return p
   }
+  seekFromDescCache.set(desc, fn)
+  return fn
 }
 
 function getIndexName(opts, indexType, valueName) {
