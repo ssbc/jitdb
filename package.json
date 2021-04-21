@@ -27,7 +27,6 @@
     "push-stream": "^11.0.0",
     "push-stream-to-pull-stream": "^1.0.3",
     "sanitize-filename": "^1.6.3",
-    "tap-bail": "^1.0.0",
     "traverse": "^0.6.6",
     "typedarray-to-buffer": "^4.0.0",
     "typedfastbitset": "~0.2.1"
@@ -48,6 +47,7 @@
     "ssb-keys": "^8.1.0",
     "ssb-ref": "^2.14.3",
     "ssb-validate": "^4.1.1",
+    "tap-bail": "^1.0.0",
     "tap-spec": "^5.0.0",
     "tape": "^5.2.2"
   },
