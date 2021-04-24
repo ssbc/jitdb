@@ -610,7 +610,7 @@ module.exports = function (log, indexesPath) {
               seq,
               offset
             )
-          if (op.data.prefix)
+          else if (op.data.prefix)
             updatePrefixIndex(
               op.data,
               newIndexes[op.data.indexName],
