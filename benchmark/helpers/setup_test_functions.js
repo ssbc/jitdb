@@ -22,6 +22,8 @@ const fixture = (name, ...args) => {
       t.skip()
       t.end()
     })
+  } else {
+    tape(name, ...args)
   }
 }
 exports.fixture = fixture
