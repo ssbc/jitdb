@@ -9,8 +9,8 @@ const prettyBytesOptions = {
 const heapToString = function() {
   const formattedMean = prettyBytes(this.mean, prettyBytesOptions)
   const [mean, units] = formattedMean.split(' ')
-  const formattedStandardDeviation = `${Math.round(Math.abs(this.error *  mean) * 100)/100} ${units}`
-  return `${formattedMean} \xb1 ${formattedStandardDeviation}`
+  const formattedError = `${Math.round(Math.abs(this.error *  mean) * 100)/100} ${units}`
+  return `${formattedMean} \xb1 ${formattedError}`
 }
 
 const statsToString = function() {
@@ -44,10 +44,19 @@ function runBenchmark(benchmarkName, benchmarkFn, setupFn, callback) {
   function getTestStats(name, ops) {
     // Remove part before v8 optimizations, mimicking nodemark
     samples = samples.slice(samples.length - ops.count)
-    const mean = (samples.reduce((a,s) => a+s, 0) / samples.length) | 0
-    const error = (Math.sqrt(
-      (samples.reduce((agg, diff) => agg + (diff - mean) * (diff - mean), 0) / (samples.length - 1)) | 0
-    ) | 0) / Math.abs(mean)
+    let sum = 0
+    let sumSquaredValues = 0
+    for (const val of samples) {
+      sum += val
+      sumSquaredValues += val * val
+    }
+    const count = samples.length;
+    const sumOfSquares = sumSquaredValues - sum * sum / count;
+    const standardDeviation = Math.sqrt(sumOfSquares / (count - 1));
+    const criticalValue = 2 / Math.sqrt(count);
+    const marginOfError = criticalValue * Math.sqrt(standardDeviation * standardDeviation / count);
+    const mean = sum / count;
+    const error = (marginOfError / Math.abs(mean));
     const heap = {
       mean,
       error,
