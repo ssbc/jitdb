@@ -3,7 +3,7 @@ const sanitize = require('sanitize-filename')
 const TypedFastBitSet = require('typedfastbitset')
 const { readFile, writeFile } = require('atomic-file-rw')
 const toBuffer = require('typedarray-to-buffer')
-const { crc32 } = require('hash-wasm')
+const crcCalculate = require('crc/lib/crc32')
 
 const FIELD_SIZE = 4 // bytes
 
@@ -22,12 +22,9 @@ const FIELD_SIZE = 4 // bytes
  */
 
 function calculateCRCAndWriteFile(buf, filename, cb) {
-  crc32(buf)
-    .then((crc) => {
-      buf.writeUInt32LE(parseInt(crc, 16), 3 * FIELD_SIZE)
-      writeFile(filename, buf, cb)
-    })
-    .catch(cb)
+  const crc = crcCalculate(buf)
+  buf.writeUInt32LE(crc, 3 * FIELD_SIZE)
+  writeFile(filename, buf, cb)
 }
 
 function readFileAndCheckCRC(filename, cb) {
@@ -37,13 +34,9 @@ function readFileAndCheckCRC(filename, cb) {
     const crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
     buf.writeUInt32LE(0, 3 * FIELD_SIZE)
 
-    crc32(buf)
-      .then((crc) => {
-        if (crcFile !== 0 && parseInt(crc, 16) !== crcFile)
-          return cb('crc check failed')
-        cb(null, buf)
-      })
-      .catch(cb)
+    const crc = crcCalculate(buf)
+    if (crcFile !== 0 && crc !== crcFile) return cb('crc check failed')
+    cb(null, buf)
   })
 }
 

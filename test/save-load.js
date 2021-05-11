@@ -12,6 +12,8 @@ const {
   loadBitsetFile,
 } = require('../files')
 const { readFile, writeFile } = require('atomic-file-rw')
+const oldCRC32 = require('hash-wasm').crc32
+const newCRC32 = require('crc/lib/crc32')
 
 const dir = '/tmp/jitdb-save-load'
 rimraf.sync(dir)
@@ -148,6 +150,28 @@ test('save and load corrupt bitset', (t) => {
           t.equal(err, 'crc check failed')
           t.end()
         })
+      })
+    })
+  })
+})
+
+test('crc32 calculation is stable across crc implementations', (t) => {
+  const idxDir = path.join(dir, 'test-crc32-impls')
+  mkdirp.sync(idxDir)
+  const filename = path.join(idxDir, 'test.index')
+
+  var bitset = new TypedFastBitSet()
+  for (var i = 0; i < 10; i += 2) bitset.add(i)
+
+  saveBitsetFile(filename, 1, 123, bitset, (err) => {
+    t.error(err, 'no err')
+    readFile(filename, (err, buf) => {
+      t.error(err, 'no err')
+      oldCRC32(buf).then((hex) => {
+        const oldCode = parseInt(hex, 16)
+        const newCode = newCRC32(buf)
+        t.equals(newCode, oldCode, 'same crc code')
+        t.end()
       })
     })
   })
