@@ -99,6 +99,8 @@ function savePrefixMapFile(filename, version, offset, count, map, cb) {
 
 function loadPrefixMapFile(filename, cb) {
   readFileAndCheckCRC(filename, (err, buf) => {
+    if (err) return cb(err)
+
     const version = buf.readUInt32LE(0)
     const offset = buf.readUInt32LE(FIELD_SIZE)
     const count = buf.readUInt32LE(2 * FIELD_SIZE)
