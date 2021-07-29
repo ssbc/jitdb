@@ -1,94 +1,94 @@
 const bipf = require('bipf')
 
-const bKey = Buffer.from('key')
-const bValue = Buffer.from('value')
-const bVote = Buffer.from('vote')
-const bLink = Buffer.from('link')
-const bAuthor = Buffer.from('author')
-const bContent = Buffer.from('content')
-const bType = Buffer.from('type')
-const bRoot = Buffer.from('root')
-const bMeta = Buffer.from('meta')
-const bAnimals = Buffer.from('animals')
-const bWord = Buffer.from('word')
-const bPrivate = Buffer.from('private')
-const bChannel = Buffer.from('channel')
+const B_KEY = Buffer.from('key')
+const B_VALUE = Buffer.from('value')
+const B_VOTE = Buffer.from('vote')
+const B_LINK = Buffer.from('link')
+const B_AUTHOR = Buffer.from('author')
+const B_CONTENT = Buffer.from('content')
+const B_TYPE = Buffer.from('type')
+const B_ROOT = Buffer.from('root')
+const B_META = Buffer.from('meta')
+const B_ANIMALS = Buffer.from('animals')
+const B_WORD = Buffer.from('word')
+const B_PRIVATE = Buffer.from('private')
+const B_CHANNEL = Buffer.from('channel')
 
 module.exports = {
   seekKey: function (buffer) {
     var p = 0 // note you pass in p!
-    return bipf.seekKey(buffer, p, bKey)
+    return bipf.seekKey(buffer, p, B_KEY)
   },
 
   seekAuthor: function (buffer) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
+    p = bipf.seekKey(buffer, p, B_VALUE)
 
-    if (~p) return bipf.seekKey(buffer, p, bAuthor)
+    if (~p) return bipf.seekKey(buffer, p, B_AUTHOR)
   },
 
   seekVoteLink: function (buffer) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
+    p = bipf.seekKey(buffer, p, B_VALUE)
     if (!~p) return
-    p = bipf.seekKey(buffer, p, bContent)
+    p = bipf.seekKey(buffer, p, B_CONTENT)
     if (!~p) return
-    p = bipf.seekKey(buffer, p, bVote)
+    p = bipf.seekKey(buffer, p, B_VOTE)
     if (!~p) return
-    return bipf.seekKey(buffer, p, bLink)
+    return bipf.seekKey(buffer, p, B_LINK)
   },
 
   seekType: function (buffer) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
+    p = bipf.seekKey(buffer, p, B_VALUE)
 
     if (~p) {
-      p = bipf.seekKey(buffer, p, bContent)
-      if (~p) return bipf.seekKey(buffer, p, bType)
+      p = bipf.seekKey(buffer, p, B_CONTENT)
+      if (~p) return bipf.seekKey(buffer, p, B_TYPE)
     }
   },
 
   seekAnimals: function (buffer) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
+    p = bipf.seekKey(buffer, p, B_VALUE)
     if (!~p) return
-    p = bipf.seekKey(buffer, p, bContent)
+    p = bipf.seekKey(buffer, p, B_CONTENT)
     if (!~p) return
-    return bipf.seekKey(buffer, p, bAnimals)
+    return bipf.seekKey(buffer, p, B_ANIMALS)
   },
 
   pluckWord: function (buffer, start) {
     var p = start
-    return bipf.seekKey(buffer, p, bWord)
+    return bipf.seekKey(buffer, p, B_WORD)
   },
 
   seekRoot: function (buffer) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
+    p = bipf.seekKey(buffer, p, B_VALUE)
 
     if (~p) {
-      p = bipf.seekKey(buffer, p, bContent)
-      if (~p) return bipf.seekKey(buffer, p, bRoot)
+      p = bipf.seekKey(buffer, p, B_CONTENT)
+      if (~p) return bipf.seekKey(buffer, p, B_ROOT)
     }
   },
 
   seekPrivate: function (buffer) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
+    p = bipf.seekKey(buffer, p, B_VALUE)
 
     if (~p) {
-      p = bipf.seekKey(buffer, p, bMeta)
-      if (~p) return bipf.seekKey(buffer, p, bPrivate)
+      p = bipf.seekKey(buffer, p, B_META)
+      if (~p) return bipf.seekKey(buffer, p, B_PRIVATE)
     }
   },
 
   seekChannel: function (buffer) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, bValue)
+    p = bipf.seekKey(buffer, p, B_VALUE)
 
     if (~p) {
-      p = bipf.seekKey(buffer, p, bContent)
-      if (~p) return bipf.seekKey(buffer, p, bChannel)
+      p = bipf.seekKey(buffer, p, B_CONTENT)
+      if (~p) return bipf.seekKey(buffer, p, B_CHANNEL)
     }
   },
 }
