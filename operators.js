@@ -36,7 +36,7 @@ function seekFromDesc(desc) {
   if (seekFromDescCache.has(desc)) {
     return seekFromDescCache.get(desc)
   }
-  const keys = desc.split('.').map(Buffer.from)
+  const keys = desc.split('.').map((str) => Buffer.from(str))
   // The 2nd arg `start` is to support plucks too
   const fn = function (buffer, start = 0) {
     var p = start
