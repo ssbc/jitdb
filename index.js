@@ -73,9 +73,9 @@ module.exports = function (log, indexesPath) {
     else waiting.push(cb)
   }
 
-  const bTimestamp = Buffer.from('timestamp')
-  const bSequence = Buffer.from('sequence')
-  const bValue = Buffer.from('value')
+  const B_TIMESTAMP = Buffer.from('timestamp')
+  const B_SEQUENCE = Buffer.from('sequence')
+  const B_VALUE = Buffer.from('value')
 
   function loadIndexes(cb) {
     function parseIndexes(err, files) {
@@ -243,11 +243,11 @@ module.exports = function (log, indexesPath) {
       indexes['timestamp'].offset = offset
 
       var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, bTimestamp)
+      p = bipf.seekKey(buffer, p, B_TIMESTAMP)
       const arrivalTimestamp = bipf.decode(buffer, p)
       p = 0
-      p = bipf.seekKey(buffer, p, bValue)
-      p = bipf.seekKey(buffer, p, bTimestamp)
+      p = bipf.seekKey(buffer, p, B_VALUE)
+      p = bipf.seekKey(buffer, p, B_TIMESTAMP)
       const declaredTimestamp = bipf.decode(buffer, p)
       const timestamp = Math.min(arrivalTimestamp, declaredTimestamp)
 
@@ -265,8 +265,8 @@ module.exports = function (log, indexesPath) {
       indexes['sequence'].offset = offset
 
       var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, bValue)
-      p = bipf.seekKey(buffer, p, bSequence)
+      p = bipf.seekKey(buffer, p, B_VALUE)
+      p = bipf.seekKey(buffer, p, B_SEQUENCE)
 
       indexes['sequence'].tarr[seq] = bipf.decode(buffer, p)
       indexes['sequence'].count = seq + 1
