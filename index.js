@@ -1462,7 +1462,7 @@ module.exports = function (log, indexesPath) {
 
   function reindex(seq, offset, cb) {
     function resetIndex(index) {
-      if (index.offset > offset) {
+      if (index.offset >= offset) {
         if (index.count) index.count = seq
 
         if (index.map) {
