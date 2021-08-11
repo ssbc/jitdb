@@ -235,6 +235,24 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function seekMinTimestamp(buffer) {
+    var p = 0 // note you pass in p!
+    p = bipf.seekKey(buffer, p, B_TIMESTAMP)
+    const arrivalTimestamp = bipf.decode(buffer, p)
+    p = 0
+    p = bipf.seekKey(buffer, p, B_VALUE)
+    p = bipf.seekKey(buffer, p, B_TIMESTAMP)
+    const declaredTimestamp = bipf.decode(buffer, p)
+    return Math.min(arrivalTimestamp, declaredTimestamp)
+  }
+
+  function seekSequence(buffer) {
+    var p = 0 // note you pass in p!
+    p = bipf.seekKey(buffer, p, B_VALUE)
+    p = bipf.seekKey(buffer, p, B_SEQUENCE)
+    return bipf.decode(buffer, p)
+  }
+
   function updateTimestampIndex(seq, offset, buffer) {
     if (seq > indexes['timestamp'].count - 1) {
       if (seq > indexes['timestamp'].tarr.length - 1)
@@ -242,14 +260,7 @@ module.exports = function (log, indexesPath) {
 
       indexes['timestamp'].offset = offset
 
-      var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, B_TIMESTAMP)
-      const arrivalTimestamp = bipf.decode(buffer, p)
-      p = 0
-      p = bipf.seekKey(buffer, p, B_VALUE)
-      p = bipf.seekKey(buffer, p, B_TIMESTAMP)
-      const declaredTimestamp = bipf.decode(buffer, p)
-      const timestamp = Math.min(arrivalTimestamp, declaredTimestamp)
+      const timestamp = seekMinTimestamp(buffer)
 
       indexes['timestamp'].tarr[seq] = timestamp
       indexes['timestamp'].count = seq + 1
@@ -264,11 +275,9 @@ module.exports = function (log, indexesPath) {
 
       indexes['sequence'].offset = offset
 
-      var p = 0 // note you pass in p!
-      p = bipf.seekKey(buffer, p, B_VALUE)
-      p = bipf.seekKey(buffer, p, B_SEQUENCE)
+      const sequence = seekSequence(buffer)
 
-      indexes['sequence'].tarr[seq] = bipf.decode(buffer, p)
+      indexes['sequence'].tarr[seq] = sequence
       indexes['sequence'].count = seq + 1
       return true
     }
@@ -283,6 +292,32 @@ module.exports = function (log, indexesPath) {
     )
       return true
     else return false
+  }
+
+  function compareWithRangeOp(op, value) {
+    if (op.type === 'GT') return value > op.data.value
+    else if (op.type === 'GTE') return value >= op.data.value
+    else if (op.type === 'LT') return value < op.data.value
+    else if (op.type === 'LTE') return value <= op.data.value
+    else {
+      console.warn('Unknown op type: ' + op.type)
+      return true
+    }
+  }
+
+  function checkComparison(op, buffer) {
+    if (op.data.indexName === 'timestamp') {
+      const timestamp = seekMinTimestamp(buffer)
+      return compareWithRangeOp(op, timestamp)
+    } else if (op.data.indexName === 'sequence') {
+      const sequence = seekSequence(buffer)
+      return compareWithRangeOp(op, sequence)
+    } else {
+      console.warn(
+        `Attempted to do a ${op.type} comparison on unsupported index ${op.data.indexName}`
+      )
+      return true
+    }
   }
 
   function checkIncludes(opData, buffer) {
@@ -1052,6 +1087,13 @@ module.exports = function (log, indexesPath) {
       else if (op.type === 'NOT') ok = !isValueOk(op.data, value, false)
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
       else if (op.type === 'OR') ok = isValueOk(op.data, value, true)
+      else if (
+        op.type === 'GT' ||
+        op.type === 'GTE' ||
+        op.type === 'LT' ||
+        op.type === 'LTE'
+      )
+        ok = checkComparison(op, value)
       else if (op.type === 'LIVESEQS') ok = true
       else if (!op.type) ok = true
 
