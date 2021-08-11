@@ -179,6 +179,57 @@ prepareAndRunTest('Live OR', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('Live GTE', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing ' + keys.id }
+  const msg2 = { type: 'post', text: 'Testing ' + keys2.id }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg, Date.now())
+  state = validate.appendNew(state, null, keys2, msg2, Date.now() + 1)
+
+  const filterQuery = {
+    type: 'AND',
+    data: [
+      {
+        type: 'EQUAL',
+        data: {
+          seek: helpers.seekAuthor,
+          value: Buffer.from(keys.id),
+          indexType: 'author',
+          indexName: 'author_' + keys.id,
+        },
+      },
+      {
+        type: 'GTE',
+        data: {
+          value: 1,
+          indexName: 'sequence',
+        },
+      },
+    ],
+  }
+
+  var i = 1
+  pull(
+    db.live(filterQuery),
+    pull.drain((result) => {
+      if (i++ == 1) {
+        t.equal(result.key, state.queue[0].key)
+        addMsg(state.queue[1].value, raf, (err, msg1) => {})
+
+        setTimeout(() => {
+          t.end()
+        }, 500)
+      } else {
+        t.fail('should only be called once')
+      }
+    })
+  )
+
+  addMsg(state.queue[0].value, raf, (err, msg1) => {
+    // console.log("waiting for live query")
+  })
+})
+
 prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
