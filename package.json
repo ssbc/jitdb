@@ -7,6 +7,10 @@
     "type": "git",
     "url": "git://github.com/ssb-ngi-pointer/jitdb.git"
   },
+  "files": [
+    "*.js",
+    "!example.js"
+  ],
   "dependencies": {
     "atomic-file-rw": "^0.2.1",
     "binary-search-bounds": "^2.0.4",
