@@ -197,7 +197,7 @@ want to get results in batches, you should use **`toPullStream`**,
 **`paginate`**, and optionally `startFrom` and `descending`.
 
 - **toPullStream** creates a [pull-stream] source to stream the results
-- **paginate** configures the size of each page stream to the pull-stream source
+- **paginate** configures the size of each array sent to the pull-stream source
 - **startFrom** configures the beginning seq from where to start streaming
 - **descending** configures the pagination stream to order results
   from newest to oldest (otherwise the default order is oldest to
@@ -255,6 +255,36 @@ pull(
   pull.drain((msgs) => {
     console.log('next page:')
     console.log(msgs)
+  })
+)
+```
+
+**Batching** with the operator `batch()` is similar to pagination in terms of
+performance, but the messages are delivered one-by-one to the final pull-stream,
+instead of as any array. Example:
+
+```js
+const pull = require('pull-stream')
+
+const source = query(
+  fromDB(db),
+  where(
+    and(
+      slowEqual('value.content.type', 'contact')
+      or(slowEqual('value.author', aliceId), slowEqual('value.author', bobId)),
+    ),
+  ),
+  batch(10), // Note `batch` instead of `paginate`
+  descending(),
+  toPullStream()
+)
+
+pull(
+  source,
+  // Note the below drain is `msg`, not `msgs` array:
+  pull.drain((msg) => {
+    console.log('next message:')
+    console.log(msg)
   })
 )
 ```
@@ -372,6 +402,7 @@ const {
   offsets,
   count,
   paginate,
+  batch,
   startFrom,
   descending,
   asOffsets,

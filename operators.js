@@ -323,6 +323,10 @@ function paginate(pageSize) {
   return (ops) => updateMeta(ops, 'pageSize', pageSize)
 }
 
+function batch(batchSize) {
+  return (ops) => updateMeta(ops, 'batchSize', batchSize)
+}
+
 function asOffsets() {
   return (ops) => updateMeta(ops, 'asOffsets', true)
 }
@@ -396,9 +400,9 @@ function toPullStream() {
     function paginateStream(ops) {
       let seq = meta.seq || 0
       let total = Infinity
-      const limit = meta.pageSize || 1
+      const limit = meta.pageSize || meta.batchSize || 20
       let shouldEnd = false
-      return function readable(end, cb) {
+      function readable(end, cb) {
         if (end) return cb(end)
         if (seq >= total || shouldEnd) return cb(true)
         if (meta.count) {
@@ -417,11 +421,17 @@ function toPullStream() {
               else {
                 total = answer.total
                 seq += limit
-                cb(null, !meta.pageSize ? answer.results[0] : answer.results)
+                cb(null, answer.results)
               }
             }
           )
         }
+      }
+      if (meta.pageSize || meta.count) {
+        return readable
+      } else {
+        // Flatten the "pages" (arrays) into individual messages
+        return pull(readable, pull.map(pull.values), pull.flatten())
       }
     }
 
@@ -480,6 +490,7 @@ module.exports = {
   count,
   startFrom,
   paginate,
+  batch,
   asOffsets,
   toCallback,
   toPullStream,

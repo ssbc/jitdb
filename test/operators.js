@@ -26,6 +26,7 @@ const {
   offsets,
   fromDB,
   paginate,
+  batch,
   startFrom,
   live,
   count,
@@ -1257,6 +1258,7 @@ prepareAndRunTest('support live operations', dir, (t, db, raf) => {
       fromDB(db),
       where(slowEqual('value.content.type', 'post')),
       live({ old: true }),
+      batch(2),
       toPullStream(),
       pull.drain((msg) => {
         if (i++ == 0) {
