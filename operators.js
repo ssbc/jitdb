@@ -2,7 +2,7 @@ const bipf = require('bipf')
 const traverse = require('traverse')
 const promisify = require('promisify-4loc')
 const pull = require('pull-stream')
-const pullAsync = require('pull-async')
+const multicb = require('multicb')
 const pullAwaitable = require('pull-awaitable')
 const cat = require('pull-cat')
 const { safeFilename } = require('./files')
@@ -330,56 +330,86 @@ function asOffsets() {
 //#endregion
 //#region "Consumer operators": they execute the query tree
 
-async function executeDeferredOps(ops, meta) {
+function executeDeferredOps(ops, meta) {
   // Collect all deferred tasks and their object-traversal paths
   const allDeferred = []
   traverse.forEach(ops, function (val) {
     if (!val) return
     // this.block() means don't traverse inside these, they won't have DEFERRED
     if (this.key === 'meta' && val.jitdb) return this.block()
-    if (val.type === 'DEFERRED' && val.task) allDeferred.push([this.path, val])
+    if (val.type === 'DEFERRED' && val.task) {
+      allDeferred.push([this.path, val.task])
+    }
     if (!(Array.isArray(val) || val.type === 'AND' || val.type === 'OR')) {
       this.block()
     }
   })
-  if (allDeferred.length === 0) return ops
+  if (allDeferred.length === 0) return pull.values([ops])
 
-  // Execute all deferred tasks and collect the results (and the paths)
-  const allResults = await Promise.all(
-    allDeferred.map(([path, obj]) =>
-      promisify(obj.task)(meta).then((result) => {
-        if (!result) return [path, {}]
-        else if (typeof result === 'function') return [path, result()]
-        else return [path, result]
-      })
-    )
-  )
+  // State needed throughout the execution of the `readable`
+  const done = multicb({ pluck: 1 })
+  let completed = false
+  const abortListeners = []
+  function addAbortListener(listener) {
+    abortListeners.push(listener)
+  }
 
-  // Replace all deferreds with their respective results
-  allResults.forEach(([path, result]) => {
-    result.meta = meta
-    if (path.length === 0) ops = result
-    else traverse.set(ops, path, result)
-  })
+  return function readable(end, cb) {
+    if (end) {
+      while (abortListeners.length) abortListeners.shift()()
+      cb(end)
+      return
+    }
+    if (completed) {
+      cb(true)
+      return
+    }
 
-  return ops
+    // Execute all deferred tasks and collect the results (and the paths)
+    for (const [path, task] of allDeferred) {
+      const taskCB = done()
+      task(
+        meta,
+        (err, result) => {
+          if (err) taskCB(err)
+          else if (!result) taskCB(null, [path, {}])
+          else if (typeof result === 'function') taskCB(null, [path, result()])
+          else taskCB(null, [path, result])
+        },
+        addAbortListener
+      )
+    }
+
+    // When all tasks are done...
+    done((err, results) => {
+      if (err) return cb(err)
+
+      // Replace/mutate all deferreds with their respective results
+      for (const [path, result] of results) {
+        result.meta = meta
+        if (path.length === 0) ops = result
+        else traverse.set(ops, path, result)
+      }
+      completed = true
+      cb(null, ops)
+    })
+  }
 }
 
 function toCallback(cb) {
   return (rawOps) => {
     const meta = extractMeta(rawOps)
-    executeDeferredOps(rawOps, meta)
-      .then((ops) => {
-        const seq = meta.seq || 0
-        const { pageSize, descending, asOffsets } = meta
-        if (meta.count) meta.jitdb.count(ops, seq, descending, cb)
-        else if (pageSize)
-          meta.jitdb.paginate(ops, seq, pageSize, descending, asOffsets, cb)
-        else meta.jitdb.all(ops, seq, descending, asOffsets, cb)
-      })
-      .catch((err) => {
-        cb(err)
-      })
+    const readable = executeDeferredOps(rawOps, meta)
+    readable(null, (end, ops) => {
+      if (end) return cb(end)
+
+      const seq = meta.seq || 0
+      const { pageSize, descending, asOffsets } = meta
+      if (meta.count) meta.jitdb.count(ops, seq, descending, cb)
+      else if (pageSize)
+        meta.jitdb.paginate(ops, seq, pageSize, descending, asOffsets, cb)
+      else meta.jitdb.all(ops, seq, descending, asOffsets, cb)
+    })
   }
 }
 
@@ -426,12 +456,7 @@ function toPullStream() {
     }
 
     return pull(
-      pullAsync((cb) => {
-        executeDeferredOps(rawOps, meta).then(
-          (ops) => cb(null, ops),
-          (err) => cb(err)
-        )
-      }),
+      executeDeferredOps(rawOps, meta),
       pull.map((ops) => {
         if (meta.live === 'liveOnly') return meta.jitdb.live(ops)
         else if (meta.live === 'liveAndOld')
