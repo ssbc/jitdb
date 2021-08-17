@@ -351,11 +351,12 @@ deferred(task)
 where `task` is any function of the format
 
 ```js
-function task(meta, cb)
+function task(meta, cb[, onAbort])
 ```
 
 where `meta` is an object containing an instance of JITDB and other
-metadata.
+metadata, and `onAbort` is an optional function that you can pass an
+abort listener (i.e. `onAbort(() => { /* cancel my stuff */ })`).
 
 As an example, suppose you have a custom index that returns seqs
 `11`, `13` and `17`, and you want to include these results into your

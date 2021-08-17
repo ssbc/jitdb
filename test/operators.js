@@ -1041,6 +1041,58 @@ prepareAndRunTest('support deferred operations or', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('support cancelling deferred', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  addMsg(state.queue[0].value, raf, (e1, msg1) => {
+    addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      let drainer
+      pull(
+        query(
+          fromDB(db),
+          where(
+            or(
+              slowEqual('value.author', alice.id),
+              deferred((meta, cb, onAbort) => {
+                setTimeout(() => {
+                  if (!drainer) t.fail('expected drain to have started')
+                  drainer.abort()
+                  t.pass('trigger abort')
+                }, 100)
+
+                let timer = setTimeout(() => {
+                  timer = null
+                  t.fail('this should have been cancelled')
+                  cb(null, slowEqual('value.author', bob.id))
+                }, 200)
+
+                setTimeout(() => {
+                  t.pass('task was successfully cancelled')
+                  t.end()
+                }, 400)
+
+                onAbort(() => {
+                  if (timer) {
+                    clearTimeout(timer)
+                    timer = null
+                  }
+                })
+              })
+            )
+          ),
+          toPullStream()
+        ),
+        (drainer = pull.drain((msg) => {
+          t.fail('should not drain yet')
+        }))
+      )
+    })
+  })
+})
+
 prepareAndRunTest('support empty deferred operations', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
