@@ -46,6 +46,10 @@ function saveTypedArrayFile(filename, version, offset, count, tarr, cb) {
       if (err) console.error(err)
     }
 
+  if (typeof version !== 'number') {
+    return cb(new Error('cannot save file ' + filename + ' without version'))
+  }
+
   const dataBuffer = toBuffer(tarr)
   // we try to save an extra 10% so we don't have to immediately grow
   // after loading and adding again
@@ -86,6 +90,10 @@ function savePrefixMapFile(filename, version, offset, count, map, cb) {
     cb = (err) => {
       if (err) console.error(err)
     }
+
+  if (typeof version !== 'number') {
+    return cb(new Error('cannot save file ' + filename + ' without version'))
+  }
 
   const jsonMap = JSON.stringify(map)
   const buf = Buffer.alloc(4 * FIELD_SIZE + jsonMap.length)
