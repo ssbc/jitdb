@@ -1064,9 +1064,7 @@ prepareAndRunTest('support cancelling deferred', dir, (t, db, raf) => {
                 }, 100)
 
                 let timer = setTimeout(() => {
-                  timer = null
                   t.fail('this should have been cancelled')
-                  cb(null, slowEqual('value.author', bob.id))
                 }, 200)
 
                 setTimeout(() => {
