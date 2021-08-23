@@ -43,6 +43,7 @@ prepareAndRunTest('Ensure seq index is updated always', dir, (t, db, raf) => {
           offset: -1,
           count: 0,
           tarr: new Uint32Array(16 * 1000),
+          version: 1,
         }
 
         addMsg(state.queue[2].value, raf, (err, msg) => {

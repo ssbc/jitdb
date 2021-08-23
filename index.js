@@ -44,6 +44,7 @@ module.exports = function (log, indexesPath) {
         offset: -1,
         count: 0,
         tarr: new Uint32Array(16 * 1000),
+        version: 1,
       }
     }
     if (!indexes['timestamp']) {
@@ -51,6 +52,7 @@ module.exports = function (log, indexesPath) {
         offset: -1,
         count: 0,
         tarr: new Float64Array(16 * 1000),
+        version: 1,
       }
     }
     if (!indexes['sequence']) {
@@ -58,6 +60,7 @@ module.exports = function (log, indexesPath) {
         offset: -1,
         count: 0,
         tarr: new Uint32Array(16 * 1000),
+        version: 1,
       }
     }
 
@@ -171,7 +174,7 @@ module.exports = function (log, indexesPath) {
     const filename = path.join(indexesPath, name + '.index')
     saveTypedArrayFile(
       filename,
-      coreIndex.version || 1,
+      coreIndex.version,
       coreIndex.offset,
       count,
       coreIndex.tarr
@@ -182,7 +185,7 @@ module.exports = function (log, indexesPath) {
     if (index.offset < 0 || index.bitset.size() === 0) return
     debug('saving index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
-    saveBitsetFile(filename, index.version || 1, index.offset, index.bitset, cb)
+    saveBitsetFile(filename, index.version, index.offset, index.bitset, cb)
   }
 
   function savePrefixIndex(name, prefixIndex, count, cb) {
@@ -192,7 +195,7 @@ module.exports = function (log, indexesPath) {
     const filename = path.join(indexesPath, name + `.${num}prefix`)
     saveTypedArrayFile(
       filename,
-      prefixIndex.version || 1,
+      prefixIndex.version,
       prefixIndex.offset,
       count,
       prefixIndex.tarr,
@@ -207,7 +210,7 @@ module.exports = function (log, indexesPath) {
     const filename = path.join(indexesPath, name + `.${num}prefixmap`)
     savePrefixMapFile(
       filename,
-      prefixIndex.version || 1,
+      prefixIndex.version,
       prefixIndex.offset,
       count,
       prefixIndex.map,
@@ -412,6 +415,7 @@ module.exports = function (log, indexesPath) {
       newIndexes[indexName] = {
         offset: 0,
         bitset: new TypedFastBitSet(),
+        version: opData.version || 1,
       }
     }
 
@@ -447,6 +451,12 @@ module.exports = function (log, indexesPath) {
     const waitingKey = op.data.indexName
     if (onlyOneIndexAtATime(waitingIndexUpdate, waitingKey, cb)) return
 
+    // Reset index if version was bumped
+    if (op.data.version > index.version) {
+      index.offset = -1
+      index.count = 0
+    }
+
     // find the next possible seq
     let seq = 0
     if (index.offset !== -1) {
@@ -481,6 +491,7 @@ module.exports = function (log, indexesPath) {
         saveCoreIndex('sequence', indexes['sequence'], count)
 
       index.offset = offset
+      if (op.data.version > index.version) index.version = op.data.version
 
       if (indexNeedsUpdate) {
         if (index.prefix && index.map)
@@ -570,6 +581,7 @@ module.exports = function (log, indexesPath) {
           count: 0,
           map: {},
           prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
+          version: op.data.version || 1,
         }
       } else if (op.data.prefix)
         newIndexes[op.data.indexName] = {
@@ -577,11 +589,13 @@ module.exports = function (log, indexesPath) {
           count: 0,
           tarr: new Uint32Array(16 * 1000),
           prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
+          version: op.data.version || 1,
         }
       else
         newIndexes[op.data.indexName] = {
           offset: 0,
           bitset: new TypedFastBitSet(),
+          version: op.data.version || 1,
         }
     })
 
@@ -758,7 +772,8 @@ module.exports = function (log, indexesPath) {
   }
 
   function ensureIndexSync(op, cb) {
-    if (log.since.value > indexes[op.data.indexName].offset) {
+    const index = indexes[op.data.indexName]
+    if (log.since.value > index.offset || op.data.version > index.version) {
       updateIndex(op, cb)
     } else {
       debug('ensureIndexSync %s is already synced', op.data.indexName)
