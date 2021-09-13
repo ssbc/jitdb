@@ -146,7 +146,7 @@ function slowPredicate(seekDesc, fn, opts) {
     throw new Error('predicate() needs a predicate function in the 2rd arg')
   const value = fn
   const indexType = seekDesc.replace(/\./g, '_')
-  const name = fn.name || opts.name
+  const name = opts.name || fn.name
   if (!name) throw new Error('predicate() needs opts.name')
   const indexName = safeFilename(indexType + '__pred_' + name)
   return {
@@ -168,7 +168,7 @@ function predicate(seek, fn, opts) {
     throw new Error('predicate() needs a predicate function in the 2rd arg')
   const value = fn
   const indexType = opts.indexType
-  const name = fn.name || opts.name
+  const name = opts.name || fn.name
   if (!name) throw new Error('predicate() needs opts.name')
   const indexName = safeFilename(indexType + '__pred_' + name)
   return {
