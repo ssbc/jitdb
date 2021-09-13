@@ -139,6 +139,49 @@ function equal(seek, target, opts) {
   }
 }
 
+function slowPredicate(seekDesc, fn, opts) {
+  opts = opts || {}
+  const seek = seekFromDesc(seekDesc)
+  if (typeof fn !== 'function')
+    throw new Error('predicate() needs a predicate function in the 2rd arg')
+  const value = fn
+  const indexType = seekDesc.replace(/\./g, '_')
+  const name = fn.name || opts.name
+  if (!name) throw new Error('predicate() needs opts.name')
+  const indexName = safeFilename(indexType + '__pred_' + name)
+  return {
+    type: 'PREDICATE',
+    data: {
+      seek,
+      value,
+      indexType,
+      indexName,
+    },
+  }
+}
+
+function predicate(seek, fn, opts) {
+  opts = opts || {}
+  if (!opts.indexType)
+    throw new Error('predicate() operator needs an indexType in the 3rd arg')
+  if (typeof fn !== 'function')
+    throw new Error('predicate() needs a predicate function in the 2rd arg')
+  const value = fn
+  const indexType = opts.indexType
+  const name = fn.name || opts.name
+  if (!name) throw new Error('predicate() needs opts.name')
+  const indexName = safeFilename(indexType + '__pred_' + name)
+  return {
+    type: 'PREDICATE',
+    data: {
+      seek,
+      value,
+      indexType,
+      indexName,
+    },
+  }
+}
+
 function slowIncludes(seekDesc, target, opts) {
   opts = opts || {}
   const seek = seekFromDesc(seekDesc)
@@ -495,6 +538,8 @@ module.exports = {
   live,
   slowEqual,
   equal,
+  slowPredicate,
+  predicate,
   slowIncludes,
   includes,
   where,
