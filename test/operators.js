@@ -1420,7 +1420,10 @@ prepareAndRunTest('support slowPredicate', dir, (t, db, raf) => {
       addMsg(state.queue[2].value, raf, (e3, m3) => {
         query(
           fromDB(db),
-          where(slowPredicate('value.content.animal', (x) => x.length === 3)),
+          where(
+            slowPredicate('value.content.animal', (x) => x.length === 3),
+            { name: '3char' }
+          ),
           toCallback((err, msgs) => {
             t.error(err, 'got no error')
             t.equal(msgs.length, 2, 'got two messages')
