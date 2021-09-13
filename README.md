@@ -103,12 +103,15 @@ desired set of messages: `and`, `or`, `not`, `equal`, `slowEqual`, and others.
   - `objPath` a string in the shape `"foo.bar.baz"` which specifies the nested field `"baz"` inside `"bar"` inside `"foo"`
   - `value` is the same as `value` in the `equal` operator
   - `opts` same as the opts for `equal()`
-- `includes(seek, value, opts)` filters for messages where a `seek`ed` _field_
+- `includes(seek, value, opts)` filters for messages where a `seek`ed _field_
   is an array and includes a specific _value_
 - `slowIncludes(objPath, value, opts)` is to `includes` what `slowEqual` is to
   `equal`
 - `predicate(seek, fn, opts)` filters for messages where a `seek`ed _field_ is
   passed to a predicate function `fn` and the `fn` returns true
+  - `opts` are additional configurations such as `indexType` and `name`. You
+  SHOULD pass `opts.name` as a simple string uniquely identifying the predicate,
+  OR the `fn` function should be a named function
 - `slowPredicate(objPath, fn, opts)` is to `predicate` what `slowEqual` is to
   `equal`
 
