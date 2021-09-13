@@ -1421,8 +1421,9 @@ prepareAndRunTest('support slowPredicate', dir, (t, db, raf) => {
         query(
           fromDB(db),
           where(
-            slowPredicate('value.content.animal', (x) => x.length === 3),
-            { name: '3char' }
+            slowPredicate('value.content.animal', (x) => x.length === 3, {
+              name: '3char',
+            })
           ),
           toCallback((err, msgs) => {
             t.error(err, 'got no error')
