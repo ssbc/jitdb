@@ -91,7 +91,8 @@ desired set of messages: `and`, `or`, `not`, `equal`, `slowEqual`, and others.
 - `and(...args)` filters for messages that satisfy **all** `args`
 - `or(...args)` filters for messages that satisfy **at least one** of the `args`
 - `not(arg)` filters for messages that do not safisfy `arg`
-- `equal(seek, value, opts)` filters for messages where a specific _field_ matches a specific _value_:
+- `equal(seek, value, opts)` filters for messages where a `seek`ed _field_
+  matches a specific _value_:
   - `seek` is a function that takes a [bipf] buffer as input and uses
     `bipf.seekKey` to return a pointer to the _field_
   - `value` is a string or buffer which is the value we want the _field_'s value to match
@@ -102,6 +103,14 @@ desired set of messages: `and`, `or`, `not`, `equal`, `slowEqual`, and others.
   - `objPath` a string in the shape `"foo.bar.baz"` which specifies the nested field `"baz"` inside `"bar"` inside `"foo"`
   - `value` is the same as `value` in the `equal` operator
   - `opts` same as the opts for `equal()`
+- `includes(seek, value, opts)` filters for messages where a `seek`ed` _field_
+  is an array and includes a specific _value_
+- `slowIncludes(objPath, value, opts)` is to `includes` what `slowEqual` is to
+  `equal`
+- `predicate(seek, fn, opts)` filters for messages where a `seek`ed _field_ is
+  passed to a predicate function `fn` and the `fn` returns true
+- `slowPredicate(objPath, fn, opts)` is to `predicate` what `slowEqual` is to
+  `equal`
 
 Some examples:
 
@@ -391,6 +400,8 @@ const {
   not,
   equal,
   slowEqual,
+  predicate,
+  slowPredicate,
   includes,
   slowIncludes,
   gt,

@@ -323,6 +323,14 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function checkPredicate(opData, buffer) {
+    const fieldStart = opData.seek(buffer)
+    const predicateFn = opData.value
+    if (fieldStart < 0) return false
+    const fieldValue = bipf.decode(buffer, fieldStart)
+    return predicateFn(fieldValue)
+  }
+
   function checkIncludes(opData, buffer) {
     const fieldStart = opData.seek(buffer)
     if (!~fieldStart) return false
@@ -401,6 +409,8 @@ module.exports = function (log, indexesPath) {
 
   function updateIndexValue(op, index, buffer, seq) {
     if (op.type === 'EQUAL' && checkEqual(op.data, buffer))
+      index.bitset.add(seq)
+    else if (op.type === 'PREDICATE' && checkPredicate(op.data, buffer))
       index.bitset.add(seq)
     else if (op.type === 'INCLUDES' && checkIncludes(op.data, buffer))
       index.bitset.add(seq)
@@ -884,7 +894,11 @@ module.exports = function (log, indexesPath) {
   }
 
   function getNameFromOperation(op) {
-    if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
+    if (
+      op.type === 'EQUAL' ||
+      op.type === 'INCLUDES' ||
+      op.type === 'PREDICATE'
+    ) {
       const value = op.data.value
         ? op.data.value.toString().substring(0, 10)
         : ''
@@ -948,7 +962,11 @@ module.exports = function (log, indexesPath) {
   }
 
   function getBitsetForOperation(op, cb) {
-    if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
+    if (
+      op.type === 'EQUAL' ||
+      op.type === 'INCLUDES' ||
+      op.type === 'PREDICATE'
+    ) {
       if (op.data.prefix) {
         ensureIndexSync(op, () => {
           matchAgainstPrefix(op, indexes[op.data.indexName], cb)
@@ -1007,7 +1025,11 @@ module.exports = function (log, indexesPath) {
   function traverseEqualsAndIncludes(operation, fn) {
     function traverseMore(ops) {
       ops.forEach((op) => {
-        if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
+        if (
+          op.type === 'EQUAL' ||
+          op.type === 'INCLUDES' ||
+          op.type === 'PREDICATE'
+        ) {
           fn(op)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
           traverseMore(op.data)
@@ -1098,6 +1120,7 @@ module.exports = function (log, indexesPath) {
       const op = ops[i]
       let ok = false
       if (op.type === 'EQUAL') ok = checkEqual(op.data, value)
+      else if (op.type === 'PREDICATE') ok = checkPredicate(op.data, value)
       else if (op.type === 'INCLUDES') ok = checkIncludes(op.data, value)
       else if (op.type === 'NOT') ok = !isValueOk(op.data, value, false)
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
@@ -1379,7 +1402,11 @@ module.exports = function (log, indexesPath) {
 
         function detectOffsetAndSeqStream(ops) {
           ops.forEach((op) => {
-            if (op.type === 'EQUAL' || op.type === 'INCLUDES') {
+            if (
+              op.type === 'EQUAL' ||
+              op.type === 'INCLUDES' ||
+              op.type === 'PREDICATE'
+            ) {
               if (!indexes[op.data.indexName]) offset = -1
               else offset = indexes[op.data.indexName].offset
             } else if (
