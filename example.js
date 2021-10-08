@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Anders Rune Jensen
+//
+// SPDX-License-Identifier: Unlicense
+
 const Log = require('async-append-only-log')
 const pull = require('pull-stream')
 const JITDB = require('./index')

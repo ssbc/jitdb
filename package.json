@@ -9,6 +9,8 @@
   },
   "files": [
     "*.js",
+    "package.json.license",
+    "LICENSES/*",
     "!example.js"
   ],
   "dependencies": {

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Anders Rune Jensen
+//
+// SPDX-License-Identifier: Unlicense
+
 var pull = require('pull-stream')
 var FlumeLog = require('flumelog-offset')
 var binary = require('bipf')

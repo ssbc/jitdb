@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Anders Rune Jensen
+//
+// SPDX-License-Identifier: Unlicense
+
 const Log = require('async-append-only-log')
 const bipf = require('bipf')
 const hash = require('ssb-keys/util').hash

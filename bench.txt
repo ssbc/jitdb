@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 Anders Rune Jensen
+
+SPDX-License-Identifier: CC0-1.0
+-->
+
 async-flumelog (bipf):
 
 time: 8965ms, total items: 1414275

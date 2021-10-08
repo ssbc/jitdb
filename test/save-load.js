@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Anders Rune Jensen
+//
+// SPDX-License-Identifier: Unlicense
+
 const test = require('tape')
 const path = require('path')
 const TypedFastBitSet = require('typedfastbitset')
