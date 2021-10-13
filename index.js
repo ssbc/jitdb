@@ -1157,7 +1157,8 @@ module.exports = function (log, indexesPath) {
     const offset = indexes['seq'].tarr[seq]
     log.get(offset, (err, recBuffer) => {
       if (err && err.code === 'flumelog:deleted') cb()
-      else cb(err, bipf.decode(recBuffer, 0))
+      else if (err) cb(err)
+      else cb(null, bipf.decode(recBuffer, 0))
     })
   }
 
@@ -1165,7 +1166,8 @@ module.exports = function (log, indexesPath) {
     const offset = indexes['seq'].tarr[seq]
     log.get(offset, (err, value) => {
       if (err && err.code === 'flumelog:deleted') cb(null, { seq, offset })
-      else cb(err, { offset, value, seq })
+      else if (err) cb(err)
+      else cb(null, { offset, value, seq })
     })
   }
 
