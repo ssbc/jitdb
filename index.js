@@ -39,6 +39,7 @@ module.exports = function (log, indexesPath) {
   const indexes = {}
   let isReady = false
   let waiting = []
+  const coreIndexNames = ['seq', 'timestamp', 'sequence']
 
   loadIndexes(() => {
     debug('loaded indexes', Object.keys(indexes))
@@ -68,7 +69,7 @@ module.exports = function (log, indexesPath) {
       }
     }
 
-    status.batchUpdate(indexes, ['seq', 'timestamp', 'sequence'])
+    status.batchUpdate(indexes, coreIndexNames)
 
     isReady = true
     for (let i = 0; i < waiting.length; ++i) waiting[i]()
@@ -185,7 +186,13 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function saveIndex(name, index, cb) {
+  function saveIndex(name, index, count, cb) {
+    if (index.prefix && index.map) savePrefixMapIndex(name, index, count, cb)
+    else if (index.prefix) savePrefixIndex(name, index, count, cb)
+    else saveBitsetIndex(name, index, cb)
+  }
+
+  function saveBitsetIndex(name, index, cb) {
     if (index.offset < 0 || index.bitset.size() === 0) return
     debug('saving index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
@@ -455,12 +462,7 @@ module.exports = function (log, indexesPath) {
   function updateIndex(op, cb) {
     const index = indexes[op.data.indexName]
 
-    const indexNamesForStatus = [
-      'seq',
-      'timestamp',
-      'sequence',
-      op.data.indexName,
-    ]
+    const indexNamesForStatus = [...coreIndexNames, op.data.indexName]
 
     const waitingKey = op.data.indexName
     if (onlyOneIndexAtATime(waitingIndexUpdate, waitingKey, cb)) return
@@ -490,10 +492,7 @@ module.exports = function (log, indexesPath) {
     const start = Date.now()
     let lastSaved = start
 
-    const indexNeedsUpdate =
-      op.data.indexName !== 'sequence' &&
-      op.data.indexName !== 'timestamp' &&
-      op.data.indexName !== 'seq'
+    const indexNeedsUpdate = !coreIndexNames.includes(op.data.indexName)
 
     function save(count, offset) {
       if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
@@ -507,12 +506,7 @@ module.exports = function (log, indexesPath) {
       index.offset = offset
       if (op.data.version > index.version) index.version = op.data.version
 
-      if (indexNeedsUpdate) {
-        if (index.prefix && index.map)
-          savePrefixMapIndex(op.data.indexName, index, count)
-        else if (index.prefix) savePrefixIndex(op.data.indexName, index, count)
-        else saveIndex(op.data.indexName, index)
-      }
+      if (indexNeedsUpdate) saveIndex(op.data.indexName, index, count)
     }
 
     const logstreamId = Math.ceil(Math.random() * 1000)
@@ -582,7 +576,6 @@ module.exports = function (log, indexesPath) {
   function createIndexes(opsMissingIdx, cb) {
     const newIndexes = {}
 
-    const coreIndexNames = ['seq', 'timestamp', 'sequence']
     const newIndexNames = opsMissingIdx.map((op) => op.data.indexName)
 
     const waitingKey = newIndexNames.join('|')
@@ -634,10 +627,7 @@ module.exports = function (log, indexesPath) {
         const index = newIndexes[indexName]
         if (done) indexes[indexName] = index
         index.offset = offset
-        if (index.prefix && index.map)
-          savePrefixMapIndex(indexName, index, count)
-        else if (index.prefix) savePrefixIndex(indexName, index, count)
-        else saveIndex(indexName, index)
+        saveIndex(indexName, index, count)
       }
     }
 
