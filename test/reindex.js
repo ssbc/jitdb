@@ -59,6 +59,40 @@ function addThreeMessages(raf, cb) {
   })
 }
 
+prepareAndRunTest('reindex seq offset', dir, (t, db, raf) => {
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: Buffer.from('post'),
+      indexType: 'type',
+      indexName: 'type_post',
+    },
+  }
+
+  addThreeMessages(raf, () => {
+    db.all(typeQuery, 0, false, false, (err, results) => {
+      t.equal(results.length, 2)
+      t.equal(results[0].value.content.type, 'post')
+      t.equal(results[1].value.content.type, 'post')
+
+      db.reindex(0, () => {
+        db.all(typeQuery, 0, false, false, (err, results) => {
+          t.equal(results.length, 2)
+
+          db.reindex(352, () => {
+            db.all(typeQuery, 0, false, false, (err, results) => {
+              t.equal(results.length, 2)
+
+              t.end()
+            })
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('reindex bitset', dir, (t, db, raf) => {
   filterOffsets = [0]
   filterStream(raf)
@@ -79,7 +113,7 @@ prepareAndRunTest('reindex bitset', dir, (t, db, raf) => {
       t.equal(results[0].value.content.type, 'post')
 
       filterOffsets = []
-      db.reindex(0, 0, () => {
+      db.reindex(0, () => {
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.end()
@@ -111,7 +145,7 @@ prepareAndRunTest('reindex prefix', dir, (t, db, raf) => {
       t.equal(results[0].value.content.type, 'post')
 
       filterOffsets = []
-      db.reindex(0, 0, () => {
+      db.reindex(0, () => {
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.end()
@@ -144,7 +178,7 @@ prepareAndRunTest('reindex prefix map', dir, (t, db, raf) => {
       t.equal(results[0].value.content.type, 'post')
 
       filterOffsets = []
-      db.reindex(0, 0, () => {
+      db.reindex(0, () => {
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.end()

@@ -1460,7 +1460,21 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  function reindex(seq, offset, cb) {
+  function reindex(offset, cb) {
+    let seq = 0
+    if (offset === 0) {
+      seq = 0
+      offset = -1
+    } else if (offset !== -1) {
+      const { tarr } = indexes['seq']
+      let prevOffset = 0
+      for (const len = tarr.length; seq < len; ++seq)
+        if (tarr[seq] === offset) {
+          offset = prevOffset
+          break
+        } else prevOffset = tarr[seq]
+    }
+
     function resetIndex(index) {
       if (index.offset >= offset) {
         if (index.count) index.count = seq
@@ -1472,7 +1486,7 @@ module.exports = function (log, indexesPath) {
           }
         }
 
-        index.offset = offset - 1
+        index.offset = offset
       }
     }
 
