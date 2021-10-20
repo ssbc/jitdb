@@ -1460,6 +1460,66 @@ module.exports = function (log, indexesPath) {
     )
   }
 
+  function reindex(offset, cb) {
+    // Find the previous offset and corresponding seq.
+    // We need previous because log.stream() is always gt
+    let seq = 0
+    let prevOffset = 0
+    if (offset === 0 || offset === -1) {
+      prevOffset = -1
+    } else {
+      const { tarr } = indexes['seq']
+      for (const len = tarr.length; seq < len; ++seq) {
+        if (tarr[seq] === offset) break
+        else prevOffset = tarr[seq]
+      }
+    }
+
+    function resetIndex(index) {
+      if (index.offset >= prevOffset) {
+        if (index.count) index.count = seq
+
+        if (index.map) {
+          // prefix map pushes to arrays, so we need to clean up
+          for (let [prefix, arr] of Object.entries(index.map)) {
+            index.map[prefix] = arr.filter((x) => x < seq)
+          }
+        }
+
+        index.offset = prevOffset
+      }
+    }
+
+    push(
+      push.values(Object.entries(indexes)),
+      push.asyncMap(([indexName, index], cb) => {
+        if (coreIndexNames.includes(indexName)) return cb()
+
+        if (index.lazy) {
+          loadLazyIndex(indexName, (err) => {
+            if (err) return cb(err)
+
+            resetIndex(index)
+            saveIndex(indexName, index, seq)
+            cb()
+          })
+        } else {
+          resetIndex(index)
+          saveIndex(indexName, index, seq)
+          cb()
+        }
+      }),
+      push.collect((err) => {
+        if (err) return cb(err)
+
+        bitsetCache = new WeakMap()
+        sortedCache.ascending = new WeakMap()
+        sortedCache.descending = new WeakMap()
+        cb()
+      })
+    )
+  }
+
   return {
     onReady,
     paginate,
@@ -1467,6 +1527,7 @@ module.exports = function (log, indexesPath) {
     count,
     live,
     status: status.obv,
+    reindex,
 
     // testing
     indexes,

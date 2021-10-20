@@ -563,6 +563,11 @@ run after `paginate` or `all`.
 Please note the index is _not_ updated when using this method and only
 one live seqs stream is supported.
 
+### reindex(offset, cb)
+
+Reset all indexes to start from `offset`. This means that on the next
+query, messages from that offset and forward will be reindexed.
+
 ### onReady(cb)
 
 Will call when all existing indexes have been loaded.
