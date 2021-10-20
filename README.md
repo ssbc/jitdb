@@ -566,7 +566,7 @@ one live seqs stream is supported.
 ### reindex(offset, cb)
 
 Reset all indexes to start from `offset`. This means that on the next
-query, messages from that index and forward will be reindexed.
+query, messages from that offset and forward will be reindexed.
 
 ### onReady(cb)
 
