@@ -1461,22 +1461,22 @@ module.exports = function (log, indexesPath) {
   }
 
   function reindex(offset, cb) {
+    // Find the previous offset and corresponding seq.
+    // We need previous because log.stream() is always gt
     let seq = 0
-    if (offset === 0) {
-      seq = 0
-      offset = -1
-    } else if (offset !== -1) {
+    let prevOffset = 0
+    if (offset === 0 || offset === -1) {
+      prevOffset = -1
+    } else {
       const { tarr } = indexes['seq']
-      let prevOffset = 0
-      for (const len = tarr.length; seq < len; ++seq)
-        if (tarr[seq] === offset) {
-          offset = prevOffset
-          break
-        } else prevOffset = tarr[seq]
+      for (const len = tarr.length; seq < len; ++seq) {
+        if (tarr[seq] === offset) break
+        else prevOffset = tarr[seq]
+      }
     }
 
     function resetIndex(index) {
-      if (index.offset >= offset) {
+      if (index.offset >= prevOffset) {
         if (index.count) index.count = seq
 
         if (index.map) {
@@ -1486,7 +1486,7 @@ module.exports = function (log, indexesPath) {
           }
         }
 
-        index.offset = offset
+        index.offset = prevOffset
       }
     }
 

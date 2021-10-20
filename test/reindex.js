@@ -15,9 +15,7 @@ mkdirp.sync(dir)
 
 var keys = ssbKeys.loadOrCreateSync(path.join(dir, 'secret'))
 
-let filterOffsets
-
-function filterStream(raf) {
+function filterStream(raf, filterOffsets) {
   const originalStream = raf.stream
   raf.stream = function (opts) {
     const stream = originalStream(opts)
@@ -38,6 +36,12 @@ function filterStream(raf) {
     }
     return stream
   }
+
+  function removeFilter() {
+    raf.stream = originalStream
+  }
+
+  return removeFilter
 }
 
 function addThreeMessages(raf, cb) {
@@ -80,7 +84,8 @@ prepareAndRunTest('reindex seq offset', dir, (t, db, raf) => {
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
 
-          db.reindex(352, () => {
+          const secondMsgOffset = 352
+          db.reindex(secondMsgOffset, () => {
             db.all(typeQuery, 0, false, false, (err, results) => {
               t.equal(results.length, 2)
 
@@ -94,8 +99,7 @@ prepareAndRunTest('reindex seq offset', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('reindex bitset', dir, (t, db, raf) => {
-  filterOffsets = [0]
-  filterStream(raf)
+  const removeFilter = filterStream(raf, [0])
 
   const typeQuery = {
     type: 'EQUAL',
@@ -112,8 +116,8 @@ prepareAndRunTest('reindex bitset', dir, (t, db, raf) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.type, 'post')
 
-      filterOffsets = []
       db.reindex(0, () => {
+        removeFilter()
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.end()
@@ -124,8 +128,7 @@ prepareAndRunTest('reindex bitset', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('reindex prefix', dir, (t, db, raf) => {
-  filterOffsets = [0]
-  filterStream(raf)
+  const removeFilter = filterStream(raf, [0])
 
   const typeQuery = {
     type: 'EQUAL',
@@ -144,8 +147,8 @@ prepareAndRunTest('reindex prefix', dir, (t, db, raf) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.type, 'post')
 
-      filterOffsets = []
       db.reindex(0, () => {
+        removeFilter()
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.end()
@@ -156,8 +159,7 @@ prepareAndRunTest('reindex prefix', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('reindex prefix map', dir, (t, db, raf) => {
-  filterOffsets = [0]
-  filterStream(raf)
+  const removeFilter = filterStream(raf, [0])
 
   const typeQuery = {
     type: 'EQUAL',
@@ -177,8 +179,8 @@ prepareAndRunTest('reindex prefix map', dir, (t, db, raf) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.type, 'post')
 
-      filterOffsets = []
       db.reindex(0, () => {
+        removeFilter()
         db.all(typeQuery, 0, false, false, (err, results) => {
           t.equal(results.length, 2)
           t.end()
