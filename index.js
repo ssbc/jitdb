@@ -1475,6 +1475,11 @@ module.exports = function (log, indexesPath) {
       }
     }
 
+    if (prevOffset === 0 && seq === indexes['seq'].tarr.length) {
+      // not found
+      seq = 1
+    }
+
     function resetIndex(index) {
       if (index.offset >= prevOffset) {
         if (index.count) index.count = seq
