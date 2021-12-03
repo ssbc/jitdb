@@ -365,10 +365,12 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
 prepareAndRunTest('Undefined', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing root', root: '1' }
   const msg2 = { type: 'post', text: 'Testing no root' }
+  const msg3 = { type: 'post', text: 'Testing root undefined', root: undefined }
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
   state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -382,10 +384,13 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
-        t.equal(results.length, 1)
-        t.equal(results[0].value.content.text, 'Testing no root')
-        t.end()
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
+          t.equal(results.length, 2)
+          t.equal(results[0].value.content.text, 'Testing no root')
+          t.equal(results[1].value.content.text, 'Testing root undefined')
+          t.end()
+        })
       })
     })
   })
@@ -394,10 +399,12 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
 prepareAndRunTest('Null', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: 'Testing root', root: '1' }
   const msg2 = { type: 'post', text: 'Testing no root' }
+  const msg3 = { type: 'post', text: 'Testing root null', root: null }
 
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg1, Date.now())
   state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 1)
 
   const typeQuery = {
     type: 'EQUAL',
@@ -411,10 +418,12 @@ prepareAndRunTest('Null', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
-        t.equal(results.length, 1)
-        t.equal(results[0].value.content.text, 'Testing no root')
-        t.end()
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing root null')
+          t.end()
+        })
       })
     })
   })
