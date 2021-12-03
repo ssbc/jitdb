@@ -297,9 +297,17 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  const nullBipf = bipf.allocAndEncode(null)
+  const undefinedBipf = bipf.allocAndEncode(undefined)
+
   function checkEqual(opData, buffer) {
     const fieldStart = opData.seek(buffer)
-    if (!opData.value) return fieldStart === -1
+
+    if (opData.value === undefined && fieldStart === -1) return true
+    else if (opData.value === undefined)
+      return bipf.compare(buffer, fieldStart, undefinedBipf, 0) === 0
+    else if (opData.value === null)
+      return bipf.compare(buffer, fieldStart, nullBipf, 0) === 0
     else if (
       ~fieldStart &&
       bipf.compareString(buffer, fieldStart, opData.value) === 0
