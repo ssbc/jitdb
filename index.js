@@ -299,6 +299,10 @@ module.exports = function (log, indexesPath) {
 
   const nullBipf = bipf.allocAndEncode(null)
   const undefinedBipf = bipf.allocAndEncode(undefined)
+  const B_TRUE = Buffer.alloc(1, 1)
+  const trueBipf = bipf.allocAndEncode(true)
+  const B_FALSE = Buffer.alloc(1, 0)
+  const falseBipf = bipf.allocAndEncode(false)
 
   function checkEqual(opData, buffer) {
     const fieldStart = opData.seek(buffer)
@@ -308,6 +312,10 @@ module.exports = function (log, indexesPath) {
       return bipf.compare(buffer, fieldStart, undefinedBipf, 0) === 0
     else if (opData.value === null)
       return bipf.compare(buffer, fieldStart, nullBipf, 0) === 0
+    else if (opData.value.equals(B_TRUE) || opData.value === true)
+      return bipf.compare(buffer, fieldStart, trueBipf, 0) === 0
+    else if (opData.value.equals(B_FALSE) || opData.value === false)
+      return bipf.compare(buffer, fieldStart, falseBipf, 0) === 0
     else if (
       ~fieldStart &&
       bipf.compareString(buffer, fieldStart, opData.value) === 0
