@@ -429,6 +429,53 @@ prepareAndRunTest('Null', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('true or false', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: 'Testing no value' }
+  const msg2 = { type: 'post', text: 'Testing true', value: true }
+  const msg3 = { type: 'post', text: 'Testing false', value: false }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, keys, msg1, Date.now())
+  state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, keys, msg3, Date.now() + 1)
+
+  const trueQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekValue,
+      value: Buffer.alloc(1, 1),
+      indexType: 'value',
+      indexName: 'value_true',
+    },
+  }
+
+  const falseQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekValue,
+      value: Buffer.alloc(1, 0),
+      indexType: 'value',
+      indexName: 'value_false',
+    },
+  }
+
+  addMsg(state.queue[0].value, raf, (err, msg) => {
+    addMsg(state.queue[1].value, raf, (err, msg) => {
+      addMsg(state.queue[2].value, raf, (err, msg) => {
+        db.paginate(trueQuery, 0, 10, false, false, (err, { results }) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing true')
+          db.paginate(falseQuery, 0, 10, false, false, (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, 'Testing false')
+            t.end()
+          })
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
   const msg1 = { type: 'post', text: '1' }
   const msg2 = { type: 'post', text: '2' }

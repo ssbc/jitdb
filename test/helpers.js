@@ -61,6 +61,15 @@ module.exports = {
     return bipf.seekKey(buffer, p, B_ANIMALS)
   },
 
+  seekValue: function (buffer) {
+    var p = 0 // note you pass in p!
+    p = bipf.seekKey(buffer, p, B_VALUE)
+    if (!~p) return
+    p = bipf.seekKey(buffer, p, B_CONTENT)
+    if (!~p) return
+    return bipf.seekKey(buffer, p, B_VALUE)
+  },
+
   pluckWord: function (buffer, start) {
     var p = start
     return bipf.seekKey(buffer, p, B_WORD)
