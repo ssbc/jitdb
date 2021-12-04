@@ -303,8 +303,8 @@ module.exports = function (log, indexesPath) {
   function checkEqual(opData, buffer) {
     const fieldStart = opData.seek(buffer)
 
-    if (fieldStart === -1) return opData.value.equals(undefinedBuffer)
     // works for undefined
+    if (fieldStart === -1) return opData.value.equals(undefinedBuffer)
     else if (opData.value.length === 0)
       return bipf.compare(buffer, fieldStart, nullBipf, 0) === 0
     else return bipf.compareValue(buffer, fieldStart, opData.value, 0) === 0
