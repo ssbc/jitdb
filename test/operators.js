@@ -10,6 +10,7 @@ const ssbKeys = require('ssb-keys')
 const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const bipf = require('bipf')
 const {
   query,
   and,
@@ -207,7 +208,7 @@ prepareAndRunTest('equal with null value', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'channel')
-  t.notOk(queryTree.data.value)
+  t.deepEqual(queryTree.data.value, bipf.slice(bipf.allocAndEncode(null), 0))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -223,7 +224,10 @@ prepareAndRunTest('equal with undefined value', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'channel')
-  t.notOk(queryTree.data.value)
+  t.deepEqual(
+    queryTree.data.value,
+    bipf.slice(bipf.allocAndEncode(undefined), 0)
+  )
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()

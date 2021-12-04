@@ -30,9 +30,10 @@ function extractMeta(orig) {
   return meta
 }
 
-function toBufferOrFalsy(value) {
-  if (!value) return value
-  return Buffer.isBuffer(value) ? value : Buffer.from(value)
+function toBuffer(value) {
+  if (Buffer.isBuffer(value)) return value
+  const bipfValue = bipf.allocAndEncode(value)
+  return bipf.slice(bipfValue, 0) // get the buffer
 }
 
 const seekFromDescCache = new Map()
@@ -101,7 +102,7 @@ function debug() {
 function slowEqual(seekDesc, target, opts) {
   opts = opts || {}
   const seek = seekFromDesc(seekDesc)
-  const value = toBufferOrFalsy(target)
+  const value = toBuffer(target)
   const valueName = !value ? '' : value.toString()
   const indexType = seekDesc.replace(/\./g, '_')
   const indexName = getIndexName(opts, indexType, valueName)
@@ -124,7 +125,7 @@ function equal(seek, target, opts) {
   opts = opts || {}
   if (!opts.indexType)
     throw new Error('equal() operator needs an indexType in the 3rd arg')
-  const value = toBufferOrFalsy(target)
+  const value = toBuffer(target)
   const valueName = !value ? '' : value.toString()
   const indexType = opts.indexType
   const indexName = getIndexName(opts, indexType, valueName)
@@ -189,7 +190,7 @@ function predicate(seek, fn, opts) {
 function slowIncludes(seekDesc, target, opts) {
   opts = opts || {}
   const seek = seekFromDesc(seekDesc)
-  const value = toBufferOrFalsy(target)
+  const value = toBuffer(target)
   if (!value) throw new Error('slowIncludes() 2nd arg needs to be truthy')
   const valueName = value.toString()
   const indexType = seekDesc.replace(/\./g, '_')
@@ -215,7 +216,7 @@ function includes(seek, target, opts) {
   opts = opts || {}
   if (!opts.indexType)
     throw new Error('includes() operator needs an indexType in the 3rd arg')
-  const value = toBufferOrFalsy(target)
+  const value = toBuffer(target)
   if (!value) throw new Error('includes() 2nd arg needs to be truthy')
   const valueName = value.toString()
   const indexType = opts.indexType

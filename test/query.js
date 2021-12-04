@@ -9,6 +9,7 @@ const path = require('path')
 const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const bipf = require('bipf')
 const { safeFilename } = require('../files')
 const { readFile, writeFile } = require('atomic-file-rw')
 
@@ -372,11 +373,14 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
   state = validate.appendNew(state, null, keys, msg3, Date.now() + 2)
 
+  // equal() converts to buffer
+  const undefinedBuffer = bipf.slice(bipf.allocAndEncode(undefined), 0)
+
   const typeQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekRoot,
-      value: undefined,
+      value: undefinedBuffer,
       indexType: 'root',
       indexName: 'root_',
     },
@@ -406,11 +410,14 @@ prepareAndRunTest('Null', dir, (t, db, raf) => {
   state = validate.appendNew(state, null, keys, msg2, Date.now() + 1)
   state = validate.appendNew(state, null, keys, msg3, Date.now() + 1)
 
+  // equal() converts to buffer
+  const nullBuffer = bipf.slice(bipf.allocAndEncode(null), 0)
+
   const typeQuery = {
     type: 'EQUAL',
     data: {
       seek: helpers.seekRoot,
-      value: null,
+      value: nullBuffer,
       indexType: 'root',
       indexName: 'root_',
     },
