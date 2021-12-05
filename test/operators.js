@@ -64,7 +64,7 @@ prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'type')
   t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
@@ -94,7 +94,7 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'value_content_type')
   t.notOk(queryTree.data.indexAll)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
@@ -127,7 +127,7 @@ prepareAndRunTest('query ignores non-function arguments', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'type')
   t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
@@ -191,7 +191,7 @@ prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'value_content_type')
   t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -207,7 +207,7 @@ prepareAndRunTest('equal with null value', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'channel')
-  t.notOk(queryTree.data.value)
+  t.deepEqual(queryTree.data.value, helpers.toBipf(null))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -223,7 +223,7 @@ prepareAndRunTest('equal with undefined value', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'channel')
-  t.notOk(queryTree.data.value)
+  t.deepEqual(queryTree.data.value, helpers.toBipf(undefined))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -240,7 +240,7 @@ prepareAndRunTest('equal with prefix', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'type')
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
   t.equal(queryTree.data.prefix, 32)
 
@@ -258,7 +258,7 @@ prepareAndRunTest('slowEqual with prefix', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'value_content_type')
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
   t.equal(queryTree.data.prefix, 32)
 
@@ -275,7 +275,7 @@ prepareAndRunTest('includes()', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'INCLUDES')
 
   t.equal(queryTree.data.indexType, 'animals')
-  t.deepEqual(queryTree.data.value, Buffer.from('cat'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('cat'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -297,21 +297,21 @@ prepareAndRunTest('operators API supports or()', dir, (t, db, raf) => {
 
   t.equal(queryTree.data[0].type, 'EQUAL')
   t.equal(queryTree.data[0].data.indexType, 'value_content_type')
-  t.deepEqual(queryTree.data[0].data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data[0].data.value, helpers.toBipf('post'))
 
   t.equal(queryTree.data[1].type, 'OR')
   t.true(Array.isArray(queryTree.data[1].data), '.data[1].data is an array')
 
   t.equal(queryTree.data[1].data[0].type, 'EQUAL')
   t.deepEqual(queryTree.data[1].data[0].data.indexType, 'value_author')
-  t.deepEqual(queryTree.data[1].data[0].data.value, Buffer.from(alice.id))
+  t.deepEqual(queryTree.data[1].data[0].data.value, helpers.toBipf(alice.id))
   t.true(
     queryTree.data[1].data[0].data.seek.toString().includes('bipf.seekKey')
   )
 
   t.equal(queryTree.data[1].data[1].type, 'EQUAL')
   t.equal(queryTree.data[1].data[1].data.indexType, 'value_author')
-  t.deepEqual(queryTree.data[1].data[1].data.value, Buffer.from(bob.id))
+  t.deepEqual(queryTree.data[1].data[1].data.value, helpers.toBipf(bob.id))
   t.true(
     queryTree.data[1].data[1].data.seek.toString().includes('bipf.seekKey')
   )
@@ -475,7 +475,7 @@ prepareAndRunTest('operator gt', dir, (t, db, raf) => {
 
   t.equal(queryTree.data[0].type, 'EQUAL')
   t.equal(queryTree.data[0].data.indexType, 'author')
-  t.deepEqual(queryTree.data[0].data.value, Buffer.from(alice.id))
+  t.deepEqual(queryTree.data[0].data.value, helpers.toBipf(alice.id))
   t.true(queryTree.data[0].data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(queryTree.data[1].type, 'GT')

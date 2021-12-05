@@ -31,7 +31,7 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'value_content_type_post',
       prefix: 32,
@@ -66,7 +66,7 @@ prepareAndRunTest('Normal index renamed to prefix', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'value_content_type_post',
     },
@@ -76,7 +76,7 @@ prepareAndRunTest('Normal index renamed to prefix', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'value_content_type',
       prefix: 32,
@@ -116,7 +116,7 @@ prepareAndRunTest('Prefix index skips deleted records', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'value_content_type_post',
       prefix: 32,
@@ -128,7 +128,7 @@ prepareAndRunTest('Prefix index skips deleted records', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'value_content_type_post',
       prefix: 32,
@@ -171,7 +171,7 @@ prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekChannel,
-      value: Buffer.from('foo'),
+      value: helpers.toBipf('foo'),
       indexType: 'channel',
       indexName: 'value_content_channel_foo',
       prefix: 32,
@@ -267,7 +267,7 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekVoteLink,
-      value: Buffer.from(
+      value: helpers.toBipf(
         '%wOtfXXopI3mTHL6F7Y3XXNtpxws9mQdaEocNJuKtAZo=.sha256'
       ),
       indexType: 'vote',
@@ -325,7 +325,7 @@ prepareAndRunTest('Prefix equal unknown value', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: Buffer.from('abc'),
+      value: helpers.toBipf('abc'),
       indexType: 'author',
       indexName: 'value_author_abc',
       prefix: 32,
@@ -358,7 +358,7 @@ prepareAndRunTest('Prefix map equal', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'value_content_type_post',
       useMap: true,
@@ -397,7 +397,7 @@ prepareAndRunTest('Prefix offset', dir, (t, db, raf) => {
           type: 'EQUAL',
           data: {
             seek: helpers.seekKey,
-            value: Buffer.from(msg.key),
+            value: helpers.toBipf(msg.key),
             indexType: 'key',
             indexName: 'value_key_' + msg.key,
             useMap: true,
@@ -427,7 +427,7 @@ prepareAndRunTest('Prefix offset 1 on empty', dir, (t, db, raf) => {
       type: 'EQUAL',
       data: {
         seek: helpers.seekRoot,
-        value: Buffer.from('test'),
+        value: helpers.toBipf('test'),
         indexType: 'root',
         indexName: 'value_content_root',
         useMap: true,
@@ -458,7 +458,7 @@ prepareAndRunTest('Prefix delete', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'value_content_type_post',
       useMap: true,
@@ -469,7 +469,7 @@ prepareAndRunTest('Prefix delete', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: Buffer.from(keys.id),
+      value: helpers.toBipf(keys.id),
       indexType: 'author',
       indexName: 'value_author',
       prefix: 32,

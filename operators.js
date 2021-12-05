@@ -30,11 +30,6 @@ function extractMeta(orig) {
   return meta
 }
 
-function toBufferOrFalsy(value) {
-  if (!value) return value
-  return Buffer.isBuffer(value) ? value : Buffer.from(value)
-}
-
 const seekFromDescCache = new Map()
 function seekFromDesc(desc) {
   if (seekFromDescCache.has(desc)) {
@@ -101,8 +96,8 @@ function debug() {
 function slowEqual(seekDesc, target, opts) {
   opts = opts || {}
   const seek = seekFromDesc(seekDesc)
-  const value = toBufferOrFalsy(target)
-  const valueName = !value ? '' : value.toString()
+  const value = bipf.allocAndEncode(target)
+  const valueName = !target ? '' : `${target}`
   const indexType = seekDesc.replace(/\./g, '_')
   const indexName = getIndexName(opts, indexType, valueName)
   return {
@@ -124,8 +119,8 @@ function equal(seek, target, opts) {
   opts = opts || {}
   if (!opts.indexType)
     throw new Error('equal() operator needs an indexType in the 3rd arg')
-  const value = toBufferOrFalsy(target)
-  const valueName = !value ? '' : value.toString()
+  const value = bipf.allocAndEncode(target)
+  const valueName = !target ? '' : `${target}`
   const indexType = opts.indexType
   const indexName = getIndexName(opts, indexType, valueName)
   return {
@@ -189,9 +184,9 @@ function predicate(seek, fn, opts) {
 function slowIncludes(seekDesc, target, opts) {
   opts = opts || {}
   const seek = seekFromDesc(seekDesc)
-  const value = toBufferOrFalsy(target)
+  const value = bipf.allocAndEncode(target)
   if (!value) throw new Error('slowIncludes() 2nd arg needs to be truthy')
-  const valueName = value.toString()
+  const valueName = !target ? '' : `${target}`
   const indexType = seekDesc.replace(/\./g, '_')
   const indexName = safeFilename(indexType + '_' + valueName)
   const pluck =
@@ -215,9 +210,9 @@ function includes(seek, target, opts) {
   opts = opts || {}
   if (!opts.indexType)
     throw new Error('includes() operator needs an indexType in the 3rd arg')
-  const value = toBufferOrFalsy(target)
+  const value = bipf.allocAndEncode(target)
   if (!value) throw new Error('includes() 2nd arg needs to be truthy')
-  const valueName = value.toString()
+  const valueName = !target ? '' : `${target}`
   const indexType = opts.indexType
   const indexName = safeFilename(indexType + '_' + valueName)
   return {

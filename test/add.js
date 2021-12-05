@@ -30,7 +30,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -54,7 +54,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
               type: 'EQUAL',
               data: {
                 seek: helpers.seekAuthor,
-                value: Buffer.from(keys.id),
+                value: helpers.toBipf(keys.id),
                 indexType: 'author',
                 indexName: 'author_' + keys.id,
               },
@@ -97,7 +97,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                           type: 'EQUAL',
                           data: {
                             seek: helpers.seekAuthor,
-                            value: Buffer.from(keys2.id),
+                            value: helpers.toBipf(keys2.id),
                             indexType: 'author',
                             indexName: 'author_' + keys2.id,
                           },
@@ -146,7 +146,7 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -187,7 +187,7 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -214,7 +214,7 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
           type: 'EQUAL',
           data: {
             seek: helpers.seekType,
-            value: Buffer.from('about'),
+            value: helpers.toBipf('about'),
             indexType: 'type',
             indexName: 'type_about',
           },
@@ -253,7 +253,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -292,7 +292,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: Buffer.from('post'),
+          value: helpers.toBipf('post'),
           indexType: 'type',
           indexName: 'type_post',
         },
@@ -301,7 +301,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: Buffer.from(keys.id),
+          value: helpers.toBipf(keys.id),
           indexType: 'author',
           indexAll: true,
           indexName: safeFilename('author_' + keys.id),
@@ -343,7 +343,7 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
       type: 'EQUAL',
       data: {
         seek: helpers.seekType,
-        value: Buffer.from(value),
+        value: helpers.toBipf(value),
         indexType: 'type',
         indexAll: true,
         indexName: safeFilename('type_' + value),

@@ -297,23 +297,13 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  const nullBipf = bipf.allocAndEncode(null)
   const undefinedBipf = bipf.allocAndEncode(undefined)
 
   function checkEqual(opData, buffer) {
     const fieldStart = opData.seek(buffer)
 
-    if (opData.value === undefined && fieldStart === -1) return true
-    else if (opData.value === undefined)
-      return bipf.compare(buffer, fieldStart, undefinedBipf, 0) === 0
-    else if (opData.value === null)
-      return bipf.compare(buffer, fieldStart, nullBipf, 0) === 0
-    else if (
-      ~fieldStart &&
-      bipf.compareString(buffer, fieldStart, opData.value) === 0
-    )
-      return true
-    else return false
+    if (fieldStart === -1 && opData.value.equals(undefinedBipf)) return true
+    else return bipf.compare(buffer, fieldStart, opData.value, 0) === 0
   }
 
   function compareWithRangeOp(op, value) {
@@ -354,23 +344,20 @@ module.exports = function (log, indexesPath) {
     const fieldStart = opData.seek(buffer)
     if (!~fieldStart) return false
     const type = bipf.getEncodedType(buffer, fieldStart)
-    if (type === bipf.types.string) {
-      return checkEqual(opData, buffer)
-    } else if (type === bipf.types.array) {
+
+    if (type === bipf.types.array) {
       let found = false
       bipf.iterate(buffer, fieldStart, (_, itemStart) => {
         const valueStart = opData.pluck
           ? opData.pluck(buffer, itemStart)
           : itemStart
-        if (bipf.compareString(buffer, valueStart, opData.value) === 0) {
+        if (bipf.compare(buffer, valueStart, opData.value, 0) === 0) {
           found = true
           return true // abort the bipf.iterate
         }
       })
       return found
-    } else {
-      return false
-    }
+    } else return checkEqual(opData, buffer)
   }
 
   function safeReadUint32(buf, prefixOffset = 0) {
@@ -843,7 +830,7 @@ module.exports = function (log, indexesPath) {
   function matchAgainstPrefix(op, prefixIndex, cb) {
     const target = op.data.value
     const targetPrefix = target
-      ? safeReadUint32(target, op.data.prefixOffset)
+      ? safeReadUint32(bipf.slice(target, 0), op.data.prefixOffset)
       : 0
     const bitset = new TypedFastBitSet()
     const bitsetFilters = new Map()
@@ -853,12 +840,9 @@ module.exports = function (log, indexesPath) {
       if (!value) return false // deleted
 
       const fieldStart = seek(value)
-      const candidate = bipf.slice(value, fieldStart)
-      if (target) {
-        if (Buffer.compare(candidate, target)) return false
-      } else {
-        if (~fieldStart) return false
-      }
+
+      if (target) return bipf.compare(value, fieldStart, target, 0) === 0
+      else if (~fieldStart) return false
 
       return true
     }

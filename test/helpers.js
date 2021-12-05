@@ -19,6 +19,10 @@ const B_PRIVATE = Buffer.from('private')
 const B_CHANNEL = Buffer.from('channel')
 
 module.exports = {
+  toBipf: function (value) {
+    return bipf.allocAndEncode(value)
+  },
+
   seekKey: function (buffer) {
     var p = 0 // note you pass in p!
     return bipf.seekKey(buffer, p, B_KEY)

@@ -33,7 +33,7 @@ prepareAndRunTest('Bitvector index version bumped', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -49,7 +49,7 @@ prepareAndRunTest('Bitvector index version bumped', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: Buffer.from('post'),
+          value: helpers.toBipf('post'),
           indexType: 'type',
           indexName: 'type_post',
           version: 2,
@@ -75,7 +75,7 @@ prepareAndRunTest('Prefix map index version bumped', dir, (t, db, raf) => {
           type: 'EQUAL',
           data: {
             seek: helpers.seekKey,
-            value: Buffer.from(msgKey),
+            value: helpers.toBipf(msgKey),
             indexType: 'key',
             indexName: 'value_key',
             useMap: true,
@@ -92,7 +92,7 @@ prepareAndRunTest('Prefix map index version bumped', dir, (t, db, raf) => {
             type: 'EQUAL',
             data: {
               seek: helpers.seekKey,
-              value: Buffer.from(msgKey),
+              value: helpers.toBipf(msgKey),
               indexType: 'key',
               indexName: 'value_key',
               useMap: true,
