@@ -41,6 +41,8 @@ const {
   toPullStream,
   toAsyncIter,
   slowPredicate,
+  slowAbsent,
+  absent,
 } = require('../operators')
 
 const dir = '/tmp/jitdb-query-api'
@@ -1434,6 +1436,64 @@ prepareAndRunTest('support slowPredicate', dir, (t, db, raf) => {
             t.equal(msgs.length, 2, 'got two messages')
             t.equal(msgs[0].value.content.text, '2nd')
             t.equal(msgs[1].value.content.text, '3rd')
+            t.end()
+          })
+        )
+      })
+    })
+  })
+})
+
+prepareAndRunTest('support slowAbsent', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st', animal: 'bird' }
+  const msg2 = { type: 'contact', text: '2nd' }
+  const msg3 = { type: 'post', text: '3rd', animal: 'dog' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg1, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, raf, (e1, m1) => {
+    addMsg(state.queue[1].value, raf, (e2, m2) => {
+      addMsg(state.queue[2].value, raf, (e3, m3) => {
+        query(
+          fromDB(db),
+          where(slowAbsent('value.content.animal')),
+          toCallback((err, msgs) => {
+            t.error(err, 'got no error')
+            t.equal(msgs.length, 1, 'got one message')
+            t.equal(msgs[0].value.content.text, '2nd')
+            t.end()
+          })
+        )
+      })
+    })
+  })
+})
+
+prepareAndRunTest('support absent', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st', channel: 'food' }
+  const msg2 = { type: 'contact', text: '2nd' }
+  const msg3 = { type: 'post', text: '3rd', channel: 'cats' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg1, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, raf, (e1, m1) => {
+    addMsg(state.queue[1].value, raf, (e2, m2) => {
+      addMsg(state.queue[2].value, raf, (e3, m3) => {
+        query(
+          fromDB(db),
+          where(
+            absent(helpers.seekChannel, { indexType: 'value_content_channel' })
+          ),
+          toCallback((err, msgs) => {
+            t.error(err, 'got no error')
+            t.equal(msgs.length, 1, 'got one message')
+            t.equal(msgs[0].value.content.text, '2nd')
             t.end()
           })
         )

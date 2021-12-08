@@ -41,7 +41,7 @@ function seekFromDesc(desc) {
     var p = start
     for (let key of keys) {
       p = bipf.seekKey(buffer, p, key)
-      if (!~p) return void 0
+      if (p < 0) return -1
     }
     return p
   }
@@ -175,6 +175,37 @@ function predicate(seek, fn, opts) {
     data: {
       seek,
       value,
+      indexType,
+      indexName,
+    },
+  }
+}
+
+function slowAbsent(seekDesc, opts) {
+  opts = opts || {}
+  const seek = seekFromDesc(seekDesc)
+  const indexType = seekDesc.replace(/\./g, '_')
+  const indexName = safeFilename(indexType + '__absent')
+  return {
+    type: 'ABSENT',
+    data: {
+      seek,
+      indexType,
+      indexName,
+    },
+  }
+}
+
+function absent(seek, opts) {
+  opts = opts || {}
+  if (!opts.indexType)
+    throw new Error('absent() operator needs an indexType in the 3rd arg')
+  const indexType = opts.indexType
+  const indexName = safeFilename(indexType + '__absent')
+  return {
+    type: 'ABSENT',
+    data: {
+      seek,
       indexType,
       indexName,
     },
@@ -539,6 +570,8 @@ module.exports = {
   equal,
   slowPredicate,
   predicate,
+  slowAbsent,
+  absent,
   slowIncludes,
   includes,
   where,

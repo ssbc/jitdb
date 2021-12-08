@@ -340,6 +340,11 @@ module.exports = function (log, indexesPath) {
     return predicateFn(fieldValue)
   }
 
+  function checkAbsent(opData, buffer) {
+    const fieldStart = opData.seek(buffer)
+    return fieldStart < 0
+  }
+
   function checkIncludes(opData, buffer) {
     const fieldStart = opData.seek(buffer)
     if (!~fieldStart) return false
@@ -417,6 +422,8 @@ module.exports = function (log, indexesPath) {
     if (op.type === 'EQUAL' && checkEqual(op.data, buffer))
       index.bitset.add(seq)
     else if (op.type === 'PREDICATE' && checkPredicate(op.data, buffer))
+      index.bitset.add(seq)
+    else if (op.type === 'ABSENT' && checkAbsent(op.data, buffer))
       index.bitset.add(seq)
     else if (op.type === 'INCLUDES' && checkIncludes(op.data, buffer))
       index.bitset.add(seq)
@@ -889,6 +896,8 @@ module.exports = function (log, indexesPath) {
         ? op.data.value.toString().substring(0, 10)
         : ''
       return `${op.data.indexType}(${value})`
+    } else if (op.type === 'ABSENT') {
+      return `ABSENT(${op.data.indexType})`
     } else if (
       op.type === 'GT' ||
       op.type === 'GTE' ||
@@ -951,7 +960,8 @@ module.exports = function (log, indexesPath) {
     if (
       op.type === 'EQUAL' ||
       op.type === 'INCLUDES' ||
-      op.type === 'PREDICATE'
+      op.type === 'PREDICATE' ||
+      op.type === 'ABSENT'
     ) {
       if (op.data.prefix) {
         ensureIndexSync(op, () => {
@@ -1014,7 +1024,8 @@ module.exports = function (log, indexesPath) {
         if (
           op.type === 'EQUAL' ||
           op.type === 'INCLUDES' ||
-          op.type === 'PREDICATE'
+          op.type === 'PREDICATE' ||
+          op.type === 'ABSENT'
         ) {
           fn(op)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
@@ -1107,6 +1118,7 @@ module.exports = function (log, indexesPath) {
       let ok = false
       if (op.type === 'EQUAL') ok = checkEqual(op.data, value)
       else if (op.type === 'PREDICATE') ok = checkPredicate(op.data, value)
+      else if (op.type === 'ABSENT') ok = checkAbsent(op.data, value)
       else if (op.type === 'INCLUDES') ok = checkIncludes(op.data, value)
       else if (op.type === 'NOT') ok = !isValueOk(op.data, value, false)
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
@@ -1393,7 +1405,8 @@ module.exports = function (log, indexesPath) {
             if (
               op.type === 'EQUAL' ||
               op.type === 'INCLUDES' ||
-              op.type === 'PREDICATE'
+              op.type === 'PREDICATE' ||
+              op.type === 'ABSENT'
             ) {
               if (!indexes[op.data.indexName]) offset = -1
               else offset = indexes[op.data.indexName].offset
