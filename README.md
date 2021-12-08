@@ -120,6 +120,9 @@ desired set of messages: `and`, `or`, `not`, `equal`, `slowEqual`, and others.
   OR the `fn` function should be a named function
 - `slowPredicate(objPath, fn, opts)` is to `predicate` what `slowEqual` is to
   `equal`
+- `absent(seek, opts)` filters for messages where a `seek`ed _field_ does not
+  exist in the message
+- `slowAbsent(objPath, opts)` is to `absent` what `slowEqual` is to `equal`
 
 Some examples:
 
@@ -411,6 +414,8 @@ const {
   slowEqual,
   predicate,
   slowPredicate,
+  absent,
+  slowAbsent,
   includes,
   slowIncludes,
   gt,
