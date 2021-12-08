@@ -122,7 +122,7 @@ desired set of messages: `and`, `or`, `not`, `equal`, `slowEqual`, and others.
   `equal`
 - `absent(seek, opts)` filters for messages where a `seek`ed _field_ does not
   exist in the message
-- `slowAbsent(objPath, opts)` is to `absent` what `slowEqual` is to `equal`
+- `slowAbsent(objPath)` is to `absent` what `slowEqual` is to `equal`
 
 Some examples:
 
