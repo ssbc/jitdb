@@ -181,8 +181,7 @@ function predicate(seek, fn, opts) {
   }
 }
 
-function slowAbsent(seekDesc, opts) {
-  opts = opts || {}
+function slowAbsent(seekDesc) {
   const seek = seekFromDesc(seekDesc)
   const indexType = seekDesc.replace(/\./g, '_')
   const indexName = safeFilename(indexType + '__absent')
