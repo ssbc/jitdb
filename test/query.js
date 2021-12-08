@@ -32,7 +32,7 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -42,7 +42,7 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('contact'),
+      value: helpers.toBipf('contact'),
       indexType: 'type',
       indexName: 'type_contact',
     },
@@ -82,7 +82,7 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -111,7 +111,7 @@ prepareAndRunTest('Limit -1', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -136,7 +136,7 @@ prepareAndRunTest('Limit 0', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -165,7 +165,7 @@ prepareAndRunTest('Includes', dir, (t, db, raf) => {
     type: 'INCLUDES',
     data: {
       seek: helpers.seekAnimals,
-      value: Buffer.from('bird'),
+      value: helpers.toBipf('bird'),
       indexType: 'animals',
       indexName: 'animals_bird',
     },
@@ -212,7 +212,7 @@ prepareAndRunTest('Includes and pluck', dir, (t, db, raf) => {
     type: 'INCLUDES',
     data: {
       seek: helpers.seekAnimals,
-      value: Buffer.from('bird'),
+      value: helpers.toBipf('bird'),
       indexType: 'animals_word',
       indexName: 'animals_word_bird',
       pluck: helpers.pluckWord,
@@ -248,7 +248,7 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -287,7 +287,7 @@ prepareAndRunTest('Paginate empty', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('blog'),
+      value: helpers.toBipf('blog'),
       indexType: 'type',
       indexName: 'type_blog',
     },
@@ -318,7 +318,7 @@ prepareAndRunTest('Seq', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -347,7 +347,7 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -376,7 +376,7 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekRoot,
-      value: undefined,
+      value: helpers.toBipf(undefined),
       indexType: 'root',
       indexName: 'root_',
     },
@@ -410,7 +410,7 @@ prepareAndRunTest('Null', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekRoot,
-      value: null,
+      value: helpers.toBipf(null),
       indexType: 'root',
       indexName: 'root_',
     },
@@ -455,7 +455,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: Buffer.from(keys.id),
+          value: helpers.toBipf(keys.id),
           indexType: 'author',
           indexAll: true,
           indexName: safeFilename('author_' + keys.id),
@@ -571,7 +571,7 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: Buffer.from('post'),
+          value: helpers.toBipf('post'),
           indexType: 'type',
           indexName: 'type_post',
         },
@@ -642,7 +642,7 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: Buffer.from('post'),
+          value: helpers.toBipf('post'),
           indexType: 'type',
           indexName: 'type_post',
         },
@@ -681,7 +681,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -691,7 +691,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: Buffer.from(keys.id),
+      value: helpers.toBipf(keys.id),
       indexType: 'author',
       indexName: 'author_' + keys.id,
     },
@@ -737,7 +737,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -747,7 +747,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: Buffer.from('random'),
+      value: helpers.toBipf('random'),
       indexType: 'author',
       indexName: 'author_random',
     },
@@ -757,7 +757,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: Buffer.from('random2'),
+      value: helpers.toBipf('random2'),
       indexType: 'author',
       indexName: 'author_random2',
     },
@@ -767,7 +767,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: Buffer.from(keys.id),
+      value: helpers.toBipf(keys.id),
       indexType: 'author',
       indexName: 'author_' + keys.id,
     },
@@ -813,7 +813,7 @@ prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekAuthor,
-      value: Buffer.from(keys.id),
+      value: helpers.toBipf(keys.id),
       indexType: 'author',
       indexName: 'author_me',
     },
@@ -851,7 +851,7 @@ prepareAndRunTest('reindex corrupt indexes', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },

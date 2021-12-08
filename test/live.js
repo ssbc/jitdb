@@ -29,7 +29,7 @@ prepareAndRunTest('Live', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -68,7 +68,7 @@ prepareAndRunTest('Live AND', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: Buffer.from(keys.id),
+          value: helpers.toBipf(keys.id),
           indexType: 'author',
           indexName: 'author_' + keys.id,
         },
@@ -77,7 +77,7 @@ prepareAndRunTest('Live AND', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: Buffer.from('post'),
+          value: helpers.toBipf('post'),
           indexType: 'type',
           indexName: 'type_post',
         },
@@ -123,7 +123,7 @@ prepareAndRunTest('Live OR', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: Buffer.from(keys.id),
+          value: helpers.toBipf(keys.id),
           indexType: 'author',
           indexName: 'author_' + keys.id,
         },
@@ -132,7 +132,7 @@ prepareAndRunTest('Live OR', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: Buffer.from(keys2.id),
+          value: helpers.toBipf(keys2.id),
           indexType: 'author',
           indexName: 'author_' + keys2.id,
         },
@@ -148,7 +148,7 @@ prepareAndRunTest('Live OR', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: Buffer.from('post'),
+          value: helpers.toBipf('post'),
           indexType: 'type',
           indexName: 'type_post',
         },
@@ -197,7 +197,7 @@ prepareAndRunTest('Live GTE', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekAuthor,
-          value: Buffer.from(keys.id),
+          value: helpers.toBipf(keys.id),
           indexType: 'author',
           indexName: 'author_' + keys.id,
         },
@@ -244,7 +244,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },
@@ -304,7 +304,7 @@ prepareAndRunTest('Live with seq values', dir, (t, db, raf) => {
         type: 'EQUAL',
         data: {
           seek: helpers.seekType,
-          value: Buffer.from('post'),
+          value: helpers.toBipf('post'),
           indexType: 'type',
           indexName: 'type_post',
         },
@@ -355,7 +355,7 @@ prepareAndRunTest('Live with cleanup', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },

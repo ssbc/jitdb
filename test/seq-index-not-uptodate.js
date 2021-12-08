@@ -31,7 +31,7 @@ prepareAndRunTest('Ensure seq index is updated always', dir, (t, db, raf) => {
     type: 'EQUAL',
     data: {
       seek: helpers.seekType,
-      value: Buffer.from('post'),
+      value: helpers.toBipf('post'),
       indexType: 'type',
       indexName: 'type_post',
     },

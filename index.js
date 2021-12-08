@@ -297,23 +297,13 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  const nullBipf = bipf.allocAndEncode(null)
   const undefinedBipf = bipf.allocAndEncode(undefined)
 
   function checkEqual(opData, buffer) {
     const fieldStart = opData.seek(buffer)
 
-    if (opData.value === undefined && fieldStart === -1) return true
-    else if (opData.value === undefined)
-      return bipf.compare(buffer, fieldStart, undefinedBipf, 0) === 0
-    else if (opData.value === null)
-      return bipf.compare(buffer, fieldStart, nullBipf, 0) === 0
-    else if (
-      ~fieldStart &&
-      bipf.compareString(buffer, fieldStart, opData.value) === 0
-    )
-      return true
-    else return false
+    if (fieldStart === -1 && opData.value.equals(undefinedBipf)) return true
+    else return bipf.compare(buffer, fieldStart, opData.value, 0) === 0
   }
 
   function compareWithRangeOp(op, value) {
@@ -350,27 +340,29 @@ module.exports = function (log, indexesPath) {
     return predicateFn(fieldValue)
   }
 
+  function checkAbsent(opData, buffer) {
+    const fieldStart = opData.seek(buffer)
+    return fieldStart < 0
+  }
+
   function checkIncludes(opData, buffer) {
     const fieldStart = opData.seek(buffer)
     if (!~fieldStart) return false
     const type = bipf.getEncodedType(buffer, fieldStart)
-    if (type === bipf.types.string) {
-      return checkEqual(opData, buffer)
-    } else if (type === bipf.types.array) {
+
+    if (type === bipf.types.array) {
       let found = false
       bipf.iterate(buffer, fieldStart, (_, itemStart) => {
         const valueStart = opData.pluck
           ? opData.pluck(buffer, itemStart)
           : itemStart
-        if (bipf.compareString(buffer, valueStart, opData.value) === 0) {
+        if (bipf.compare(buffer, valueStart, opData.value, 0) === 0) {
           found = true
           return true // abort the bipf.iterate
         }
       })
       return found
-    } else {
-      return false
-    }
+    } else return checkEqual(opData, buffer)
   }
 
   function safeReadUint32(buf, prefixOffset = 0) {
@@ -430,6 +422,8 @@ module.exports = function (log, indexesPath) {
     if (op.type === 'EQUAL' && checkEqual(op.data, buffer))
       index.bitset.add(seq)
     else if (op.type === 'PREDICATE' && checkPredicate(op.data, buffer))
+      index.bitset.add(seq)
+    else if (op.type === 'ABSENT' && checkAbsent(op.data, buffer))
       index.bitset.add(seq)
     else if (op.type === 'INCLUDES' && checkIncludes(op.data, buffer))
       index.bitset.add(seq)
@@ -843,7 +837,7 @@ module.exports = function (log, indexesPath) {
   function matchAgainstPrefix(op, prefixIndex, cb) {
     const target = op.data.value
     const targetPrefix = target
-      ? safeReadUint32(target, op.data.prefixOffset)
+      ? safeReadUint32(bipf.slice(target, 0), op.data.prefixOffset)
       : 0
     const bitset = new TypedFastBitSet()
     const bitsetFilters = new Map()
@@ -853,12 +847,9 @@ module.exports = function (log, indexesPath) {
       if (!value) return false // deleted
 
       const fieldStart = seek(value)
-      const candidate = bipf.slice(value, fieldStart)
-      if (target) {
-        if (Buffer.compare(candidate, target)) return false
-      } else {
-        if (~fieldStart) return false
-      }
+
+      if (target) return bipf.compare(value, fieldStart, target, 0) === 0
+      else if (~fieldStart) return false
 
       return true
     }
@@ -905,6 +896,8 @@ module.exports = function (log, indexesPath) {
         ? op.data.value.toString().substring(0, 10)
         : ''
       return `${op.data.indexType}(${value})`
+    } else if (op.type === 'ABSENT') {
+      return `ABSENT(${op.data.indexType})`
     } else if (
       op.type === 'GT' ||
       op.type === 'GTE' ||
@@ -967,7 +960,8 @@ module.exports = function (log, indexesPath) {
     if (
       op.type === 'EQUAL' ||
       op.type === 'INCLUDES' ||
-      op.type === 'PREDICATE'
+      op.type === 'PREDICATE' ||
+      op.type === 'ABSENT'
     ) {
       if (op.data.prefix) {
         ensureIndexSync(op, () => {
@@ -1030,7 +1024,8 @@ module.exports = function (log, indexesPath) {
         if (
           op.type === 'EQUAL' ||
           op.type === 'INCLUDES' ||
-          op.type === 'PREDICATE'
+          op.type === 'PREDICATE' ||
+          op.type === 'ABSENT'
         ) {
           fn(op)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
@@ -1123,6 +1118,7 @@ module.exports = function (log, indexesPath) {
       let ok = false
       if (op.type === 'EQUAL') ok = checkEqual(op.data, value)
       else if (op.type === 'PREDICATE') ok = checkPredicate(op.data, value)
+      else if (op.type === 'ABSENT') ok = checkAbsent(op.data, value)
       else if (op.type === 'INCLUDES') ok = checkIncludes(op.data, value)
       else if (op.type === 'NOT') ok = !isValueOk(op.data, value, false)
       else if (op.type === 'AND') ok = isValueOk(op.data, value, false)
@@ -1409,7 +1405,8 @@ module.exports = function (log, indexesPath) {
             if (
               op.type === 'EQUAL' ||
               op.type === 'INCLUDES' ||
-              op.type === 'PREDICATE'
+              op.type === 'PREDICATE' ||
+              op.type === 'ABSENT'
             ) {
               if (!indexes[op.data.indexName]) offset = -1
               else offset = indexes[op.data.indexName].offset

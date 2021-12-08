@@ -41,6 +41,8 @@ const {
   toPullStream,
   toAsyncIter,
   slowPredicate,
+  slowAbsent,
+  absent,
 } = require('../operators')
 
 const dir = '/tmp/jitdb-query-api'
@@ -64,7 +66,7 @@ prepareAndRunTest('operators API supports equal', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'type')
   t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
@@ -94,7 +96,7 @@ prepareAndRunTest('operators API supports slowEqual', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'value_content_type')
   t.notOk(queryTree.data.indexAll)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
@@ -127,7 +129,7 @@ prepareAndRunTest('query ignores non-function arguments', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'type')
   t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(typeof queryTree.meta, 'object', 'queryTree contains meta')
@@ -191,7 +193,7 @@ prepareAndRunTest('slowEqual 3 args', dir, (t, db, raf) => {
 
   t.equal(queryTree.data.indexType, 'value_content_type')
   t.equal(queryTree.data.indexAll, true)
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -207,7 +209,7 @@ prepareAndRunTest('equal with null value', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'channel')
-  t.notOk(queryTree.data.value)
+  t.deepEqual(queryTree.data.value, helpers.toBipf(null))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -223,7 +225,7 @@ prepareAndRunTest('equal with undefined value', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'channel')
-  t.notOk(queryTree.data.value)
+  t.deepEqual(queryTree.data.value, helpers.toBipf(undefined))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -240,7 +242,7 @@ prepareAndRunTest('equal with prefix', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'type')
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
   t.equal(queryTree.data.prefix, 32)
 
@@ -258,7 +260,7 @@ prepareAndRunTest('slowEqual with prefix', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'EQUAL')
 
   t.equal(queryTree.data.indexType, 'value_content_type')
-  t.deepEqual(queryTree.data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('post'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
   t.equal(queryTree.data.prefix, 32)
 
@@ -275,7 +277,7 @@ prepareAndRunTest('includes()', dir, (t, db, raf) => {
   t.equal(queryTree.type, 'INCLUDES')
 
   t.equal(queryTree.data.indexType, 'animals')
-  t.deepEqual(queryTree.data.value, Buffer.from('cat'))
+  t.deepEqual(queryTree.data.value, helpers.toBipf('cat'))
   t.true(queryTree.data.seek.toString().includes('bipf.seekKey'))
 
   t.end()
@@ -297,21 +299,21 @@ prepareAndRunTest('operators API supports or()', dir, (t, db, raf) => {
 
   t.equal(queryTree.data[0].type, 'EQUAL')
   t.equal(queryTree.data[0].data.indexType, 'value_content_type')
-  t.deepEqual(queryTree.data[0].data.value, Buffer.from('post'))
+  t.deepEqual(queryTree.data[0].data.value, helpers.toBipf('post'))
 
   t.equal(queryTree.data[1].type, 'OR')
   t.true(Array.isArray(queryTree.data[1].data), '.data[1].data is an array')
 
   t.equal(queryTree.data[1].data[0].type, 'EQUAL')
   t.deepEqual(queryTree.data[1].data[0].data.indexType, 'value_author')
-  t.deepEqual(queryTree.data[1].data[0].data.value, Buffer.from(alice.id))
+  t.deepEqual(queryTree.data[1].data[0].data.value, helpers.toBipf(alice.id))
   t.true(
     queryTree.data[1].data[0].data.seek.toString().includes('bipf.seekKey')
   )
 
   t.equal(queryTree.data[1].data[1].type, 'EQUAL')
   t.equal(queryTree.data[1].data[1].data.indexType, 'value_author')
-  t.deepEqual(queryTree.data[1].data[1].data.value, Buffer.from(bob.id))
+  t.deepEqual(queryTree.data[1].data[1].data.value, helpers.toBipf(bob.id))
   t.true(
     queryTree.data[1].data[1].data.seek.toString().includes('bipf.seekKey')
   )
@@ -475,7 +477,7 @@ prepareAndRunTest('operator gt', dir, (t, db, raf) => {
 
   t.equal(queryTree.data[0].type, 'EQUAL')
   t.equal(queryTree.data[0].data.indexType, 'author')
-  t.deepEqual(queryTree.data[0].data.value, Buffer.from(alice.id))
+  t.deepEqual(queryTree.data[0].data.value, helpers.toBipf(alice.id))
   t.true(queryTree.data[0].data.seek.toString().includes('bipf.seekKey'))
 
   t.equal(queryTree.data[1].type, 'GT')
@@ -1434,6 +1436,64 @@ prepareAndRunTest('support slowPredicate', dir, (t, db, raf) => {
             t.equal(msgs.length, 2, 'got two messages')
             t.equal(msgs[0].value.content.text, '2nd')
             t.equal(msgs[1].value.content.text, '3rd')
+            t.end()
+          })
+        )
+      })
+    })
+  })
+})
+
+prepareAndRunTest('support slowAbsent', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st', animal: 'bird' }
+  const msg2 = { type: 'contact', text: '2nd' }
+  const msg3 = { type: 'post', text: '3rd', animal: 'dog' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg1, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, raf, (e1, m1) => {
+    addMsg(state.queue[1].value, raf, (e2, m2) => {
+      addMsg(state.queue[2].value, raf, (e3, m3) => {
+        query(
+          fromDB(db),
+          where(slowAbsent('value.content.animal')),
+          toCallback((err, msgs) => {
+            t.error(err, 'got no error')
+            t.equal(msgs.length, 1, 'got one message')
+            t.equal(msgs[0].value.content.text, '2nd')
+            t.end()
+          })
+        )
+      })
+    })
+  })
+})
+
+prepareAndRunTest('support absent', dir, (t, db, raf) => {
+  const msg1 = { type: 'post', text: '1st', channel: 'food' }
+  const msg2 = { type: 'contact', text: '2nd' }
+  const msg3 = { type: 'post', text: '3rd', channel: 'cats' }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg1, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, raf, (e1, m1) => {
+    addMsg(state.queue[1].value, raf, (e2, m2) => {
+      addMsg(state.queue[2].value, raf, (e3, m3) => {
+        query(
+          fromDB(db),
+          where(
+            absent(helpers.seekChannel, { indexType: 'value_content_channel' })
+          ),
+          toCallback((err, msgs) => {
+            t.error(err, 'got no error')
+            t.equal(msgs.length, 1, 'got one message')
+            t.equal(msgs[0].value.content.text, '2nd')
             t.end()
           })
         )

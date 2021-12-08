@@ -120,6 +120,9 @@ desired set of messages: `and`, `or`, `not`, `equal`, `slowEqual`, and others.
   OR the `fn` function should be a named function
 - `slowPredicate(objPath, fn, opts)` is to `predicate` what `slowEqual` is to
   `equal`
+- `absent(seek, opts)` filters for messages where a `seek`ed _field_ does not
+  exist in the message
+- `slowAbsent(objPath)` is to `absent` what `slowEqual` is to `equal`
 
 Some examples:
 
@@ -411,6 +414,8 @@ const {
   slowEqual,
   predicate,
   slowPredicate,
+  absent,
+  slowAbsent,
   includes,
   slowIncludes,
   gt,
@@ -507,12 +512,13 @@ Operation can be of the following types:
 
 `seek` is a function that takes a buffer from the database as input
 and returns an index in the buffer from where a value can be compared
-to the `value` given. If value is `undefined` it corresponds to the
-field not being defined at that point in the buffer. `prefix` enables
-the use of prefix indexes for this operation. `indexType` is used to
-group indexes of the same type. If `indexAll` is specified and no
-index of the type and value exists, then instead of only this index
-being created, missing indexes for all possible values given the seek
+to the `value` given. `value` must be a bipf encoded value, usually
+the `equal` operator will take care of that. A field not being defined
+at a point in the buffer is equal to `undefined`. `prefix` enables the
+use of prefix indexes for this operation. `indexType` is used to group
+indexes of the same type. If `indexAll` is specified and no index of
+the type and value exists, then instead of only this index being
+created, missing indexes for all possible values given the seek
 pointer will be created. This can be particular useful for data where
 there number of different values are rather small, but still larger
 than a few. One example is author or feeds in SSB, a typical database
