@@ -12,7 +12,6 @@ const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
 const multicb = require('multicb')
 const FastPriorityQueue = require('fastpriorityqueue')
-const promisify = require('promisify-4loc')
 const debug = require('debug')('jitdb')
 const debugQuery = debug.extend('query')
 const Status = require('./status')
@@ -174,16 +173,17 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function saveCoreIndex(name, coreIndex, count) {
+  function saveCoreIndex(name, coreIndex, count, cb) {
     if (coreIndex.offset < 0) return
     debug('saving core index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
-    return promisify(saveTypedArrayFile)(
+    return saveTypedArrayFile(
       filename,
       coreIndex.version,
       coreIndex.offset,
       count,
-      coreIndex.tarr
+      coreIndex.tarr,
+      cb
     )
   }
 
@@ -498,21 +498,20 @@ module.exports = function (log, indexesPath) {
     const indexNeedsUpdate = !coreIndexNames.includes(op.data.indexName)
 
     function save(count, offset) {
-      const coreWrites = []
-      if (updatedSeqIndex)
-        coreWrites.push(saveCoreIndex('seq', indexes['seq'], count))
+      const done = multicb({ pluck: 1 })
+      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count, done())
 
       if (updatedTimestampIndex)
-        coreWrites.push(saveCoreIndex('timestamp', indexes['timestamp'], count))
+        saveCoreIndex('timestamp', indexes['timestamp'], count, done())
 
       if (updatedSequenceIndex)
-        coreWrites.push(saveCoreIndex('sequence', indexes['sequence'], count))
+        saveCoreIndex('sequence', indexes['sequence'], count, done())
 
       index.offset = offset
       if (op.data.version > index.version) index.version = op.data.version
 
       if (indexNeedsUpdate) {
-        Promise.all(coreWrites).then(() => {
+        done(() => {
           saveIndex(op.data.indexName, index, count)
         })
       }
@@ -623,22 +622,21 @@ module.exports = function (log, indexesPath) {
     const start = Date.now()
     let lastSaved = start
 
-    function save(count, offset, done) {
-      const coreWrites = []
-      if (updatedSeqIndex)
-        coreWrites.push(saveCoreIndex('seq', indexes['seq'], count))
+    function save(count, offset, doneIndexing) {
+      const done = multicb({ pluck: 1 })
+      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count, done())
 
       if (updatedTimestampIndex)
-        coreWrites.push(saveCoreIndex('timestamp', indexes['timestamp'], count))
+        saveCoreIndex('timestamp', indexes['timestamp'], count, done())
 
       if (updatedSequenceIndex)
-        coreWrites.push(saveCoreIndex('sequence', indexes['sequence'], count))
+        saveCoreIndex('sequence', indexes['sequence'], count, done())
 
       for (var indexName in newIndexes) {
         const index = newIndexes[indexName]
-        if (done) indexes[indexName] = index
+        if (doneIndexing) indexes[indexName] = index
         index.offset = offset
-        Promise.all(coreWrites).then(() => {
+        done(() => {
           saveIndex(indexName, index, count)
         })
       }
