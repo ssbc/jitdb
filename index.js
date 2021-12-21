@@ -177,7 +177,7 @@ module.exports = function (log, indexesPath) {
     if (coreIndex.offset < 0) return
     debug('saving core index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
-    return saveTypedArrayFile(
+    saveTypedArrayFile(
       filename,
       coreIndex.version,
       coreIndex.offset,
