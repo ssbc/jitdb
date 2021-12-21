@@ -25,7 +25,7 @@
     "mkdirp": "^1.0.4",
     "multicb": "1.2.2",
     "obz": "~1.0.3",
-    "promisify-4loc": "1.0.0",
+    "promisify-4loc": "^1.0.0",
     "pull-async": "~1.0.0",
     "pull-awaitable": "^1.0.0",
     "pull-cat": "~1.1.11",
