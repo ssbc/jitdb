@@ -173,7 +173,7 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function saveCoreIndex(name, coreIndex, count) {
+  function saveCoreIndex(name, coreIndex, count, cb) {
     if (coreIndex.offset < 0) return
     debug('saving core index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
@@ -182,7 +182,8 @@ module.exports = function (log, indexesPath) {
       coreIndex.version,
       coreIndex.offset,
       count,
-      coreIndex.tarr
+      coreIndex.tarr,
+      cb
     )
   }
 
@@ -497,18 +498,23 @@ module.exports = function (log, indexesPath) {
     const indexNeedsUpdate = !coreIndexNames.includes(op.data.indexName)
 
     function save(count, offset) {
-      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
+      const done = multicb({ pluck: 1 })
+      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count, done())
 
       if (updatedTimestampIndex)
-        saveCoreIndex('timestamp', indexes['timestamp'], count)
+        saveCoreIndex('timestamp', indexes['timestamp'], count, done())
 
       if (updatedSequenceIndex)
-        saveCoreIndex('sequence', indexes['sequence'], count)
+        saveCoreIndex('sequence', indexes['sequence'], count, done())
 
       index.offset = offset
       if (op.data.version > index.version) index.version = op.data.version
 
-      if (indexNeedsUpdate) saveIndex(op.data.indexName, index, count)
+      if (indexNeedsUpdate) {
+        done(() => {
+          saveIndex(op.data.indexName, index, count)
+        })
+      }
     }
 
     const logstreamId = Math.ceil(Math.random() * 1000)
@@ -616,20 +622,23 @@ module.exports = function (log, indexesPath) {
     const start = Date.now()
     let lastSaved = start
 
-    function save(count, offset, done) {
-      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count)
+    function save(count, offset, doneIndexing) {
+      const done = multicb({ pluck: 1 })
+      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count, done())
 
       if (updatedTimestampIndex)
-        saveCoreIndex('timestamp', indexes['timestamp'], count)
+        saveCoreIndex('timestamp', indexes['timestamp'], count, done())
 
       if (updatedSequenceIndex)
-        saveCoreIndex('sequence', indexes['sequence'], count)
+        saveCoreIndex('sequence', indexes['sequence'], count, done())
 
       for (var indexName in newIndexes) {
         const index = newIndexes[indexName]
-        if (done) indexes[indexName] = index
+        if (doneIndexing) indexes[indexName] = index
         index.offset = offset
-        saveIndex(indexName, index, count)
+        done(() => {
+          saveIndex(indexName, index, count)
+        })
       }
     }
 
