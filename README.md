@@ -232,6 +232,7 @@ query(
   ),
   toCallback((err, msgs) => {
     assert.equal(err, null, 'got no error')
+    // do something with msgs...
   })
 )
 
