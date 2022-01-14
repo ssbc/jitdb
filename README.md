@@ -216,7 +216,7 @@ function seekAuthor(buffer) {
 An example using the `absent` operator
 
 ```js
-const { query } = require('jitdb/operators')
+const { query, fromDB, where, and, toCallback } = require('jitdb/operators')
 const bipf = require('bipf')
 const assert = require("assert");
 const B_VALUE = Buffer.from('value')
