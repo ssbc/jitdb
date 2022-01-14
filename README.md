@@ -226,8 +226,8 @@ query(
   fromDB(db),
   where(
     and(
-        absent(seekChannel, { indexType: 'value_content_channel' })
-        type('post')
+      absent(seekChannel, { indexType: 'value_content_channel' })
+      type('post')
     )
   ),
   toCallback((err, msgs) => {
