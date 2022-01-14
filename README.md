@@ -221,6 +221,7 @@ const bipf = require('bipf')
 const assert = require("assert");
 const B_VALUE = Buffer.from('value')
 const B_CHANNEL = Buffer.from('channel')
+const B_CONTENT = Buffer.from('content')
 
 query(
   fromDB(db),
