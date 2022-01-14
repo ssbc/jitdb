@@ -211,6 +211,41 @@ function seekAuthor(buffer) {
 }
 ```
 
+**get messages without 'value' as channel**
+
+An example using the `absent` operator
+
+```js
+const { query } = require('jitdb/operators')
+const bipf = require('bipf')
+const assert = require("assert");
+const B_VALUE = Buffer.from('value')
+const B_CHANNEL = Buffer.from('channel')
+
+query(
+  fromDB(db),
+  where(
+    and(
+        absent(seekChannel, { indexType: 'value_content_channel' })
+        type('post')
+    )
+  ),
+  toCallback((err, msgs) => {
+    assert.equal(err, null, 'got no error')
+  })
+)
+
+function seekChannel (buffer) {
+  var p = 0 // note you pass in p!
+  p = bipf.seekKey(buffer, p, B_VALUE)
+
+  if (~p) {
+    p = bipf.seekKey(buffer, p, B_CONTENT)
+    if (~p) return bipf.seekKey(buffer, p, B_CHANNEL)
+  }
+}
+```
+
 #### Pagination
 
 If you use `toCallback`, it gives you all results in one go. If you
