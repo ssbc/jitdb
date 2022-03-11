@@ -1241,11 +1241,22 @@ module.exports = function (log, indexesPath) {
     limit,
     descending,
     onlyOffset,
+    sortBy,
     cb
   ) {
     seq = seq || 0
 
-    const sorted = sortedByTimestamp(bitset, descending)
+    let sorted
+    if (sortBy === 'arrival') {
+      sorted = new FastPriorityQueue()
+      // already sorted by arrival time in log
+      sorted.heapify(
+        bitset.array().map((x) => {
+          return { seq: x }
+        })
+      )
+    } else sorted = sortedByTimestamp(bitset, descending)
+
     const resultSize = sorted.size
 
     // seq -> record buffer
@@ -1313,7 +1324,12 @@ module.exports = function (log, indexesPath) {
     else return bitset.size() - seq
   }
 
-  function paginate(operation, seq, limit, descending, onlyOffset, cb) {
+  function paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb) {
+    if (!cb) {
+      cb = sortBy
+      sortBy = 'declared'
+    }
+
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1326,6 +1342,7 @@ module.exports = function (log, indexesPath) {
           limit,
           descending,
           onlyOffset,
+          sortBy,
           (err1, answer) => {
             if (err1) cb(err1)
             else {
@@ -1346,7 +1363,12 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function all(operation, seq, descending, onlyOffset, cb) {
+  function all(operation, seq, descending, onlyOffset, sortBy, cb) {
+    if (!cb) {
+      cb = sortBy
+      sortBy = 'declared'
+    }
+
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1359,6 +1381,7 @@ module.exports = function (log, indexesPath) {
           Infinity,
           descending,
           onlyOffset,
+          sortBy,
           (err1, answer) => {
             if (err1) cb(err1)
             else {

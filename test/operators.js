@@ -35,6 +35,7 @@ const {
   live,
   count,
   descending,
+  sortBy,
   asOffsets,
   toCallback,
   toPromise,
@@ -439,21 +440,30 @@ prepareAndRunTest(
       descending()
     )
 
+    const queryTreeSortBy = query(
+      fromDB(db),
+      where(slowEqual('value.content.type', 'post')),
+      sortBy('arrival')
+    )
+
     const queryTreeAll = query(
       fromDB(db),
       where(slowEqual('value.content.type', 'post')),
       startFrom(5),
       paginate(10),
-      descending()
+      descending(),
+      sortBy('arrival')
     )
 
     t.equal(queryTreePaginate.meta.pageSize, 10)
     t.equal(queryTreeStartFrom.meta.seq, 5)
     t.equal(queryTreeDescending.meta.descending, true)
+    t.equal(queryTreeSortBy.meta.sortBy, 'arrival')
 
     t.equal(queryTreeAll.meta.pageSize, 10)
     t.equal(queryTreeAll.meta.seq, 5)
     t.equal(queryTreeAll.meta.descending, true)
+    t.equal(queryTreeAll.meta.sortBy, 'arrival')
 
     t.end()
   }
@@ -916,6 +926,38 @@ prepareAndRunTest('operators toCallback with descending', dir, (t, db, raf) => {
           )
         ),
         descending(),
+        toCallback((err, msgs) => {
+          t.error(err, 'toCallback got no error')
+          t.equal(msgs.length, 2, 'toCallback got two messages')
+          t.equal(msgs[0].value.author, bob.id)
+          t.equal(msgs[0].value.content.type, 'post')
+          t.equal(msgs[1].value.author, alice.id)
+          t.equal(msgs[1].value.content.type, 'post')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
+prepareAndRunTest('operators toCallback with sortBy', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+
+  // simulate messages was replicated out of order
+  addMsg(state.queue[1].value, raf, (e1, msg1) => {
+    addMsg(state.queue[0].value, raf, (e2, msg2) => {
+      query(
+        fromDB(db),
+        where(
+          or(
+            slowEqual('value.author', alice.id),
+            slowEqual('value.author', bob.id)
+          )
+        ),
+        sortBy('arrival'),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error')
           t.equal(msgs.length, 2, 'toCallback got two messages')

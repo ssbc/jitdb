@@ -432,6 +432,7 @@ const {
   startFrom,
   descending,
   asOffsets,
+  sortBy,
   debug,
   toCallback,
   toPullStream,
@@ -487,12 +488,17 @@ First some terminology: offset refers to the byte position in the log
 of a message. Seq refers to the 0-based position of a message in the
 log.
 
-### paginate(operation, seq, limit, descending, onlyOffset, cb)
+### paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb)
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
 query is run. `onlyOffset` can be used to return offset instead of the
-actual messages. The result is an object with the fields:
+actual messages. `sortBy` defaults to creation time of messages. By
+setting this to `arrival`, the results are sorted by when they were
+added to the database. This can be important for messages from other
+peers that might arrive out of order compared when they were created.
+
+The result is an object with the fields:
 
 - `data`: the actual messages
 - `total`: the total number of messages
@@ -551,7 +557,7 @@ some after processing that you wouldn't create and index for, but the
 overhead of decoding the buffers is small enough that I don't think it
 makes sense.
 
-### all(operation, seq, descending, onlyOffset, cb)
+### all(operation, seq, descending, onlyOffset, sortBy, cb)
 
 Similar to `paginate` except there is no `limit` argument and the result
 will be the messages directly.
