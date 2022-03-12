@@ -1197,13 +1197,14 @@ module.exports = function (log, indexesPath) {
     const fpq = new FastPriorityQueue(
       descending ? compareDescending : compareAscending
     )
-    bitset.forEach((seq) => {
-      fpq.add({
-        seq,
-        timestamp: indexes['timestamp'].tarr[seq],
+    fpq.heapify(
+      bitset.array().map((seq) => {
+        return {
+          seq,
+          timestamp: indexes['timestamp'].tarr[seq],
+        }
       })
-    })
-    fpq.trim()
+    )
     sortedCache[order].set(bitset, fpq)
     return fpq
   }
@@ -1261,8 +1262,8 @@ module.exports = function (log, indexesPath) {
       )
 
       sorted.heapify(
-        bitset.array().map((x) => {
-          return { seq: x }
+        bitset.array().map((seq) => {
+          return { seq }
         })
       )
     } else sorted = sortedByTimestamp(bitset, descending)
