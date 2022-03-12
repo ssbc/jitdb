@@ -31,7 +31,8 @@ module.exports = function (log, indexesPath) {
   debug('indexes path', indexesPath)
 
   let bitsetCache = new WeakMap()
-  let sortedCache = { ascending: new WeakMap(), descending: new WeakMap() }
+  let sortedTSCache = { ascending: new WeakMap(), descending: new WeakMap() }
+  let sortedSeqCache = { ascending: new WeakMap(), descending: new WeakMap() }
   let cacheOffset = -1
 
   const status = Status()
@@ -164,12 +165,18 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function clearCache() {
+    bitsetCache = new WeakMap()
+    sortedTSCache.ascending = new WeakMap()
+    sortedTSCache.descending = new WeakMap()
+    sortedSeqCache.ascending = new WeakMap()
+    sortedSeqCache.descending = new WeakMap()
+  }
+
   function updateCacheWithLog() {
     if (log.since.value > cacheOffset) {
       cacheOffset = log.since.value
-      bitsetCache = new WeakMap()
-      sortedCache.ascending = new WeakMap()
-      sortedCache.descending = new WeakMap()
+      clearCache()
     }
   }
 
@@ -1190,13 +1197,21 @@ module.exports = function (log, indexesPath) {
     return a.seq > b.seq
   }
 
-  function sortedByTimestamp(bitset, descending) {
+  function sortedBy(bitset, descending, sortBy) {
     updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
+    const sortedCache = sortBy === 'arrival' ? sortedSeqCache : sortedTSCache
+    const comparer =
+      sortBy === 'arrival'
+        ? descending
+          ? compareSeqDescending
+          : compareSeqAscending
+        : descending
+        ? compareDescending
+        : compareAscending
+
     if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
-    const fpq = new FastPriorityQueue(
-      descending ? compareDescending : compareAscending
-    )
+    const fpq = new FastPriorityQueue(comparer)
     fpq.heapify(
       bitset.array().map((seq) => {
         return {
@@ -1255,19 +1270,7 @@ module.exports = function (log, indexesPath) {
   ) {
     seq = seq || 0
 
-    let sorted
-    if (sortBy === 'arrival') {
-      sorted = new FastPriorityQueue(
-        descending ? compareSeqDescending : compareSeqAscending
-      )
-
-      sorted.heapify(
-        bitset.array().map((seq) => {
-          return { seq }
-        })
-      )
-    } else sorted = sortedByTimestamp(bitset, descending)
-
+    const sorted = sortedBy(bitset, descending, sortBy)
     const resultSize = sorted.size
 
     // seq -> record buffer
@@ -1565,9 +1568,7 @@ module.exports = function (log, indexesPath) {
       push.collect((err) => {
         if (err) return cb(err)
 
-        bitsetCache = new WeakMap()
-        sortedCache.ascending = new WeakMap()
-        sortedCache.descending = new WeakMap()
+        clearCache()
         cb()
       })
     )
