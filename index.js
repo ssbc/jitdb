@@ -1182,6 +1182,14 @@ module.exports = function (log, indexesPath) {
     return a.timestamp > b.timestamp
   }
 
+  function compareSeqAscending(a, b) {
+    return b.seq > a.seq
+  }
+
+  function compareSeqDescending(a, b) {
+    return a.seq > b.seq
+  }
+
   function sortedByTimestamp(bitset, descending) {
     updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
@@ -1248,8 +1256,10 @@ module.exports = function (log, indexesPath) {
 
     let sorted
     if (sortBy === 'arrival') {
-      sorted = new FastPriorityQueue()
-      // already sorted by arrival time in log
+      sorted = new FastPriorityQueue(
+        descending ? compareSeqDescending : compareSeqAscending
+      )
+
       sorted.heapify(
         bitset.array().map((x) => {
           return { seq: x }
