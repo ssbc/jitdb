@@ -6,8 +6,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # JITDB
 
-A database on top of a [flumelog] (the recommended being
-[async-append-only-log]) with automatic index generation and
+A database on top of [async-append-only-log] with automatic index generation and
 maintenance.
 
 The motivation for this database is that it should be:
@@ -22,7 +21,7 @@ creates and maintains indexes based on the way the data is queried.
 Meaning if you search for messages of type `post` an author `x` two
 indexes will be created the first time. One for type and one for
 author. Specific indexes will only updated when it is queried again.
-These indexes are tiny compared to normal flume indexes. An index of
+These indexes are tiny compared to normal [flume] indexes. An index of
 type `post` is 80kb.
 
 For this to be feasible it must be really fast to do a full log scan.
@@ -586,7 +585,7 @@ query, messages from that offset and forward will be reindexed.
 
 Will call when all existing indexes have been loaded.
 
-[flumelog]: https://github.com/flumedb/
+[flume]: https://github.com/flumedb/
 [async-append-only-log]: https://github.com/ssb-ngi-pointer/async-append-only-log
 [bipf]: https://github.com/dominictarr/bipf/
 [pull-stream]: https://github.com/pull-stream/pull-stream
