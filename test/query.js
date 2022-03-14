@@ -51,12 +51,12 @@ prepareAndRunTest('Multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
 
-          db.all(contactQuery, 0, false, false, (err, results) => {
+          db.all(contactQuery, 0, false, false, 'declared', (err, results) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.type, 'contact')
 
@@ -91,11 +91,19 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
-          t.equal(results.length, 1)
-          t.equal(results[0].value.content.text, 'Testing 2!')
-          t.end()
-        })
+        db.paginate(
+          typeQuery,
+          0,
+          1,
+          true,
+          false,
+          'declared',
+          (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, 'Testing 2!')
+            t.end()
+          }
+        )
       })
     })
   })
@@ -118,11 +126,19 @@ prepareAndRunTest('Limit -1', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    db.paginate(typeQuery, 0, -1, true, false, (err2, { results }) => {
-      t.error(err2)
-      t.equal(results.length, 0)
-      t.end()
-    })
+    db.paginate(
+      typeQuery,
+      0,
+      -1,
+      true,
+      false,
+      'declared',
+      (err2, { results }) => {
+        t.error(err2)
+        t.equal(results.length, 0)
+        t.end()
+      }
+    )
   })
 })
 
@@ -143,11 +159,19 @@ prepareAndRunTest('Limit 0', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    db.paginate(typeQuery, 0, 0, true, false, (err2, { results }) => {
-      t.error(err2)
-      t.equal(results.length, 0)
-      t.end()
-    })
+    db.paginate(
+      typeQuery,
+      0,
+      0,
+      true,
+      false,
+      'declared',
+      (err2, { results }) => {
+        t.error(err2)
+        t.equal(results.length, 0)
+        t.end()
+      }
+    )
   })
 })
 
@@ -174,7 +198,7 @@ prepareAndRunTest('Includes', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err1, msg) => {
     addMsg(state.queue[1].value, raf, (err2, msg) => {
       addMsg(state.queue[2].value, raf, (err3, msg) => {
-        db.all(typeQuery, 0, false, false, (err4, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', (err4, results) => {
           t.error(err4)
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, '1st')
@@ -222,7 +246,7 @@ prepareAndRunTest('Includes and pluck', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err1, msg) => {
     addMsg(state.queue[1].value, raf, (err2, msg) => {
       addMsg(state.queue[2].value, raf, (err3, msg) => {
-        db.all(typeQuery, 0, false, false, (err4, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', (err4, results) => {
           t.error(err4)
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, '1st')
@@ -257,19 +281,43 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 0, 1, false, false, (err, { results }) => {
-          t.equal(results.length, 1)
-          t.equal(results[0].value.content.text, '1st')
-          db.paginate(typeQuery, 1, 1, false, false, (err, { results }) => {
+        db.paginate(
+          typeQuery,
+          0,
+          1,
+          false,
+          false,
+          'declared',
+          (err, { results }) => {
             t.equal(results.length, 1)
-            t.equal(results[0].value.content.text, '2nd')
-            db.paginate(typeQuery, 2, 1, false, false, (err, { results }) => {
-              t.equal(results.length, 1)
-              t.equal(results[0].value.content.text, '3rd')
-              t.end()
-            })
-          })
-        })
+            t.equal(results[0].value.content.text, '1st')
+            db.paginate(
+              typeQuery,
+              1,
+              1,
+              false,
+              false,
+              'declared',
+              (err, { results }) => {
+                t.equal(results.length, 1)
+                t.equal(results[0].value.content.text, '2nd')
+                db.paginate(
+                  typeQuery,
+                  2,
+                  1,
+                  false,
+                  false,
+                  'declared',
+                  (err, { results }) => {
+                    t.equal(results.length, 1)
+                    t.equal(results[0].value.content.text, '3rd')
+                    t.end()
+                  }
+                )
+              }
+            )
+          }
+        )
       })
     })
   })
@@ -295,11 +343,19 @@ prepareAndRunTest('Paginate empty', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err1, msg) => {
     addMsg(state.queue[1].value, raf, (err2, msg) => {
-      db.paginate(typeQuery, 0, 1, false, false, (err3, { results }) => {
-        t.error(err3)
-        t.equal(results.length, 0)
-        t.end()
-      })
+      db.paginate(
+        typeQuery,
+        0,
+        1,
+        false,
+        false,
+        'declared',
+        (err3, { results }) => {
+          t.error(err3)
+          t.equal(results.length, 0)
+          t.end()
+        }
+      )
     })
   })
 })
@@ -327,11 +383,19 @@ prepareAndRunTest('Seq', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 1, 1, true, false, (err, { results }) => {
-          t.equal(results.length, 1)
-          t.equal(results[0].value.content.text, 'Testing!')
-          t.end()
-        })
+        db.paginate(
+          typeQuery,
+          1,
+          1,
+          true,
+          false,
+          'declared',
+          (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, 'Testing!')
+            t.end()
+          }
+        )
       })
     })
   })
@@ -354,11 +418,19 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    db.paginate(typeQuery, 0, 1, true, false, (err, { results }) => {
-      t.equal(results.length, 1)
-      t.equal(results[0].value.content.text, 'Testing!')
-      t.end()
-    })
+    db.paginate(
+      typeQuery,
+      0,
+      1,
+      true,
+      false,
+      'declared',
+      (err, { results }) => {
+        t.equal(results.length, 1)
+        t.equal(results[0].value.content.text, 'Testing!')
+        t.end()
+      }
+    )
   })
 })
 
@@ -385,12 +457,20 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
-          t.equal(results.length, 2)
-          t.equal(results[0].value.content.text, 'Testing no root')
-          t.equal(results[1].value.content.text, 'Testing root undefined')
-          t.end()
-        })
+        db.paginate(
+          typeQuery,
+          0,
+          10,
+          false,
+          false,
+          'declared',
+          (err, { results }) => {
+            t.equal(results.length, 2)
+            t.equal(results[0].value.content.text, 'Testing no root')
+            t.equal(results[1].value.content.text, 'Testing root undefined')
+            t.end()
+          }
+        )
       })
     })
   })
@@ -419,11 +499,19 @@ prepareAndRunTest('Null', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
-          t.equal(results.length, 1)
-          t.equal(results[0].value.content.text, 'Testing root null')
-          t.end()
-        })
+        db.paginate(
+          typeQuery,
+          0,
+          10,
+          false,
+          false,
+          'declared',
+          (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, 'Testing root null')
+            t.end()
+          }
+        )
       })
     })
   })
@@ -468,7 +556,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
       addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
         addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
-          db.all(filterQuery, 0, false, false, (err, results) => {
+          db.all(filterQuery, 0, false, false, 'declared', (err, results) => {
             t.error(err, 'no err')
             t.equal(results.length, 3)
             t.equal(results[0].value.content.text, '2')
@@ -476,7 +564,7 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
             filterQuery.data[0].type = 'GTE'
             // clone to force cache invalidation inside db.all:
             filterQuery = Object.assign({}, filterQuery)
-            db.all(filterQuery, 0, false, false, (err, results) => {
+            db.all(filterQuery, 0, false, false, 'declared', (err, results) => {
               t.equal(results.length, 4)
               t.equal(results[0].value.content.text, '1')
 
@@ -484,30 +572,51 @@ prepareAndRunTest('GT,GTE,LT,LTE', dir, (t, db, raf) => {
               filterQuery.data[0].data.value = 3
               // clone to force cache invalidation inside db.all:
               filterQuery = Object.assign({}, filterQuery)
-              db.all(filterQuery, 0, false, false, (err, results) => {
-                t.equal(results.length, 2)
-                t.equal(results[0].value.content.text, '1')
-
-                filterQuery.data[0].type = 'LTE'
-                // clone to force cache invalidation inside db.all:
-                filterQuery = Object.assign({}, filterQuery)
-                db.all(filterQuery, 0, false, false, (err, results) => {
-                  t.equal(results.length, 3)
+              db.all(
+                filterQuery,
+                0,
+                false,
+                false,
+                'declared',
+                (err, results) => {
+                  t.equal(results.length, 2)
                   t.equal(results[0].value.content.text, '1')
 
-                  filterQuery.data[0].type = 'GT'
-                  filterQuery.data[0].data.indexName = 'timestamp'
-                  filterQuery.data[0].data.value = dbMsg1.value.timestamp
+                  filterQuery.data[0].type = 'LTE'
                   // clone to force cache invalidation inside db.all:
                   filterQuery = Object.assign({}, filterQuery)
-                  db.all(filterQuery, 0, false, false, (err, results) => {
-                    t.equal(results.length, 3)
-                    t.equal(results[0].value.content.text, '2')
+                  db.all(
+                    filterQuery,
+                    0,
+                    false,
+                    false,
+                    'declared',
+                    (err, results) => {
+                      t.equal(results.length, 3)
+                      t.equal(results[0].value.content.text, '1')
 
-                    t.end()
-                  })
-                })
-              })
+                      filterQuery.data[0].type = 'GT'
+                      filterQuery.data[0].data.indexName = 'timestamp'
+                      filterQuery.data[0].data.value = dbMsg1.value.timestamp
+                      // clone to force cache invalidation inside db.all:
+                      filterQuery = Object.assign({}, filterQuery)
+                      db.all(
+                        filterQuery,
+                        0,
+                        false,
+                        false,
+                        'declared',
+                        (err, results) => {
+                          t.equal(results.length, 3)
+                          t.equal(results[0].value.content.text, '2')
+
+                          t.end()
+                        }
+                      )
+                    }
+                  )
+                }
+              )
             })
           })
         })
@@ -540,7 +649,7 @@ prepareAndRunTest('GTE Zero', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, dbMsg2) => {
       addMsg(state.queue[2].value, raf, (err, dbMsg3) => {
         addMsg(state.queue[3].value, raf, (err, dbMsg4) => {
-          db.all(filterQuery, 0, false, false, (err, results) => {
+          db.all(filterQuery, 0, false, false, 'declared', (err, results) => {
             t.equal(results.length, 4)
             t.equal(results[0].value.content.text, '1')
             t.equal(results[1].value.content.text, '2')
@@ -586,11 +695,19 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(dataQuery, 0, 1, true, false, (err, { results }) => {
-          t.equal(results.length, 1)
-          t.equal(results[0].value.content.text, 'Testing no root')
-          t.end()
-        })
+        db.paginate(
+          dataQuery,
+          0,
+          1,
+          true,
+          false,
+          'declared',
+          (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, 'Testing no root')
+            t.end()
+          }
+        )
       })
     })
   })
@@ -614,7 +731,7 @@ prepareAndRunTest('Data seqs simple', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(dataQuery, 0, false, false, (err, results) => {
+        db.all(dataQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.name, 'Test')
           t.equal(results[1].value.content.text, 'Testing no root')
@@ -657,11 +774,19 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.paginate(dataQuery, 0, 1, true, false, (err, { results }) => {
-          t.equal(results.length, 1)
-          t.equal(results[0].value.content.text, 'Testing no root')
-          t.end()
-        })
+        db.paginate(
+          dataQuery,
+          0,
+          1,
+          true,
+          false,
+          'declared',
+          (err, { results }) => {
+            t.equal(results.length, 1)
+            t.equal(results[0].value.content.text, 'Testing no root')
+            t.end()
+          }
+        )
       })
     })
   })
@@ -713,7 +838,7 @@ prepareAndRunTest('Multiple ands', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(allQuery, 0, false, false, (err, results) => {
+        db.all(allQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
           t.end()
@@ -786,7 +911,7 @@ prepareAndRunTest('Multiple ors', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(allQuery, 0, false, false, (err, results) => {
+        db.all(allQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, 'Testing!')
           t.equal(results[1].value.content.text, 'Testing 2!')
@@ -824,7 +949,7 @@ prepareAndRunTest('Timestamp discontinuity', dir, (t, db, raf) => {
     addMsg(state.queue[0].value, raf, (err, m1) => {
       addMsg(state.queue[1].value, raf, (err, m2) => {
         addMsg(state.queue[2].value, raf, (err, m3) => {
-          db.all(authorQuery, 0, false, false, (err, results) => {
+          db.all(authorQuery, 0, false, false, 'declared', (err, results) => {
             t.equal(results.length, 3)
             t.equal(results[0].value.content.text, '3rd', '3rd ok')
             t.equal(results[1].value.content.text, '2nd', '2nd ok')
@@ -867,7 +992,7 @@ prepareAndRunTest('reindex corrupt indexes', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
 
           const dir = '/tmp/jitdb-query/indexesreindex corrupt indexes/'
@@ -879,10 +1004,17 @@ prepareAndRunTest('reindex corrupt indexes', dir, (t, db, raf) => {
                 // reload
                 db = require('../index')(raf, dir)
                 db.onReady(() => {
-                  db.all(typeQuery, 0, false, false, (err, results) => {
-                    t.equal(results.length, 2)
-                    t.end()
-                  })
+                  db.all(
+                    typeQuery,
+                    0,
+                    false,
+                    false,
+                    'declared',
+                    (err, results) => {
+                      t.equal(results.length, 2)
+                      t.end()
+                    }
+                  )
                 })
               })
             })

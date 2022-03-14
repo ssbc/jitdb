@@ -41,7 +41,7 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
@@ -86,11 +86,11 @@ prepareAndRunTest('Normal index renamed to prefix', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(normalQuery, 0, false, false, (err, results) => {
+        db.all(normalQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
-          db.all(prefixQuery, 0, false, false, (err, results2) => {
+          db.all(prefixQuery, 0, false, false, 'declared', (err, results2) => {
             t.equal(results2.length, 2)
             t.equal(results2[0].value.content.type, 'post')
             t.equal(results2[1].value.content.type, 'post')
@@ -138,18 +138,25 @@ prepareAndRunTest('Prefix index skips deleted records', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err1) => {
     addMsg(state.queue[1].value, raf, (err2) => {
       addMsg(state.queue[2].value, raf, (err3) => {
-        db.all(prefixQuery, 0, false, true, (err4, offsets) => {
+        db.all(prefixQuery, 0, false, true, 'declared', (err4, offsets) => {
           t.error(err4, 'no err4')
           t.deepEqual(offsets, [0, 760])
           raf.del(760, (err5) => {
             t.error(err5, 'no err5')
-            db.all(prefixQuery2, 0, false, false, (err6, results) => {
-              t.error(err6, 'no err6')
-              t.equal(results.length, 1)
-              t.equal(results[0].value.content.type, 'post')
-              t.equal(results[0].value.content.text, 'Testing!')
-              t.end()
-            })
+            db.all(
+              prefixQuery2,
+              0,
+              false,
+              false,
+              'declared',
+              (err6, results) => {
+                t.error(err6, 'no err6')
+                t.equal(results.length, 1)
+                t.equal(results[0].value.content.type, 'post')
+                t.equal(results[0].value.content.text, 'Testing!')
+                t.end()
+              }
+            )
           })
         })
       })
@@ -181,7 +188,7 @@ prepareAndRunTest('Prefix larger than actual value', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(channelQuery, 0, false, false, (err, results) => {
+        db.all(channelQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'First')
           t.end()
@@ -215,7 +222,7 @@ prepareAndRunTest('Prefix equal falsy', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(channelQuery, 0, false, false, (err, results) => {
+        db.all(channelQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.text, 'Second')
           t.equal(results[1].value.content.text, 'Third')
@@ -280,26 +287,33 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(voteQuery, 0, false, false, (err, results) => {
+        db.all(voteQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.type, 'vote')
 
           db = jitdb(raf, path.join(dir, 'indexes' + name))
           db.onReady(() => {
             addMsg(state.queue[3].value, raf, (err, msg) => {
-              db.all(voteQuery, 0, false, false, (err, results) => {
+              db.all(voteQuery, 0, false, false, 'declared', (err, results) => {
                 t.equal(results.length, 2)
 
                 db = jitdb(raf, path.join(dir, 'indexes' + name))
                 db.onReady(() => {
                   addMsg(state.queue[4].value, raf, (err, msg) => {
-                    db.all(voteQuery, 0, false, false, (err, results) => {
-                      t.equal(results.length, 3)
-                      t.equal(results[0].value.content.type, 'vote')
-                      t.equal(results[1].value.content.type, 'vote')
-                      t.equal(results[2].value.content.type, 'vote')
-                      t.end()
-                    })
+                    db.all(
+                      voteQuery,
+                      0,
+                      false,
+                      false,
+                      'declared',
+                      (err, results) => {
+                        t.equal(results.length, 3)
+                        t.equal(results[0].value.content.type, 'vote')
+                        t.equal(results[1].value.content.type, 'vote')
+                        t.equal(results[2].value.content.type, 'vote')
+                        t.end()
+                      }
+                    )
                   })
                 })
               })
@@ -335,7 +349,7 @@ prepareAndRunTest('Prefix equal unknown value', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(authorQuery, 0, false, false, (err, results) => {
+        db.all(authorQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 0)
           t.end()
         })
@@ -369,7 +383,7 @@ prepareAndRunTest('Prefix map equal', dir, (t, db, raf) => {
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(results[0].value.content.type, 'post')
           t.equal(results[1].value.content.type, 'post')
@@ -406,7 +420,7 @@ prepareAndRunTest('Prefix offset', dir, (t, db, raf) => {
           },
         }
 
-        db.all(keyQuery, 0, false, false, (err, results) => {
+        db.all(keyQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 2!')
           t.end()
@@ -436,7 +450,7 @@ prepareAndRunTest('Prefix offset 1 on empty', dir, (t, db, raf) => {
       },
     }
 
-    db.all(rootQuery, 0, false, false, (err, results) => {
+    db.all(rootQuery, 0, false, false, 'declared', (err, results) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.text, 'Testing!')
       t.end()
@@ -487,6 +501,7 @@ prepareAndRunTest('Prefix delete', dir, (t, db, raf) => {
           0,
           false,
           false,
+          'declared',
           (err, results) => {
             t.equal(results.length, 2)
             t.equal(results[0].value.content.type, 'post')
@@ -502,6 +517,7 @@ prepareAndRunTest('Prefix delete', dir, (t, db, raf) => {
                 1,
                 false,
                 false,
+                'declared',
                 (err, answer) => {
                   t.equal(answer.results.length, 1)
                   t.equal(answer.results[0].value.content.text, 'Testing 2!')

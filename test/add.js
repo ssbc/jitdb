@@ -38,100 +38,128 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     addMsg(state.queue[1].value, raf, (err, msg2) => {
-      db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
-        t.equal(results.length, 2)
-
-        // rerun on created index
-        db.paginate(typeQuery, 0, 10, true, false, (err, { results }) => {
+      db.paginate(
+        typeQuery,
+        0,
+        10,
+        false,
+        false,
+        'declared',
+        (err, { results }) => {
           t.equal(results.length, 2)
-          t.equal(results[0].value.author, keys2.id)
 
-          db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
-            t.equal(results.length, 2)
-            t.equal(results[0].value.author, keys.id)
+          // rerun on created index
+          db.paginate(
+            typeQuery,
+            0,
+            10,
+            true,
+            false,
+            'declared',
+            (err, { results }) => {
+              t.equal(results.length, 2)
+              t.equal(results[0].value.author, keys2.id)
 
-            const authorQuery = {
-              type: 'EQUAL',
-              data: {
-                seek: helpers.seekAuthor,
-                value: helpers.toBipf(keys.id),
-                indexType: 'author',
-                indexName: 'author_' + keys.id,
-              },
-            }
-            db.paginate(
-              authorQuery,
-              0,
-              10,
-              false,
-              false,
-              (err, { results }) => {
-                t.equal(results.length, 1)
-                t.equal(results[0].id, msg1.id)
+              db.paginate(
+                typeQuery,
+                0,
+                10,
+                false,
+                false,
+                'declared',
+                (err, { results }) => {
+                  t.equal(results.length, 2)
+                  t.equal(results[0].value.author, keys.id)
 
-                // rerun on created index
-                db.paginate(
-                  authorQuery,
-                  0,
-                  10,
-                  false,
-                  false,
-                  (err, { results }) => {
-                    t.equal(results.length, 1)
-                    t.equal(results[0].id, msg1.id)
-
-                    db.paginate(
-                      {
-                        type: 'AND',
-                        data: [authorQuery, typeQuery],
-                      },
-                      0,
-                      10,
-                      false,
-                      false,
-                      (err, { results }) => {
-                        t.equal(results.length, 1)
-                        t.equal(results[0].id, msg1.id)
-
-                        const authorQuery2 = {
-                          type: 'EQUAL',
-                          data: {
-                            seek: helpers.seekAuthor,
-                            value: helpers.toBipf(keys2.id),
-                            indexType: 'author',
-                            indexName: 'author_' + keys2.id,
-                          },
-                        }
-
-                        db.paginate(
-                          {
-                            type: 'AND',
-                            data: [
-                              typeQuery,
-                              {
-                                type: 'OR',
-                                data: [authorQuery, authorQuery2],
-                              },
-                            ],
-                          },
-                          0,
-                          10,
-                          false,
-                          false,
-                          (err, { results }) => {
-                            t.equal(results.length, 2)
-                            t.end()
-                          }
-                        )
-                      }
-                    )
+                  const authorQuery = {
+                    type: 'EQUAL',
+                    data: {
+                      seek: helpers.seekAuthor,
+                      value: helpers.toBipf(keys.id),
+                      indexType: 'author',
+                      indexName: 'author_' + keys.id,
+                    },
                   }
-                )
-              }
-            )
-          })
-        })
-      })
+                  db.paginate(
+                    authorQuery,
+                    0,
+                    10,
+                    false,
+                    false,
+                    'declared',
+                    (err, { results }) => {
+                      t.equal(results.length, 1)
+                      t.equal(results[0].id, msg1.id)
+
+                      // rerun on created index
+                      db.paginate(
+                        authorQuery,
+                        0,
+                        10,
+                        false,
+                        false,
+                        'declared',
+                        (err, { results }) => {
+                          t.equal(results.length, 1)
+                          t.equal(results[0].id, msg1.id)
+
+                          db.paginate(
+                            {
+                              type: 'AND',
+                              data: [authorQuery, typeQuery],
+                            },
+                            0,
+                            10,
+                            false,
+                            false,
+                            'declared',
+                            (err, { results }) => {
+                              t.equal(results.length, 1)
+                              t.equal(results[0].id, msg1.id)
+
+                              const authorQuery2 = {
+                                type: 'EQUAL',
+                                data: {
+                                  seek: helpers.seekAuthor,
+                                  value: helpers.toBipf(keys2.id),
+                                  indexType: 'author',
+                                  indexName: 'author_' + keys2.id,
+                                },
+                              }
+
+                              db.paginate(
+                                {
+                                  type: 'AND',
+                                  data: [
+                                    typeQuery,
+                                    {
+                                      type: 'OR',
+                                      data: [authorQuery, authorQuery2],
+                                    },
+                                  ],
+                                },
+                                0,
+                                10,
+                                false,
+                                false,
+                                'declared',
+                                (err, { results }) => {
+                                  t.equal(results.length, 2)
+                                  t.end()
+                                }
+                              )
+                            }
+                          )
+                        }
+                      )
+                    }
+                  )
+                }
+              )
+            }
+          )
+        }
+      )
     })
   })
 })
@@ -157,13 +185,13 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   t.equal(typeof db.status.value['type_post'], 'undefined')
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.all(typeQuery, 0, false, false, (err, results) => {
+    db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
       t.equal(results.length, 1)
       t.equal(db.status.value['seq'], 0)
       t.equal(db.status.value['type_post'], 0)
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
-        db.all(typeQuery, 0, false, false, (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
           t.equal(db.status.value['seq'], 352)
           t.equal(db.status.value['type_post'], 352)
@@ -199,7 +227,7 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect(() => {
-      db.paginate(typeQuery, 0, 1, false, false, () => {
+      db.paginate(typeQuery, 0, 1, false, false, 'declared', () => {
         t.pass(JSON.stringify(db.status.value))
         t.ok(db.status.value['seq'])
         t.ok(db.status.value['type_post'])
@@ -226,7 +254,7 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
             addMsg(q.value, raf, cb)
           }),
           push.collect(() => {
-            db.paginate(aboutQuery, 0, 1, false, false, () => {
+            db.paginate(aboutQuery, 0, 1, false, false, 'declared', () => {
               t.pass(JSON.stringify(db.status.value))
               t.ok(db.status.value['seq'])
               t.notOk(db.status.value['type_post'])
@@ -265,11 +293,19 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect((err, results) => {
-      db.paginate(typeQuery, 0, 1, false, false, (err, { results }) => {
-        t.equal(results.length, 1)
-        t.equal(results[0].value.content.text, 'Testing 31999')
-        t.end()
-      })
+      db.paginate(
+        typeQuery,
+        0,
+        1,
+        false,
+        false,
+        'declared',
+        (err, { results }) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing 31999')
+          t.end()
+        }
+      )
     })
   )
 })
@@ -314,7 +350,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
         addMsg(state.queue[3].value, raf, (err, msg) => {
-          db.all(authorQuery, 0, false, false, (err, results) => {
+          db.all(authorQuery, 0, false, false, 'declared', (err, results) => {
             t.error(err)
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
@@ -353,23 +389,37 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.all(typeQuery('post'), 0, false, false, (err, results) => {
+      db.all(typeQuery('post'), 0, false, false, 'declared', (err, results) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing 1')
 
         addMsg(state.queue[2].value, raf, (err, msg) => {
           addMsg(state.queue[3].value, raf, (err, msg) => {
-            db.all(typeQuery('about'), 0, false, false, (err, results) => {
-              t.equal(results.length, 1)
+            db.all(
+              typeQuery('about'),
+              0,
+              false,
+              false,
+              'declared',
+              (err, results) => {
+                t.equal(results.length, 1)
 
-              db.all(typeQuery('post'), 0, false, false, (err, results) => {
-                t.equal(results.length, 2)
-                t.deepEqual(db.indexes['type_post'].bitset.array(), [0, 2])
-                t.deepEqual(db.indexes['type_contact'].bitset.array(), [1])
-                t.deepEqual(db.indexes['type_about'].bitset.array(), [3])
-                t.end()
-              })
-            })
+                db.all(
+                  typeQuery('post'),
+                  0,
+                  false,
+                  false,
+                  'declared',
+                  (err, results) => {
+                    t.equal(results.length, 2)
+                    t.deepEqual(db.indexes['type_post'].bitset.array(), [0, 2])
+                    t.deepEqual(db.indexes['type_contact'].bitset.array(), [1])
+                    t.deepEqual(db.indexes['type_about'].bitset.array(), [3])
+                    t.end()
+                  }
+                )
+              }
+            )
           })
         })
       })

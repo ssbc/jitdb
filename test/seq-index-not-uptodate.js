@@ -39,7 +39,7 @@ prepareAndRunTest('Ensure seq index is updated always', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.all(typeQuery, 0, false, false, (err, results) => {
+      db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.type, 'post')
 
@@ -51,7 +51,7 @@ prepareAndRunTest('Ensure seq index is updated always', dir, (t, db, raf) => {
         }
 
         addMsg(state.queue[2].value, raf, (err, msg) => {
-          db.all(typeQuery, 0, false, false, (err, results) => {
+          db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
             t.equal(results.length, 2)
             t.equal(results[0].value.content.type, 'post')
             t.equal(results[1].value.content.type, 'post')

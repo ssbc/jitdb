@@ -1339,11 +1339,6 @@ module.exports = function (log, indexesPath) {
   }
 
   function paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb) {
-    if (!cb) {
-      cb = sortBy
-      sortBy = 'declared'
-    }
-
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1378,11 +1373,6 @@ module.exports = function (log, indexesPath) {
   }
 
   function all(operation, seq, descending, onlyOffset, sortBy, cb) {
-    if (!cb) {
-      cb = sortBy
-      sortBy = 'declared'
-    }
-
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {

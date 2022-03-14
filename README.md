@@ -493,10 +493,12 @@ log.
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
 query is run. `onlyOffset` can be used to return offset instead of the
-actual messages. `sortBy` defaults to creation time of messages. By
-setting this to `arrival`, the results are sorted by when they were
-added to the database. This can be important for messages from other
-peers that might arrive out of order compared when they were created.
+actual messages. `sortBy` determines what timestamp to use for
+ordering messages. Can take values `declared` or `arrival`. `declared`
+refers to the timestamp for when a message was created, while
+`arrival` refers to when a message was added to the database. This can
+be important for messages from other peers that might arrive out of
+order compared when they were created.
 
 The result is an object with the fields:
 
