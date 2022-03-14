@@ -31,7 +31,8 @@ module.exports = function (log, indexesPath) {
   debug('indexes path', indexesPath)
 
   let bitsetCache = new WeakMap()
-  let sortedCache = { ascending: new WeakMap(), descending: new WeakMap() }
+  let sortedTSCache = { ascending: new WeakMap(), descending: new WeakMap() }
+  let sortedSeqCache = { ascending: new WeakMap(), descending: new WeakMap() }
   let cacheOffset = -1
 
   const status = Status()
@@ -164,12 +165,18 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function clearCache() {
+    bitsetCache = new WeakMap()
+    sortedTSCache.ascending = new WeakMap()
+    sortedTSCache.descending = new WeakMap()
+    sortedSeqCache.ascending = new WeakMap()
+    sortedSeqCache.descending = new WeakMap()
+  }
+
   function updateCacheWithLog() {
     if (log.since.value > cacheOffset) {
       cacheOffset = log.since.value
-      bitsetCache = new WeakMap()
-      sortedCache.ascending = new WeakMap()
-      sortedCache.descending = new WeakMap()
+      clearCache()
     }
   }
 
@@ -1174,28 +1181,45 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function compareAscending(a, b) {
+  function compareTSAscending(a, b) {
     return b.timestamp > a.timestamp
   }
 
-  function compareDescending(a, b) {
+  function compareTSDescending(a, b) {
     return a.timestamp > b.timestamp
   }
 
-  function sortedByTimestamp(bitset, descending) {
+  function compareSeqAscending(a, b) {
+    return b.seq > a.seq
+  }
+
+  function compareSeqDescending(a, b) {
+    return a.seq > b.seq
+  }
+
+  function sortedBy(bitset, descending, sortBy) {
     updateCacheWithLog()
     const order = descending ? 'descending' : 'ascending'
+    const sortedCache = sortBy === 'arrival' ? sortedSeqCache : sortedTSCache
+    const comparer =
+      sortBy === 'arrival'
+        ? descending
+          ? compareSeqDescending
+          : compareSeqAscending
+        : descending
+        ? compareTSDescending
+        : compareTSAscending
+
     if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
-    const fpq = new FastPriorityQueue(
-      descending ? compareDescending : compareAscending
-    )
-    bitset.forEach((seq) => {
-      fpq.add({
-        seq,
-        timestamp: indexes['timestamp'].tarr[seq],
+    const fpq = new FastPriorityQueue(comparer)
+    fpq.heapify(
+      bitset.array().map((seq) => {
+        return {
+          seq,
+          timestamp: indexes['timestamp'].tarr[seq],
+        }
       })
-    })
-    fpq.trim()
+    )
     sortedCache[order].set(bitset, fpq)
     return fpq
   }
@@ -1241,11 +1265,12 @@ module.exports = function (log, indexesPath) {
     limit,
     descending,
     onlyOffset,
+    sortBy,
     cb
   ) {
     seq = seq || 0
 
-    const sorted = sortedByTimestamp(bitset, descending)
+    const sorted = sortedBy(bitset, descending, sortBy)
     const resultSize = sorted.size
 
     // seq -> record buffer
@@ -1313,7 +1338,12 @@ module.exports = function (log, indexesPath) {
     else return bitset.size() - seq
   }
 
-  function paginate(operation, seq, limit, descending, onlyOffset, cb) {
+  function paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb) {
+    if (!cb) {
+      cb = sortBy
+      sortBy = 'declared'
+    }
+
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1326,6 +1356,7 @@ module.exports = function (log, indexesPath) {
           limit,
           descending,
           onlyOffset,
+          sortBy,
           (err1, answer) => {
             if (err1) cb(err1)
             else {
@@ -1346,7 +1377,12 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function all(operation, seq, descending, onlyOffset, cb) {
+  function all(operation, seq, descending, onlyOffset, sortBy, cb) {
+    if (!cb) {
+      cb = sortBy
+      sortBy = 'declared'
+    }
+
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1359,6 +1395,7 @@ module.exports = function (log, indexesPath) {
           Infinity,
           descending,
           onlyOffset,
+          sortBy,
           (err1, answer) => {
             if (err1) cb(err1)
             else {
@@ -1531,9 +1568,7 @@ module.exports = function (log, indexesPath) {
       push.collect((err) => {
         if (err) return cb(err)
 
-        bitsetCache = new WeakMap()
-        sortedCache.ascending = new WeakMap()
-        sortedCache.descending = new WeakMap()
+        clearCache()
         cb()
       })
     )
