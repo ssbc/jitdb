@@ -432,7 +432,7 @@ const {
   startFrom,
   descending,
   asOffsets,
-  sortBy,
+  sortByArrival,
   debug,
   toCallback,
   toPullStream,

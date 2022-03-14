@@ -387,8 +387,8 @@ function descending() {
   return (ops) => updateMeta(ops, 'descending', true)
 }
 
-function sortBy(sortOption) {
-  return (ops) => updateMeta(ops, 'sortBy', sortOption)
+function sortByArrival() {
+  return (ops) => updateMeta(ops, 'sortBy', 'arrival')
 }
 
 function startFrom(seq) {
@@ -601,7 +601,7 @@ module.exports = {
   offsets,
 
   descending,
-  sortBy,
+  sortByArrival,
   count,
   startFrom,
   paginate,

@@ -35,7 +35,7 @@ const {
   live,
   count,
   descending,
-  sortBy,
+  sortByArrival,
   asOffsets,
   toCallback,
   toPromise,
@@ -443,7 +443,7 @@ prepareAndRunTest(
     const queryTreeSortBy = query(
       fromDB(db),
       where(slowEqual('value.content.type', 'post')),
-      sortBy('arrival')
+      sortByArrival()
     )
 
     const queryTreeAll = query(
@@ -452,7 +452,7 @@ prepareAndRunTest(
       startFrom(5),
       paginate(10),
       descending(),
-      sortBy('arrival')
+      sortByArrival()
     )
 
     t.equal(queryTreePaginate.meta.pageSize, 10)
@@ -957,7 +957,7 @@ prepareAndRunTest('operators toCallback with sortBy', dir, (t, db, raf) => {
             slowEqual('value.author', bob.id)
           )
         ),
-        sortBy('arrival'),
+        sortByArrival(),
         toCallback((err, msgs) => {
           t.error(err, 'toCallback got no error')
           t.equal(msgs.length, 2, 'toCallback got two messages')

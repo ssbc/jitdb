@@ -1181,11 +1181,11 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function compareAscending(a, b) {
+  function compareTSAscending(a, b) {
     return b.timestamp > a.timestamp
   }
 
-  function compareDescending(a, b) {
+  function compareTSDescending(a, b) {
     return a.timestamp > b.timestamp
   }
 
@@ -1207,8 +1207,8 @@ module.exports = function (log, indexesPath) {
           ? compareSeqDescending
           : compareSeqAscending
         : descending
-        ? compareDescending
-        : compareAscending
+        ? compareTSDescending
+        : compareTSAscending
 
     if (sortedCache[order].has(bitset)) return sortedCache[order].get(bitset)
     const fpq = new FastPriorityQueue(comparer)
