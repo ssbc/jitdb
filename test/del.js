@@ -39,14 +39,22 @@ prepareAndRunTest('Delete', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, msg2, offset2) => {
       addMsg(state.queue[2].value, raf, (err, msg3) => {
         raf.del(offset2, () => {
-          db.paginate(typeQuery, 0, 10, false, false, (err, { results }) => {
-            t.deepEqual(results, [msg1, msg3])
-
-            db.all(typeQuery, 0, false, false, (err, results) => {
+          db.paginate(
+            typeQuery,
+            0,
+            10,
+            false,
+            false,
+            'declared',
+            (err, { results }) => {
               t.deepEqual(results, [msg1, msg3])
-              t.end()
-            })
-          })
+
+              db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+                t.deepEqual(results, [msg1, msg3])
+                t.end()
+              })
+            }
+          )
         })
       })
     })
