@@ -487,7 +487,7 @@ First some terminology: offset refers to the byte position in the log
 of a message. Seq refers to the 0-based position of a message in the
 log.
 
-### paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb)
+### paginate(operation, seq, limit, descending, onlyOffset, sortBy, groupBy, cb)
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
@@ -497,7 +497,10 @@ ordering messages. Can take values `declared` or `arrival`. `declared`
 refers to the timestamp for when a message was created, while
 `arrival` refers to when a message was added to the database. This can
 be important for messages from other peers that might arrive out of
-order compared when they were created.
+order compared when they were created. `groupBy` if used, must be a
+function that takes a buffer as input and returns an index in the
+buffer of the value used for grouping. The idea is to only get 1
+result per grouped value.
 
 The result is an object with the fields:
 

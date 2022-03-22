@@ -45,6 +45,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
         false,
         false,
         'declared',
+        null,
         (err, { results }) => {
           t.equal(results.length, 2)
 
@@ -56,6 +57,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
             true,
             false,
             'declared',
+            null,
             (err, { results }) => {
               t.equal(results.length, 2)
               t.equal(results[0].value.author, keys2.id)
@@ -67,6 +69,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                 false,
                 false,
                 'declared',
+                null,
                 (err, { results }) => {
                   t.equal(results.length, 2)
                   t.equal(results[0].value.author, keys.id)
@@ -87,6 +90,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                     false,
                     false,
                     'declared',
+                    null,
                     (err, { results }) => {
                       t.equal(results.length, 1)
                       t.equal(results[0].id, msg1.id)
@@ -99,6 +103,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                         false,
                         false,
                         'declared',
+                        null,
                         (err, { results }) => {
                           t.equal(results.length, 1)
                           t.equal(results[0].id, msg1.id)
@@ -113,6 +118,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                             false,
                             false,
                             'declared',
+                            null,
                             (err, { results }) => {
                               t.equal(results.length, 1)
                               t.equal(results[0].id, msg1.id)
@@ -143,6 +149,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                                 false,
                                 false,
                                 'declared',
+                                null,
                                 (err, { results }) => {
                                   t.equal(results.length, 2)
                                   t.end()
@@ -185,13 +192,13 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   t.equal(typeof db.status.value['type_post'], 'undefined')
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+    db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
       t.equal(results.length, 1)
       t.equal(db.status.value['seq'], 0)
       t.equal(db.status.value['type_post'], 0)
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
-        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
           t.equal(results.length, 2)
           t.equal(db.status.value['seq'], 352)
           t.equal(db.status.value['type_post'], 352)
@@ -227,7 +234,7 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect(() => {
-      db.paginate(typeQuery, 0, 1, false, false, 'declared', () => {
+      db.paginate(typeQuery, 0, 1, false, false, 'declared', null, () => {
         t.pass(JSON.stringify(db.status.value))
         t.ok(db.status.value['seq'])
         t.ok(db.status.value['type_post'])
@@ -254,13 +261,22 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
             addMsg(q.value, raf, cb)
           }),
           push.collect(() => {
-            db.paginate(aboutQuery, 0, 1, false, false, 'declared', () => {
-              t.pass(JSON.stringify(db.status.value))
-              t.ok(db.status.value['seq'])
-              t.notOk(db.status.value['type_post'])
-              t.ok(db.status.value['type_about'])
-              t.end()
-            })
+            db.paginate(
+              aboutQuery,
+              0,
+              1,
+              false,
+              false,
+              'declared',
+              null,
+              () => {
+                t.pass(JSON.stringify(db.status.value))
+                t.ok(db.status.value['seq'])
+                t.notOk(db.status.value['type_post'])
+                t.ok(db.status.value['type_about'])
+                t.end()
+              }
+            )
           })
         )
       })
@@ -300,6 +316,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
         false,
         false,
         'declared',
+        null,
         (err, { results }) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 31999')
@@ -350,13 +367,21 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
       addMsg(state.queue[2].value, raf, (err, msg) => {
         addMsg(state.queue[3].value, raf, (err, msg) => {
-          db.all(authorQuery, 0, false, false, 'declared', (err, results) => {
-            t.error(err)
-            t.equal(results.length, 1)
-            t.equal(results[0].value.content.text, 'Testing 1')
-            t.equal(Object.keys(db.indexes).length, 3 + 2 + 1 + 1)
-            t.end()
-          })
+          db.all(
+            authorQuery,
+            0,
+            false,
+            false,
+            'declared',
+            null,
+            (err, results) => {
+              t.error(err)
+              t.equal(results.length, 1)
+              t.equal(results[0].value.content.text, 'Testing 1')
+              t.equal(Object.keys(db.indexes).length, 3 + 2 + 1 + 1)
+              t.end()
+            }
+          )
         })
       })
     })
@@ -389,40 +414,55 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
     addMsg(state.queue[1].value, raf, (err, msg) => {
-      db.all(typeQuery('post'), 0, false, false, 'declared', (err, results) => {
-        t.equal(results.length, 1)
-        t.equal(results[0].value.content.text, 'Testing 1')
+      db.all(
+        typeQuery('post'),
+        0,
+        false,
+        false,
+        'declared',
+        null,
+        (err, results) => {
+          t.equal(results.length, 1)
+          t.equal(results[0].value.content.text, 'Testing 1')
 
-        addMsg(state.queue[2].value, raf, (err, msg) => {
-          addMsg(state.queue[3].value, raf, (err, msg) => {
-            db.all(
-              typeQuery('about'),
-              0,
-              false,
-              false,
-              'declared',
-              (err, results) => {
-                t.equal(results.length, 1)
+          addMsg(state.queue[2].value, raf, (err, msg) => {
+            addMsg(state.queue[3].value, raf, (err, msg) => {
+              db.all(
+                typeQuery('about'),
+                0,
+                false,
+                false,
+                'declared',
+                null,
+                (err, results) => {
+                  t.equal(results.length, 1)
 
-                db.all(
-                  typeQuery('post'),
-                  0,
-                  false,
-                  false,
-                  'declared',
-                  (err, results) => {
-                    t.equal(results.length, 2)
-                    t.deepEqual(db.indexes['type_post'].bitset.array(), [0, 2])
-                    t.deepEqual(db.indexes['type_contact'].bitset.array(), [1])
-                    t.deepEqual(db.indexes['type_about'].bitset.array(), [3])
-                    t.end()
-                  }
-                )
-              }
-            )
+                  db.all(
+                    typeQuery('post'),
+                    0,
+                    false,
+                    false,
+                    'declared',
+                    null,
+                    (err, results) => {
+                      t.equal(results.length, 2)
+                      t.deepEqual(db.indexes['type_post'].bitset.array(), [
+                        0,
+                        2,
+                      ])
+                      t.deepEqual(db.indexes['type_contact'].bitset.array(), [
+                        1,
+                      ])
+                      t.deepEqual(db.indexes['type_about'].bitset.array(), [3])
+                      t.end()
+                    }
+                  )
+                }
+              )
+            })
           })
-        })
-      })
+        }
+      )
     })
   })
 })

@@ -79,22 +79,30 @@ prepareAndRunTest('reindex seq offset', dir, (t, db, raf) => {
   }
 
   addThreeMessages(raf, () => {
-    db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+    db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
       t.equal(results.length, 2)
       t.equal(results[0].value.content.type, 'post')
       t.equal(results[1].value.content.type, 'post')
 
       db.reindex(0, () => {
-        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
           t.equal(results.length, 2)
 
           const secondMsgOffset = 352
           db.reindex(secondMsgOffset, () => {
-            db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
-              t.equal(results.length, 2)
+            db.all(
+              typeQuery,
+              0,
+              false,
+              false,
+              'declared',
+              null,
+              (err, results) => {
+                t.equal(results.length, 2)
 
-              t.end()
-            })
+                t.end()
+              }
+            )
           })
         })
       })
@@ -116,13 +124,13 @@ prepareAndRunTest('reindex bitset', dir, (t, db, raf) => {
   }
 
   addThreeMessages(raf, () => {
-    db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+    db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.type, 'post')
 
       db.reindex(0, () => {
         removeFilter()
-        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })
@@ -147,13 +155,13 @@ prepareAndRunTest('reindex prefix', dir, (t, db, raf) => {
   }
 
   addThreeMessages(raf, () => {
-    db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+    db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.type, 'post')
 
       db.reindex(0, () => {
         removeFilter()
-        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })
@@ -179,13 +187,13 @@ prepareAndRunTest('reindex prefix map', dir, (t, db, raf) => {
   }
 
   addThreeMessages(raf, () => {
-    db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+    db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
       t.equal(results.length, 1)
       t.equal(results[0].value.content.type, 'post')
 
       db.reindex(0, () => {
         removeFilter()
-        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+        db.all(typeQuery, 0, false, false, 'declared', null, (err, results) => {
           t.equal(results.length, 2)
           t.end()
         })

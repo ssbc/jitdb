@@ -10,6 +10,7 @@ const ssbKeys = require('ssb-keys')
 const { prepareAndRunTest, addMsg, helpers } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const { seekKey } = require('bipf')
 const {
   query,
   and,
@@ -36,6 +37,7 @@ const {
   count,
   descending,
   sortByArrival,
+  groupBy,
   asOffsets,
   toCallback,
   toPromise,
@@ -446,13 +448,16 @@ prepareAndRunTest(
       sortByArrival()
     )
 
+    const groupByFunc = (buf) => 1
+
     const queryTreeAll = query(
       fromDB(db),
       where(slowEqual('value.content.type', 'post')),
       startFrom(5),
       paginate(10),
       descending(),
-      sortByArrival()
+      sortByArrival(),
+      groupBy(groupByFunc)
     )
 
     t.equal(queryTreePaginate.meta.pageSize, 10)
@@ -464,6 +469,7 @@ prepareAndRunTest(
     t.equal(queryTreeAll.meta.seq, 5)
     t.equal(queryTreeAll.meta.descending, true)
     t.equal(queryTreeAll.meta.sortBy, 'arrival')
+    t.equal(queryTreeAll.meta.groupBy, groupByFunc)
 
     t.end()
   }
@@ -968,6 +974,70 @@ prepareAndRunTest('operators toCallback with sortBy', dir, (t, db, raf) => {
           t.end()
         })
       )
+    })
+  })
+})
+
+prepareAndRunTest('operators toCallback with groupBy', dir, (t, db, raf) => {
+  const msg = { type: 'post', text: 'Test 1' }
+  const msg2 = { type: 'posty', text: 'Testing!' }
+  const msg3 = { type: 'post', text: 'Test 2' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 3)
+
+  function groupByType(buffer) {
+    let p = 0 // note you pass in p!
+    p = seekKey(buffer, p, 'value')
+    if (p < 0) return
+    p = seekKey(buffer, p, 'content')
+    if (p < 0) return
+    return seekKey(buffer, p, 'type')
+  }
+
+  // simulate messages was replicated out of order
+  addMsg(state.queue[0].value, raf, () => {
+    addMsg(state.queue[1].value, raf, () => {
+      addMsg(state.queue[2].value, raf, () => {
+        addMsg(state.queue[3].value, raf, () => {
+          query(
+            fromDB(db),
+            where(slowEqual('value.author', alice.id)),
+            descending(),
+            groupBy(groupByType),
+            toCallback((err, msgs) => {
+              console.log('first query done')
+              t.error(err, 'toCallback got no error')
+              t.equal(msgs.length, 2, 'toCallback got two messages')
+              t.equal(msgs[0].value.author, alice.id)
+              t.equal(msgs[0].value.content.type, 'post')
+              t.equal(msgs[0].value.content.text, 'Test 2')
+              t.equal(msgs[1].value.author, alice.id)
+              t.equal(msgs[1].value.content.type, 'posty')
+
+              query(
+                fromDB(db),
+                where(slowEqual('value.author', alice.id)),
+                startFrom(1),
+                paginate(1),
+                groupBy(groupByType),
+                toCallback((err, result) => {
+                  console.log('second query done')
+                  t.error(err, 'toCallback got no error')
+                  const msgs = result.results
+                  t.equal(msgs.length, 1, 'toCallback got one message')
+                  t.equal(msgs[0].value.author, alice.id)
+                  t.equal(msgs[0].value.content.type, 'posty')
+
+                  t.end()
+                })
+              )
+            })
+          )
+        })
+      })
     })
   })
 })

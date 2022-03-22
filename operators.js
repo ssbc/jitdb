@@ -391,6 +391,10 @@ function sortByArrival() {
   return (ops) => updateMeta(ops, 'sortBy', 'arrival')
 }
 
+function groupBy(seek) {
+  return (ops) => updateMeta(ops, 'groupBy', seek)
+}
+
 function startFrom(seq) {
   return (ops) => updateMeta(ops, 'seq', seq)
 }
@@ -484,7 +488,7 @@ function toCallback(cb) {
       if (end) return cb(end)
 
       const seq = meta.seq || 0
-      const { pageSize, descending, asOffsets, sortBy } = meta
+      const { pageSize, descending, asOffsets, sortBy, groupBy } = meta
       if (meta.count) meta.jitdb.count(ops, seq, descending, cb)
       else if (pageSize)
         meta.jitdb.paginate(
@@ -494,9 +498,10 @@ function toCallback(cb) {
           descending,
           asOffsets,
           sortBy,
+          groupBy,
           cb
         )
-      else meta.jitdb.all(ops, seq, descending, asOffsets, sortBy, cb)
+      else meta.jitdb.all(ops, seq, descending, asOffsets, sortBy, groupBy, cb)
     })
   }
 }
@@ -530,6 +535,7 @@ function toPullStream() {
             meta.descending,
             meta.asOffsets,
             meta.sortBy,
+            meta.groupBy,
             (err, answer) => {
               if (err) return cb(err)
               else if (answer.total === 0) cb(true)
@@ -602,6 +608,7 @@ module.exports = {
 
   descending,
   sortByArrival,
+  groupBy,
   count,
   startFrom,
   paginate,
