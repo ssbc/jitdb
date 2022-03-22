@@ -58,15 +58,15 @@
     "ssb-ref": "^2.14.3",
     "ssb-validate": "^4.1.1",
     "tap-bail": "^1.0.0",
-    "tap-spec": "^5.0.0",
+    "tap-arc": "^0.1.2",
     "tape": "^5.2.2"
   },
   "scripts": {
-    "test": "tape test/*.js | tap-bail | tap-spec",
+    "test": "tape test/*.js | tap-bail | tap-arc",
     "format-code": "prettier --write \"*.js\" \"test/*.js\"",
     "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\"",
-    "benchmark": "node benchmark/index.js | tap-spec",
-    "benchmark-no-create": "node benchmark/index.js noCreate | tap-spec",
+    "benchmark": "node benchmark/index.js | tap-arc",
+    "benchmark-no-create": "node benchmark/index.js noCreate | tap-arc",
     "get-benchmark-matrix": "GET_BENCHMARK_MATRIX=1 node benchmark/index.js",
     "benchmark-only-create": "FIXTURES_ONLY=1 node benchmark/index.js"
   },
