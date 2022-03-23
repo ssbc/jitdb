@@ -40,7 +40,7 @@ prepareAndRunTest('Bitvector index version bumped', dir, (t, db, raf) => {
   }
 
   addMsg(state.queue[0].value, raf, (err, msg) => {
-    db.all(postQuery, 0, false, false, 'declared', (err, results) => {
+    db.all(postQuery, 0, false, false, 'declared', null, (err, results) => {
       t.error(err)
       t.equal(results.length, 1)
       t.equal(results[0].value.content.text, 'Testing 1')
@@ -56,7 +56,7 @@ prepareAndRunTest('Bitvector index version bumped', dir, (t, db, raf) => {
         },
       }
 
-      db.all(postQuery2, 0, false, false, 'declared', (err, results) => {
+      db.all(postQuery2, 0, false, false, 'declared', null, (err, results) => {
         t.error(err)
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing 1')
@@ -84,7 +84,7 @@ prepareAndRunTest('Prefix map index version bumped', dir, (t, db, raf) => {
           },
         }
 
-        db.all(keyQuery, 0, false, false, 'declared', (err, results) => {
+        db.all(keyQuery, 0, false, false, 'declared', null, (err, results) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing post 2!')
 
@@ -102,11 +102,19 @@ prepareAndRunTest('Prefix map index version bumped', dir, (t, db, raf) => {
             },
           }
 
-          db.all(keyQuery2, 0, false, false, 'declared', (err, results) => {
-            t.equal(results.length, 1)
-            t.equal(results[0].value.content.text, 'Testing post 2!')
-            t.end()
-          })
+          db.all(
+            keyQuery2,
+            0,
+            false,
+            false,
+            'declared',
+            null,
+            (err, results) => {
+              t.equal(results.length, 1)
+              t.equal(results[0].value.content.text, 'Testing post 2!')
+              t.end()
+            }
+          )
         })
       })
     })

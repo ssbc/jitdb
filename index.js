@@ -1267,12 +1267,47 @@ module.exports = function (log, indexesPath) {
     descending,
     onlyOffset,
     sortBy,
+    groupBy,
     cb
   ) {
     seq = seq || 0
 
-    const sorted = sortedBy(bitset, descending, sortBy)
-    const resultSize = sorted.size
+    let sortedBitset = sortedBy(bitset, descending, sortBy)
+
+    if (groupBy) {
+      let seqs = sortedBitset.kSmallest(Infinity).map((x) => x.seq)
+      const uniqueByValue = new Map()
+      push(
+        push.values(seqs),
+        push.asyncMap(getRecord),
+        push.drain(
+          (record) => {
+            const fieldStart = groupBy(record.value)
+            if (fieldStart < 0) return true
+            const value = bipf.decode(record.value, fieldStart)
+            if (!uniqueByValue.has(value))
+              uniqueByValue.set(value, record.value)
+
+            if (uniqueByValue.size == seq + limit) return false
+          },
+          (early) => {
+            if (early) return
+
+            const results = Array.from(uniqueByValue.values())
+              .slice(seq)
+              .map((x) => bipf.decode(x, 0))
+            cb(null, {
+              results: results,
+              total: results.length,
+            })
+          }
+        )
+      )
+      return
+    }
+
+    const sorted = sortedBitset
+    const resultSize = sortedBitset.size
 
     // seq -> record buffer
     const recBufferCache = {}
@@ -1339,7 +1374,16 @@ module.exports = function (log, indexesPath) {
     else return bitset.size() - seq
   }
 
-  function paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb) {
+  function paginate(
+    operation,
+    seq,
+    limit,
+    descending,
+    onlyOffset,
+    sortBy,
+    groupBy,
+    cb
+  ) {
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1353,6 +1397,7 @@ module.exports = function (log, indexesPath) {
           descending,
           onlyOffset,
           sortBy,
+          groupBy,
           (err1, answer) => {
             if (err1) cb(err1)
             else {
@@ -1373,7 +1418,7 @@ module.exports = function (log, indexesPath) {
     })
   }
 
-  function all(operation, seq, descending, onlyOffset, sortBy, cb) {
+  function all(operation, seq, descending, onlyOffset, sortBy, groupBy, cb) {
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1387,6 +1432,7 @@ module.exports = function (log, indexesPath) {
           descending,
           onlyOffset,
           sortBy,
+          groupBy,
           (err1, answer) => {
             if (err1) cb(err1)
             else {

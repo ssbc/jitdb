@@ -46,13 +46,22 @@ prepareAndRunTest('Delete', dir, (t, db, raf) => {
             false,
             false,
             'declared',
+            null,
             (err, { results }) => {
               t.deepEqual(results, [msg1, msg3])
 
-              db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
-                t.deepEqual(results, [msg1, msg3])
-                t.end()
-              })
+              db.all(
+                typeQuery,
+                0,
+                false,
+                false,
+                'declared',
+                null,
+                (err, results) => {
+                  t.deepEqual(results, [msg1, msg3])
+                  t.end()
+                }
+              )
             }
           )
         })

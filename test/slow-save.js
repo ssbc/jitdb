@@ -64,7 +64,7 @@ prepareAndRunTest('wip-index-save', dir, (t, db, raf) => {
       t.equal(results1.length, TOTAL)
 
       // Run some empty query to update the core indexes
-      db.all({}, 0, false, false, 'declared', (err2, results2) => {
+      db.all({}, 0, false, false, 'declared', null, (err2, results2) => {
         t.error(err2, 'indexed core with ' + TOTAL + ' msgs with no error')
         t.equal(results2.length, TOTAL)
 
@@ -103,14 +103,22 @@ prepareAndRunTest('wip-index-save', dir, (t, db, raf) => {
         }, 65e3)
 
         // Run an actual query to check if it saves every 1min
-        db.all(typeQuery, 0, false, false, 'declared', (err3, results3) => {
-          t.error(err3, 'indexed ' + TOTAL + ' msgs no error')
-          t.equal(results3.length, TOTAL)
+        db.all(
+          typeQuery,
+          0,
+          false,
+          false,
+          'declared',
+          null,
+          (err3, results3) => {
+            t.error(err3, 'indexed ' + TOTAL + ' msgs no error')
+            t.equal(results3.length, TOTAL)
 
-          t.true(savedAfter1min, 'saved after 1 min')
-          rimraf.sync(dir) // this folder is quite large, lets save space
-          t.end()
-        })
+            t.true(savedAfter1min, 'saved after 1 min')
+            rimraf.sync(dir) // this folder is quite large, lets save space
+            t.end()
+          }
+        )
       })
     })
   )
