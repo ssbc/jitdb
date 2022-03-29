@@ -567,6 +567,13 @@ will be the messages directly.
 
 Similar to `all` except it does not fetch records from the log, it only responds with a number that tells the total amount of records matching the operation.
 
+### prepare(operation, cb)
+
+Ensures that the indexes in the `operation` are up-to-date by creating or
+updating them, if necessary. This is not a query, as it won't return any
+results. When done, the callback `cb` is just called with the "duration" of
+index preparation as the second argument.
+
 ### live(operation, cb)
 
 Will setup a pull stream and this in `cb`. The pull stream will emit

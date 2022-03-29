@@ -426,3 +426,40 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
     })
   })
 })
+
+prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
+  let msg = { type: 'post', text: 'Testing' }
+  let state = validate.initial()
+  for (var i = 0; i < 1000; ++i) {
+    msg.text = 'Testing ' + i
+    state = validate.appendNew(state, null, keys, msg, Date.now() + i)
+  }
+
+  const typeQuery = {
+    type: 'EQUAL',
+    data: {
+      seek: helpers.seekType,
+      value: helpers.toBipf('post'),
+      indexType: 'type',
+      indexName: 'type_post',
+    },
+  }
+
+  push(
+    push.values(state.queue),
+    push.asyncMap((q, cb) => {
+      addMsg(q.value, raf, cb)
+    }),
+    push.collect((err, results) => {
+      db.prepare(typeQuery, (err, duration) => {
+        t.error(err, 'no error')
+        t.equals(typeof duration, 'number')
+        t.ok(duration)
+        db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+          t.equal(results.length, 1000)
+          t.end()
+        })
+      })
+    })
+  )
+})
