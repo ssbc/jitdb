@@ -841,8 +841,8 @@ module.exports = function (log, indexesPath) {
     const seqs = []
     opOffsets.sort((x, y) => x - y)
     const opOffsetsLen = opOffsets.length
-    const { tarr } = indexes['seq']
-    for (let seq = 0, len = tarr.length; seq < len; ++seq) {
+    const { tarr, count } = indexes['seq']
+    for (let seq = 0; seq < count; ++seq) {
       if (bsb.eq(opOffsets, tarr[seq]) !== -1) seqs.push(seq)
       if (seqs.length === opOffsetsLen) break
     }
@@ -1513,7 +1513,7 @@ module.exports = function (log, indexesPath) {
       prevOffset = indexes['seq'].tarr[seq - 1]
     }
 
-    if (prevOffset === 0 && seq === indexes['seq'].tarr.length) {
+    if (prevOffset === 0 && seq === indexes['seq'].count) {
       // not found
       seq = 1
     }
