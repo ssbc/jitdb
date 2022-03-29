@@ -10,19 +10,9 @@ module.exports = function Status() {
   const obv = Obv()
   obv.set(indexesStatus)
   const EMIT_INTERVAL = 1000 // ms
-  const PRUNE_INTERVAL = 2000 // ms
   let i = 0
   let iTimer = 0
   let timer = null
-
-  function pruneStatus() {
-    const now = Date.now()
-    for (const indexName in indexesStatus) {
-      if (indexesLastTime[indexName] + PRUNE_INTERVAL < now) {
-        delete indexesStatus[indexName]
-      }
-    }
-  }
 
   function setTimer() {
     // Turn on
@@ -34,7 +24,6 @@ module.exports = function Status() {
         i = iTimer = 0
       } else {
         iTimer = i
-        pruneStatus()
         obv.set(indexesStatus)
       }
     }, EMIT_INTERVAL)
@@ -44,14 +33,16 @@ module.exports = function Status() {
   function batchUpdate(indexes, names) {
     const now = Date.now()
     for (const indexName of names) {
-      indexesStatus[indexName] = indexes[indexName].offset
-      indexesLastTime[indexName] = now
+      const previous = indexesStatus[indexName] || -Infinity
+      if (indexes[indexName].offset > previous) {
+        indexesStatus[indexName] = indexes[indexName].offset
+        indexesLastTime[indexName] = now
+      }
     }
 
     ++i
     if (!timer) {
       iTimer = i
-      pruneStatus()
       obv.set(indexesStatus)
       setTimer()
     }
