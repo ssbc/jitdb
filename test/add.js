@@ -451,10 +451,12 @@ prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect((err, results) => {
+      t.notOk(db.indexes['type_post'])
       db.prepare(typeQuery, (err, duration) => {
         t.error(err, 'no error')
         t.equals(typeof duration, 'number')
         t.ok(duration)
+        t.ok(db.indexes['type_post'])
         db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 1000)
           t.end()
