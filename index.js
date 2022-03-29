@@ -305,6 +305,21 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function getSeqFromOffset(offset) {
+    if (offset === -1) return 0
+    const { tarr, count } = indexes['seq']
+    let low = 0
+    let high = count - 1
+    let mid = 0
+    while (low <= high) {
+      mid = Math.floor((low + high) * 0.5)
+      if (tarr[mid] < offset) low = mid + 1
+      else if (tarr[mid] > offset) high = mid - 1
+      else return mid
+    }
+    throw new Error(`getSeqFromOffset: offset ${offset} not found`)
+  }
+
   const undefinedBipf = bipf.allocAndEncode(undefined)
 
   function checkEqual(opData, buffer) {
@@ -483,17 +498,8 @@ module.exports = function (log, indexesPath) {
       index.count = 0
     }
 
-    // find the next possible seq
-    let seq = 0
-    if (index.offset !== -1) {
-      const { tarr } = indexes['seq']
-      const indexOffset = index.offset
-      for (const len = tarr.length; seq < len; ++seq)
-        if (tarr[seq] === indexOffset) {
-          seq++
-          break
-        }
-    }
+    // Find the next possible seq
+    let seq = index.offset === -1 ? 0 : getSeqFromOffset(index.offset) + 1
 
     let updatedSeqIndex = false
     let updatedTimestampIndex = false
@@ -1510,11 +1516,8 @@ module.exports = function (log, indexesPath) {
     if (offset === 0 || offset === -1) {
       prevOffset = -1
     } else {
-      const { tarr } = indexes['seq']
-      for (const len = tarr.length; seq < len; ++seq) {
-        if (tarr[seq] === offset) break
-        else prevOffset = tarr[seq]
-      }
+      seq = getSeqFromOffset(offset)
+      prevOffset = indexes['seq'].tarr[seq - 1]
     }
 
     if (prevOffset === 0 && seq === indexes['seq'].tarr.length) {
