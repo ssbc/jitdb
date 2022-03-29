@@ -202,7 +202,7 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
+prepareAndRunTest('old status fields are never pruned', dir, (t, db, raf) => {
   let post = { type: 'post', text: 'Testing' }
 
   let state = validate.initial()
@@ -257,7 +257,7 @@ prepareAndRunTest('obsolete status parts disappear', dir, (t, db, raf) => {
             db.paginate(aboutQuery, 0, 1, false, false, 'declared', () => {
               t.pass(JSON.stringify(db.status.value))
               t.ok(db.status.value['seq'])
-              t.notOk(db.status.value['type_post'])
+              t.ok(db.status.value['type_post'], 'old NOT pruned')
               t.ok(db.status.value['type_about'])
               t.end()
             })
