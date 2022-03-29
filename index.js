@@ -1423,6 +1423,17 @@ module.exports = function (log, indexesPath) {
     })
   }
 
+  function prepare(operation, cb) {
+    onReady(() => {
+      const start = Date.now()
+      executeOperation(operation, (err) => {
+        if (err) return cb(err)
+        const duration = Date.now() - start
+        cb(null, duration)
+      })
+    })
+  }
+
   // live will return new messages as they enter the log
   // can be combined with a normal all or paginate first
   function live(op) {
@@ -1566,6 +1577,7 @@ module.exports = function (log, indexesPath) {
     paginate,
     all,
     count,
+    prepare,
     live,
     status: status.obv,
     reindex,
