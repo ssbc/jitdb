@@ -428,6 +428,8 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
+  t.plan(10)
+  t.timeoutAfter(20e3)
   let msg = { type: 'post', text: 'Testing' }
   let state = validate.initial()
   for (var i = 0; i < 1000; ++i) {
@@ -452,6 +454,12 @@ prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
     }),
     push.collect((err, results) => {
       t.notOk(db.indexes['type_post'])
+      t.notOk(db.status.value['type_post'])
+      const expectedStatus = [undefined, -1, 409128]
+      db.status((stats) => {
+        t.deepEqual(stats['type_post'], expectedStatus.shift())
+        if (expectedStatus.length === 0) t.end()
+      })
       db.prepare(typeQuery, (err, duration) => {
         t.error(err, 'no error')
         t.equals(typeof duration, 'number')
@@ -459,7 +467,6 @@ prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
         t.ok(db.indexes['type_post'])
         db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 1000)
-          t.end()
         })
       })
     })
