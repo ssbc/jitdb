@@ -1033,8 +1033,8 @@ module.exports = function (log, indexesPath) {
     } else console.error('Unknown type', op)
   }
 
-  function traverseEqualsAndIncludes(operation, fn) {
-    function traverseMore(ops) {
+  function forEachLeafOperationIn(operation, fn) {
+    function forEachInto(ops) {
       ops.forEach((op) => {
         if (
           op.type === 'EQUAL' ||
@@ -1044,7 +1044,7 @@ module.exports = function (log, indexesPath) {
         ) {
           fn(op)
         } else if (op.type === 'AND' || op.type === 'OR' || op.type === 'NOT')
-          traverseMore(op.data)
+          forEachInto(op.data)
         else if (
           op.type === 'SEQS' ||
           op.type === 'LIVESEQS' ||
@@ -1058,12 +1058,12 @@ module.exports = function (log, indexesPath) {
         else debug('Unknown operator type: ' + op.type)
       })
     }
-    traverseMore([operation])
+    forEachInto([operation])
   }
 
   function detectLazyIndexesUsed(operation) {
     const results = []
-    traverseEqualsAndIncludes(operation, (op) => {
+    forEachLeafOperationIn(operation, (op) => {
       const name = op.data.indexName
       if (indexes[name] && indexes[name].lazy) results.push(name)
     })
@@ -1072,7 +1072,7 @@ module.exports = function (log, indexesPath) {
 
   function detectOpsMissingIndexes(operation) {
     const results = []
-    traverseEqualsAndIncludes(operation, (op) => {
+    forEachLeafOperationIn(operation, (op) => {
       if (!indexes[op.data.indexName]) results.push(op)
     })
     return results
@@ -1081,6 +1081,16 @@ module.exports = function (log, indexesPath) {
   function executeOperation(operation, cb) {
     updateCacheWithLog()
     if (bitsetCache.has(operation)) return cb(null, bitsetCache.get(operation))
+
+    // Update status at the beginning of the operation
+    const indexNamesToReportStatus = []
+    const indexesToReportStatus = {}
+    forEachLeafOperationIn(operation, (op) => {
+      const name = op.data.indexName
+      indexNamesToReportStatus.push(name)
+      indexesToReportStatus[name] = indexes[name] || { offset: -1 }
+    })
+    status.batchUpdate(indexesToReportStatus, indexNamesToReportStatus)
 
     push(
       // kick-start this chain with a dummy null value
