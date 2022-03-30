@@ -202,7 +202,7 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
   })
 })
 
-prepareAndRunTest('old status fields are never pruned', dir, (t, db, raf) => {
+prepareAndRunTest('status is pruned only on reset()', dir, (t, db, raf) => {
   let post = { type: 'post', text: 'Testing' }
 
   let state = validate.initial()
@@ -259,6 +259,11 @@ prepareAndRunTest('old status fields are never pruned', dir, (t, db, raf) => {
               t.ok(db.status.value['seq'])
               t.ok(db.status.value['type_post'], 'old NOT pruned')
               t.ok(db.status.value['type_about'])
+
+              db.resetStatus()
+              t.notOk(db.status.value['seq'])
+              t.notOk(db.status.value['type_post'])
+              t.notOk(db.status.value['type_about'])
               t.end()
             })
           })

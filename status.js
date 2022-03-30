@@ -5,14 +5,23 @@
 const Obv = require('obz')
 
 module.exports = function Status() {
-  const indexesStatus = {}
-  const indexesLastTime = {}
+  let indexesStatus = {}
   const obv = Obv()
   obv.set(indexesStatus)
   const EMIT_INTERVAL = 1000 // ms
   let i = 0
   let iTimer = 0
   let timer = null
+
+  function reset() {
+    indexesStatus = {}
+    if (timer) {
+      clearInterval(timer)
+      timer = null
+      i = iTimer = 0
+    }
+    obv.set(indexesStatus)
+  }
 
   function setTimer() {
     // Turn on
@@ -31,12 +40,10 @@ module.exports = function Status() {
   }
 
   function batchUpdate(indexes, names) {
-    const now = Date.now()
     for (const indexName of names) {
       const previous = indexesStatus[indexName] || -Infinity
       if (indexes[indexName].offset > previous) {
         indexesStatus[indexName] = indexes[indexName].offset
-        indexesLastTime[indexName] = now
       }
     }
 
@@ -50,6 +57,7 @@ module.exports = function Status() {
 
   return {
     obv,
+    reset,
     batchUpdate,
   }
 }

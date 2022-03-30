@@ -1590,6 +1590,7 @@ module.exports = function (log, indexesPath) {
     prepare,
     live,
     status: status.obv,
+    resetStatus: status.reset,
     reindex,
 
     // testing
