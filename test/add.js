@@ -165,6 +165,8 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('Update index', dir, (t, db, raf) => {
+  t.plan(4)
+  t.timeoutAfter(5000)
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
   state = validate.appendNew(state, null, keys, msg, Date.now())
@@ -180,92 +182,23 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     },
   }
 
-  t.equal(typeof db.status, 'function')
-  t.equal(db.status.value['seq'], -1)
-  t.equal(typeof db.status.value['type_post'], 'undefined')
+  const expectedStatus = [{ seq: -1, timestamp: -1, sequence: -1 }, {}]
+  db.status((stats) => {
+    t.deepEqual(stats, expectedStatus.shift())
+    if (expectedStatus.length === 0) t.end()
+  })
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
       t.equal(results.length, 1)
-      t.equal(db.status.value['seq'], 0)
-      t.equal(db.status.value['type_post'], 0)
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
         db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
-          t.equal(db.status.value['seq'], 352)
-          t.equal(db.status.value['type_post'], 352)
-          t.end()
         })
       })
     })
   })
-})
-
-prepareAndRunTest('status is pruned only on reset()', dir, (t, db, raf) => {
-  let post = { type: 'post', text: 'Testing' }
-
-  let state = validate.initial()
-  for (var i = 0; i < 10; ++i) {
-    post.text = 'Testing ' + i
-    state = validate.appendNew(state, null, keys, post, Date.now() + i)
-  }
-
-  const typeQuery = {
-    type: 'EQUAL',
-    data: {
-      seek: helpers.seekType,
-      value: helpers.toBipf('post'),
-      indexType: 'type',
-      indexName: 'type_post',
-    },
-  }
-
-  push(
-    push.values(state.queue),
-    push.asyncMap((q, cb) => {
-      addMsg(q.value, raf, cb)
-    }),
-    push.collect(() => {
-      db.paginate(typeQuery, 0, 1, false, false, 'declared', () => {
-        t.pass(JSON.stringify(db.status.value))
-        t.ok(db.status.value['seq'])
-        t.ok(db.status.value['type_post'])
-        t.notOk(db.status.value['type_about'])
-
-        let about = { type: 'about', text: 'Testing' }
-        for (var i = 0; i < 30000; ++i) {
-          about.text = 'Testing ' + i
-          state = validate.appendNew(state, null, keys, about, Date.now() + i)
-        }
-        const aboutQuery = {
-          type: 'EQUAL',
-          data: {
-            seek: helpers.seekType,
-            value: helpers.toBipf('about'),
-            indexType: 'type',
-            indexName: 'type_about',
-          },
-        }
-
-        push(
-          push.values(state.queue),
-          push.asyncMap((q, cb) => {
-            addMsg(q.value, raf, cb)
-          }),
-          push.collect(() => {
-            db.paginate(aboutQuery, 0, 1, false, false, 'declared', () => {
-              t.pass(JSON.stringify(db.status.value))
-              t.ok(db.status.value['seq'])
-              t.ok(db.status.value['type_post'], 'old NOT pruned')
-              t.ok(db.status.value['type_about'])
-              t.end()
-            })
-          })
-        )
-      })
-    })
-  )
 })
 
 prepareAndRunTest('grow', dir, (t, db, raf) => {
@@ -455,7 +388,7 @@ prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
     push.collect((err, results) => {
       t.notOk(db.indexes['type_post'])
       t.notOk(db.status.value['type_post'])
-      const expectedStatus = [undefined, -1, 409128]
+      const expectedStatus = [undefined, -1, undefined]
       db.status((stats) => {
         t.deepEqual(stats['type_post'], expectedStatus.shift())
         if (expectedStatus.length === 0) t.end()
