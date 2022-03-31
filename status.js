@@ -12,6 +12,7 @@ module.exports = function Status() {
   let i = 0
   let iTimer = 0
   let timer = null
+  const activeIndexNames = new Set()
 
   function reset() {
     indexesStatus = {}
@@ -39,13 +40,18 @@ module.exports = function Status() {
     if (timer.unref) timer.unref()
   }
 
-  function batchUpdate(indexes, names) {
-    for (const indexName of names) {
-      const previous = indexesStatus[indexName] || -Infinity
-      if (indexes[indexName].offset > previous) {
-        indexesStatus[indexName] = indexes[indexName].offset
+  function update(indexes, names) {
+    let changed = false
+    for (const name of names) {
+      const index = indexes[name]
+      const previous = indexesStatus[name] || -Infinity
+      if (index.offset > previous) {
+        indexesStatus[name] = index.offset
+        activeIndexNames.add(name)
+        changed = true
       }
     }
+    if (!changed) return
 
     ++i
     if (!timer) {
@@ -55,9 +61,24 @@ module.exports = function Status() {
     }
   }
 
+  function done(names) {
+    for (const name of names) activeIndexNames.delete(name)
+    if (activeIndexNames.size === 0) {
+      indexesStatus = {}
+
+      ++i
+      if (!timer) {
+        iTimer = i
+        obv.set(indexesStatus)
+        setTimer()
+      }
+    }
+  }
+
   return {
     obv,
     reset,
-    batchUpdate,
+    done,
+    update,
   }
 }
