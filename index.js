@@ -1082,16 +1082,6 @@ module.exports = function (log, indexesPath) {
     updateCacheWithLog()
     if (bitsetCache.has(operation)) return cb(null, bitsetCache.get(operation))
 
-    // Update status at the beginning of the operation
-    const indexNamesToReportStatus = []
-    const indexesToReportStatus = {}
-    forEachLeafOperationIn(operation, (op) => {
-      const name = op.data.indexName
-      indexNamesToReportStatus.push(name)
-      indexesToReportStatus[name] = indexes[name] || { offset: -1 }
-    })
-    status.batchUpdate(indexesToReportStatus, indexNamesToReportStatus)
-
     push(
       // kick-start this chain with a dummy null value
       push.values([null]),
@@ -1436,6 +1426,18 @@ module.exports = function (log, indexesPath) {
   function prepare(operation, cb) {
     onReady(() => {
       const start = Date.now()
+      // Update status at the beginning:
+      const indexNamesToReportStatus = []
+      const indexesToReportStatus = {}
+      forEachLeafOperationIn(operation, (op) => {
+        const name = op.data.indexName
+        if (!indexes[name]) {
+          indexNamesToReportStatus.push(name)
+          indexesToReportStatus[name] = { offset: -1 }
+        }
+      })
+      status.batchUpdate(indexesToReportStatus, indexNamesToReportStatus)
+      // Build indexes:
       executeOperation(operation, (err) => {
         if (err) return cb(err)
         const duration = Date.now() - start
