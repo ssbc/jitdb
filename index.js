@@ -653,7 +653,7 @@ module.exports = function (log, indexesPath) {
     const logstreamId = Math.ceil(Math.random() * 1000)
     debug(`log.stream #${logstreamId} started, to create indexes ${waitingKey}`)
     status.update(indexes, coreIndexNames)
-    status.update(indexes, newIndexNames)
+    status.update(newIndexes, newIndexNames)
 
     log.stream({}).pipe({
       paused: false,
