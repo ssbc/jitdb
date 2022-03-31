@@ -14,16 +14,6 @@ module.exports = function Status() {
   let timer = null
   const activeIndexNames = new Set()
 
-  function reset() {
-    indexesStatus = {}
-    if (timer) {
-      clearInterval(timer)
-      timer = null
-      i = iTimer = 0
-    }
-    obv.set(indexesStatus)
-  }
-
   function setTimer() {
     // Turn on
     timer = setInterval(() => {
@@ -77,7 +67,6 @@ module.exports = function Status() {
 
   return {
     obv,
-    reset,
     done,
     update,
   }
