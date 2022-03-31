@@ -259,11 +259,6 @@ prepareAndRunTest('status is pruned only on reset()', dir, (t, db, raf) => {
               t.ok(db.status.value['seq'])
               t.ok(db.status.value['type_post'], 'old NOT pruned')
               t.ok(db.status.value['type_about'])
-
-              db.resetStatus()
-              t.notOk(db.status.value['seq'])
-              t.notOk(db.status.value['type_post'])
-              t.notOk(db.status.value['type_about'])
               t.end()
             })
           })
