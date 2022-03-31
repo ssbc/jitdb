@@ -70,7 +70,7 @@ module.exports = function (log, indexesPath) {
       }
     }
 
-    status.batchUpdate(indexes, coreIndexNames)
+    status.update(indexes, coreIndexNames)
 
     isReady = true
     for (let i = 0; i < waiting.length; ++i) waiting[i]()
@@ -525,6 +525,7 @@ module.exports = function (log, indexesPath) {
 
     const logstreamId = Math.ceil(Math.random() * 1000)
     debug(`log.stream #${logstreamId} started, to update index ${waitingKey}`)
+    status.update(indexes, indexNamesForStatus)
 
     log.stream({ gt: index.offset }).pipe({
       paused: false,
@@ -555,7 +556,7 @@ module.exports = function (log, indexesPath) {
         }
 
         if (seq % 1000 === 0) {
-          status.batchUpdate(indexes, indexNamesForStatus)
+          status.update(indexes, indexNamesForStatus)
           const now = Date.now()
           if (now - lastSaved >= 60e3) {
             lastSaved = now
@@ -575,7 +576,8 @@ module.exports = function (log, indexesPath) {
 
         save(count, indexes['seq'].offset)
 
-        status.batchUpdate(indexes, indexNamesForStatus)
+        status.update(indexes, indexNamesForStatus)
+        status.done(indexNamesForStatus)
 
         runWaitingIndexLoadCbs(waitingIndexUpdate, waitingKey)
 
@@ -650,6 +652,8 @@ module.exports = function (log, indexesPath) {
 
     const logstreamId = Math.ceil(Math.random() * 1000)
     debug(`log.stream #${logstreamId} started, to create indexes ${waitingKey}`)
+    status.update(indexes, coreIndexNames)
+    status.update(indexes, newIndexNames)
 
     log.stream({}).pipe({
       paused: false,
@@ -694,8 +698,8 @@ module.exports = function (log, indexesPath) {
         })
 
         if (seq % 1000 === 0) {
-          status.batchUpdate(indexes, coreIndexNames)
-          status.batchUpdate(newIndexes, newIndexNames)
+          status.update(indexes, coreIndexNames)
+          status.update(newIndexes, newIndexNames)
           const now = Date.now()
           if (now - lastSaved >= 60e3) {
             lastSaved = now
@@ -715,8 +719,10 @@ module.exports = function (log, indexesPath) {
 
         save(count, indexes['seq'].offset, true)
 
-        status.batchUpdate(indexes, coreIndexNames)
-        status.batchUpdate(newIndexes, newIndexNames)
+        status.update(indexes, coreIndexNames)
+        status.update(newIndexes, newIndexNames)
+        status.done(coreIndexNames)
+        status.done(newIndexNames)
 
         runWaitingIndexLoadCbs(waitingIndexCreate, waitingKey)
 
@@ -1436,7 +1442,7 @@ module.exports = function (log, indexesPath) {
           indexesToReportStatus[name] = { offset: -1 }
         }
       })
-      status.batchUpdate(indexesToReportStatus, indexNamesToReportStatus)
+      status.update(indexesToReportStatus, indexNamesToReportStatus)
       // Build indexes:
       executeOperation(operation, (err) => {
         if (err) return cb(err)
