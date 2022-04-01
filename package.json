@@ -38,10 +38,10 @@
     "typedfastbitset": "~0.2.1"
   },
   "peerDependencies": {
-    "async-append-only-log": "^4.0.0"
+    "async-append-only-log": "ssb-ngi-pointer/async-append-only-log#compact-reindex"
   },
   "devDependencies": {
-    "async-append-only-log": "^4.0.0",
+    "async-append-only-log": "ssb-ngi-pointer/async-append-only-log#compact-reindex",
     "expose-gc": "^1.0.0",
     "flumecodec": "0.0.1",
     "flumelog-offset": "3.4.4",
