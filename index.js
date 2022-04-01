@@ -1092,9 +1092,6 @@ module.exports = function (log, indexesPath) {
       // kick-start this chain with a dummy null value
       push.values([null]),
 
-      // ensure that the seq->offset index is synchronized with the log
-      push.asyncMap((_, next) => ensureSeqIndexSync(next)),
-
       // load lazy indexes, if any
       push.asyncMap((_, next) => {
         const lazyIdxNames = detectLazyIndexesUsed(operation)
@@ -1116,6 +1113,9 @@ module.exports = function (log, indexesPath) {
         debug('missing indexes: %o', opsMissingIdx)
         createIndexes(opsMissingIdx, next)
       }),
+
+      // ensure that the seq->offset index is synchronized with the log
+      push.asyncMap((_, next) => ensureSeqIndexSync(next)),
 
       // get bitset for the input operation, and cache it
       push.asyncMap((_, next) => {
