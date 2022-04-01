@@ -40,6 +40,7 @@ module.exports = function (log, indexesPath) {
   const indexes = {}
   let isReady = false
   let waiting = []
+  const waitingCompaction = []
   const coreIndexNames = ['seq', 'timestamp', 'sequence']
 
   loadIndexes(() => {
@@ -81,6 +82,15 @@ module.exports = function (log, indexesPath) {
     if (isReady) cb()
     else waiting.push(cb)
   }
+
+  log.compactionProgress((stats) => {
+    if (stats.done && waitingCompaction.length > 0) {
+      for (let i = 0, n = waitingCompaction.length; i < n; ++i) {
+        waitingCompaction[i]()
+      }
+      waitingCompaction.length = 0
+    }
+  })
 
   const B_TIMESTAMP = Buffer.from('timestamp')
   const B_SEQUENCE = Buffer.from('sequence')
@@ -1365,6 +1375,13 @@ module.exports = function (log, indexesPath) {
   }
 
   function paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb) {
+    if (!log.compactionProgress.value.done) {
+      waitingCompaction.push(() =>
+        paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb)
+      )
+      return
+    }
+
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1399,6 +1416,13 @@ module.exports = function (log, indexesPath) {
   }
 
   function all(operation, seq, descending, onlyOffset, sortBy, cb) {
+    if (!log.compactionProgress.value.done) {
+      waitingCompaction.push(() =>
+        all(operation, seq, descending, onlyOffset, sortBy, cb)
+      )
+      return
+    }
+
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1431,6 +1455,11 @@ module.exports = function (log, indexesPath) {
   }
 
   function count(operation, seq, descending, cb) {
+    if (!log.compactionProgress.value.done) {
+      waitingCompaction.push(() => count(operation, seq, descending, cb))
+      return
+    }
+
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1450,6 +1479,11 @@ module.exports = function (log, indexesPath) {
   }
 
   function prepare(operation, cb) {
+    if (!log.compactionProgress.value.done) {
+      waitingCompaction.push(() => prepare(operation, cb))
+      return
+    }
+
     onReady(() => {
       const start = Date.now()
       // Update status at the beginning:
