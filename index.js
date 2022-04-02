@@ -644,10 +644,14 @@ module.exports = function (log, indexesPath) {
         const index = newIndexes[indexName]
         if (doneIndexing) indexes[indexName] = index
         index.offset = offset
-        done(() => {
-          saveIndex(indexName, index, count)
-        })
       }
+
+      done(() => {
+        for (var indexName in newIndexes) {
+          const index = newIndexes[indexName]
+          saveIndex(indexName, index, count)
+        }
+      })
     }
 
     const logstreamId = Math.ceil(Math.random() * 1000)
