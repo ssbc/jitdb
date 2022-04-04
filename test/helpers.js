@@ -4,86 +4,72 @@
 
 const bipf = require('bipf')
 
-const B_KEY = Buffer.from('key')
-const B_VALUE = Buffer.from('value')
-const B_VOTE = Buffer.from('vote')
-const B_LINK = Buffer.from('link')
-const B_AUTHOR = Buffer.from('author')
-const B_CONTENT = Buffer.from('content')
-const B_TYPE = Buffer.from('type')
-const B_ROOT = Buffer.from('root')
-const B_META = Buffer.from('meta')
-const B_ANIMALS = Buffer.from('animals')
-const B_WORD = Buffer.from('word')
-const B_PRIVATE = Buffer.from('private')
-const B_CHANNEL = Buffer.from('channel')
-
 module.exports = {
   toBipf(value) {
     return bipf.allocAndEncode(value)
   },
 
   seekKey(buffer) {
-    return bipf.seekKey(buffer, 0, B_KEY)
+    return bipf.seekKey(buffer, 0, 'key')
   },
 
   seekAuthor(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     if (pValue < 0) return
-    return bipf.seekKey(buffer, pValue, B_AUTHOR)
+    return bipf.seekKey(buffer, pValue, 'author')
   },
 
   seekVoteLink(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     if (pValue < 0) return
-    const pValueContent = bipf.seekKeyCached(buffer, pValue, B_CONTENT)
+    const pValueContent = bipf.seekKeyCached(buffer, pValue, 'content')
     if (pValueContent < 0) return
-    const pValueContentVote = bipf.seekKey(buffer, pValueContent, B_VOTE)
+    const pValueContentVote = bipf.seekKey(buffer, pValueContent, 'vote')
     if (pValueContentVote < 0) return
-    return bipf.seekKey(buffer, pValueContentVote, B_LINK)
+    return bipf.seekKey(buffer, pValueContentVote, 'link')
   },
 
   seekType(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     if (pValue < 0) return
-    const pValueContent = bipf.seekKeyCached(buffer, pValue, B_CONTENT)
+    const pValueContent = bipf.seekKeyCached(buffer, pValue, 'content')
     if (pValueContent < 0) return
-    return bipf.seekKey(buffer, pValueContent, B_TYPE)
+    return bipf.seekKey(buffer, pValueContent, 'type')
   },
 
   seekAnimals(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     if (pValue < 0) return
-    const pValueContent = bipf.seekKeyCached(buffer, pValue, B_CONTENT)
+    const pValueContent = bipf.seekKeyCached(buffer, pValue, 'content')
     if (pValueContent < 0) return
-    return bipf.seekKey(buffer, pValueContent, B_ANIMALS)
+    return bipf.seekKey(buffer, pValueContent, 'animals')
   },
 
   pluckWord(buffer, start) {
-    return bipf.seekKey(buffer, start, B_WORD)
+    return bipf.seekKey(buffer, start, 'word')
   },
 
   seekRoot(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     if (pValue < 0) return
-    const pValueContent = bipf.seekKeyCached(buffer, pValue, B_CONTENT)
+    const pValueContent = bipf.seekKeyCached(buffer, pValue, 'content')
     if (pValueContent < 0) return
-    return bipf.seekKey(buffer, pValueContent, B_ROOT)
+    return bipf.seekKey(buffer, pValueContent, 'root')
   },
 
   seekPrivate(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     if (pValue < 0) return
-    const pValueMeta = bipf.seekKeyCached(buffer, pValue, B_META)
+    const pValueMeta = bipf.seekKeyCached(buffer, pValue, 'meta')
     if (pValueMeta < 0) return
-    return bipf.seekKey(buffer, pValueMeta, B_PRIVATE)
+    return bipf.seekKey(buffer, pValueMeta, 'private')
   },
 
   seekChannel(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     if (pValue < 0) return
-    const pValueContent = bipf.seekKeyCached(buffer, pValue, B_CONTENT)
+    const pValueContent = bipf.seekKeyCached(buffer, pValue, 'content')
     if (pValueContent < 0) return
-    return bipf.seekKey(buffer, pValueContent, B_CHANNEL)
+    return bipf.seekKey(buffer, pValueContent, 'channel')
   },
 }

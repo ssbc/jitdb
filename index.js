@@ -84,7 +84,6 @@ module.exports = function (log, indexesPath) {
 
   const B_TIMESTAMP = Buffer.from('timestamp')
   const B_SEQUENCE = Buffer.from('sequence')
-  const B_VALUE = Buffer.from('value')
 
   function loadIndexes(cb) {
     function parseIndexes(err, files) {
@@ -260,14 +259,14 @@ module.exports = function (log, indexesPath) {
   function seekMinTimestamp(buffer) {
     const pTimestamp = bipf.seekKey(buffer, 0, B_TIMESTAMP)
     const arrivalTimestamp = bipf.decode(buffer, pTimestamp)
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     const pValueTimestamp = bipf.seekKey(buffer, pValue, B_TIMESTAMP)
     const declaredTimestamp = bipf.decode(buffer, pValueTimestamp)
     return Math.min(arrivalTimestamp, declaredTimestamp)
   }
 
   function seekSequence(buffer) {
-    const pValue = bipf.seekKeyCached(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKeyCached(buffer, 0, 'value')
     const p = bipf.seekKey(buffer, pValue, B_SEQUENCE)
     return bipf.decode(buffer, p)
   }
