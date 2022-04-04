@@ -57,8 +57,8 @@
     "ssb-keys": "^8.1.0",
     "ssb-ref": "^2.14.3",
     "ssb-validate": "^4.1.1",
+    "tap-arc": "^0.3.4",
     "tap-bail": "^1.0.0",
-    "tap-arc": "^0.1.2",
     "tape": "^5.2.2"
   },
   "scripts": {
