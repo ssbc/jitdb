@@ -277,9 +277,8 @@ prepareAndRunTest('Prefix equal', dir, (t, db, raf) => {
       value: helpers.toBipf(
         '%wOtfXXopI3mTHL6F7Y3XXNtpxws9mQdaEocNJuKtAZo=.sha256'
       ),
-      indexType: 'vote',
-      indexName:
-        'value_content_vote_link_%wOtfXXopI3mTHL6F7Y3XXNtpxws9mQdaEocNJuKtAZo=.sha256',
+      indexType: 'value_content_vote_link',
+      indexName: 'value_content_vote_link',
       prefix: 32,
     },
   }
