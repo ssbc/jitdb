@@ -305,7 +305,7 @@ module.exports = function (log, indexesPath) {
     if (offset === -1) return 0
     const { tarr, count } = indexes['seq']
     const seq = bsb.eq(tarr, offset, 0, count - 1)
-    if (seq < 0) throw new Error(`getSeqFromOffset(${offset}) not found`)
+    if (seq < 0) return 0
     return seq
   }
 
