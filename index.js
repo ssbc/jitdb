@@ -1639,9 +1639,11 @@ module.exports = function (log, indexesPath) {
     push(
       push.values(Object.entries(indexes)),
       push.asyncMap(([indexName, index], cb) => {
-        if (coreIndexNames.includes(indexName)) return cb()
-
-        if (index.lazy) {
+        if (coreIndexNames.includes(indexName)) {
+          resetIndex(index)
+          saveCoreIndex(indexName, index, seq)
+          cb()
+        } else if (index.lazy) {
           loadLazyIndex(indexName, (err) => {
             if (err) return cb(err)
 
