@@ -625,6 +625,11 @@ prepareAndRunTest('not operator', dir, (t, db, raf) => {
 
   addMsg(state.queue[0].value, raf, (e1, msg1) => {
     addMsg(state.queue[1].value, raf, (e2, msg2) => {
+      const expectedQueriesActive = [0, 1, 0]
+      db.queriesActive((x) => {
+        t.equals(x, expectedQueriesActive.shift(), 'queriesActive matches')
+      })
+
       pull(
         query(
           fromDB(db),
@@ -639,6 +644,7 @@ prepareAndRunTest('not operator', dir, (t, db, raf) => {
           t.equal(msgs.length, 1, 'page has one messages')
           t.equal(msgs[0].value.author, bob.id)
           t.equal(msgs[0].value.content.type, 'post')
+          t.equal(expectedQueriesActive.length, 0)
           t.end()
         })
       )

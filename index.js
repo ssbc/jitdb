@@ -44,7 +44,9 @@ module.exports = function (log, indexesPath) {
   const waitingCompaction = []
   const coreIndexNames = ['seq', 'timestamp', 'sequence']
   const indexingActive = Obv()
+  const queriesActive = Obv()
   indexingActive.set(0)
+  queriesActive.set(0)
 
   loadIndexes(() => {
     debug('loaded indexes', Object.keys(indexes))
@@ -1389,6 +1391,7 @@ module.exports = function (log, indexesPath) {
       return
     }
 
+    queriesActive.set(queriesActive.value + 1)
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1403,19 +1406,18 @@ module.exports = function (log, indexesPath) {
           onlyOffset,
           sortBy,
           (err1, answer) => {
-            if (err1) cb(err1)
-            else {
-              answer.duration = Date.now() - start
-              if (debugQuery.enabled)
-                debugQuery(
-                  `paginate(${getNameFromOperation(
-                    operation
-                  )}), seq: ${seq}, limit: ${limit}: ${
-                    answer.duration
-                  }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
-                )
-              cb(null, answer)
-            }
+            queriesActive.set(queriesActive.value - 1)
+            if (err1) return cb(err1)
+            answer.duration = Date.now() - start
+            if (debugQuery.enabled)
+              debugQuery(
+                `paginate(${getNameFromOperation(
+                  operation
+                )}), seq: ${seq}, limit: ${limit}: ${
+                  answer.duration
+                }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
+              )
+            cb(null, answer)
           }
         )
       })
@@ -1430,6 +1432,7 @@ module.exports = function (log, indexesPath) {
       return
     }
 
+    queriesActive.set(queriesActive.value + 1)
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
@@ -1444,17 +1447,16 @@ module.exports = function (log, indexesPath) {
           onlyOffset,
           sortBy,
           (err1, answer) => {
-            if (err1) cb(err1)
-            else {
-              answer.duration = Date.now() - start
-              if (debugQuery.enabled)
-                debugQuery(
-                  `all(${getNameFromOperation(operation)}): ${
-                    answer.duration
-                  }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
-                )
-              cb(null, answer.results)
-            }
+            queriesActive.set(queriesActive.value - 1)
+            if (err1) return cb(err1)
+            answer.duration = Date.now() - start
+            if (debugQuery.enabled)
+              debugQuery(
+                `all(${getNameFromOperation(operation)}): ${
+                  answer.duration
+                }ms, total messages: ${answer.total}`.replace(/%/g, '%% ')
+              )
+            cb(null, answer.results)
           }
         )
       })
@@ -1467,9 +1469,11 @@ module.exports = function (log, indexesPath) {
       return
     }
 
+    queriesActive.set(queriesActive.value + 1)
     onReady(() => {
       const start = Date.now()
       executeOperation(operation, (err0, result) => {
+        queriesActive.set(queriesActive.value - 1)
         if (err0) return cb(err0)
         const [bitset] = result
         const total = countBitsetSlice(bitset, seq, descending)
@@ -1491,6 +1495,7 @@ module.exports = function (log, indexesPath) {
       return
     }
 
+    queriesActive.set(queriesActive.value + 1)
     onReady(() => {
       const start = Date.now()
       // Update status at the beginning:
@@ -1506,6 +1511,7 @@ module.exports = function (log, indexesPath) {
       status.update(indexesToReportStatus, indexNamesToReportStatus)
       // Build indexes:
       executeOperation(operation, (err) => {
+        queriesActive.set(queriesActive.value - 1)
         if (err) return cb(err)
         const duration = Date.now() - start
         cb(null, duration)
@@ -1684,6 +1690,7 @@ module.exports = function (log, indexesPath) {
     status: status.obv,
     reindex,
     indexingActive,
+    queriesActive,
 
     // testing
     indexes,
