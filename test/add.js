@@ -165,7 +165,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('Update index', dir, (t, db, raf) => {
-  t.plan(4)
+  t.plan(9)
   t.timeoutAfter(5000)
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
@@ -182,19 +182,25 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     },
   }
 
+  const expectedIndexingActive = [0, 1 /* seq */, 0, 1 /* type_post */, 0]
   const expectedStatus = [{ seq: -1, timestamp: -1, sequence: -1 }, {}]
   db.status((stats) => {
-    t.deepEqual(stats, expectedStatus.shift())
-    if (expectedStatus.length === 0) t.end()
+    t.deepEqual(stats, expectedStatus.shift(), 'status matches')
+    if (!expectedStatus.length && !expectedIndexingActive.length) t.end()
   })
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
-      t.equal(results.length, 1)
+      t.equal(results.length, 1, '1 message')
+
+      db.indexingActive((x) => {
+        t.equals(x, expectedIndexingActive.shift(), 'indexingActive matches')
+        if (!expectedStatus.length && !expectedIndexingActive.length) t.end()
+      })
 
       addMsg(state.queue[1].value, raf, (err, msg1) => {
         db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
-          t.equal(results.length, 2)
+          t.equal(results.length, 2, '2 messages')
         })
       })
     })

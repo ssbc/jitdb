@@ -12,6 +12,7 @@ const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
 const multicb = require('multicb')
 const FastPriorityQueue = require('fastpriorityqueue')
+const Obv = require('obz')
 const debug = require('debug')('jitdb')
 const debugQuery = debug.extend('query')
 const Status = require('./status')
@@ -42,6 +43,8 @@ module.exports = function (log, indexesPath) {
   let waiting = []
   const waitingCompaction = []
   const coreIndexNames = ['seq', 'timestamp', 'sequence']
+  const indexingActive = Obv()
+  indexingActive.set(0)
 
   loadIndexes(() => {
     debug('loaded indexes', Object.keys(indexes))
@@ -534,6 +537,7 @@ module.exports = function (log, indexesPath) {
     const logstreamId = Math.ceil(Math.random() * 1000)
     debug(`log.stream #${logstreamId} started, to update index ${waitingKey}`)
     status.update(indexes, indexNamesForStatus)
+    indexingActive.set(indexingActive.value + 1)
 
     log.stream({ gt: index.offset }).pipe({
       paused: false,
@@ -588,6 +592,7 @@ module.exports = function (log, indexesPath) {
 
         status.update(indexes, indexNamesForStatus)
         status.done(indexNamesForStatus)
+        indexingActive.set(indexingActive.value - 1)
 
         runWaitingIndexLoadCbs(waitingIndexUpdate, waitingKey)
 
@@ -668,6 +673,7 @@ module.exports = function (log, indexesPath) {
     debug(`log.stream #${logstreamId} started, to create indexes ${waitingKey}`)
     status.update(indexes, coreIndexNames)
     status.update(newIndexes, newIndexNames)
+    indexingActive.set(indexingActive.value + 1)
 
     log.stream({}).pipe({
       paused: false,
@@ -748,6 +754,7 @@ module.exports = function (log, indexesPath) {
         status.update(newIndexes, newIndexNames)
         status.done(coreIndexNames)
         status.done(newIndexNames)
+        indexingActive.set(indexingActive.value - 1)
 
         runWaitingIndexLoadCbs(waitingIndexCreate, waitingKey)
 
@@ -1676,6 +1683,7 @@ module.exports = function (log, indexesPath) {
     live,
     status: status.obv,
     reindex,
+    indexingActive,
 
     // testing
     indexes,
