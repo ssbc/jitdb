@@ -43,10 +43,8 @@ module.exports = function (log, indexesPath) {
   let waiting = []
   const waitingCompaction = []
   const coreIndexNames = ['seq', 'timestamp', 'sequence']
-  const indexingActive = Obv()
-  const queriesActive = Obv()
-  indexingActive.set(0)
-  queriesActive.set(0)
+  const indexingActive = Obv().set(0)
+  const queriesActive = Obv().set(0)
 
   loadIndexes(() => {
     debug('loaded indexes', Object.keys(indexes))
