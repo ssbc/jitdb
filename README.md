@@ -574,6 +574,13 @@ updating them, if necessary. This is not a query, as it won't return any
 results. When done, the callback `cb` is just called with the "duration" of
 index preparation as the second argument.
 
+### lookup(operation, seq, cb)
+
+Given one `seq`, lookup its corresponding value on the index specified by
+`operation`, which is either an operation object or a string for the name of a
+core index, such as `'seq'` and `'timestamp'`. The callback `cb` is called with
+the index's value (at that `seq` position) in the 2nd arg.
+
 ### live(operation, cb)
 
 Will setup a pull stream and this in `cb`. The pull stream will emit

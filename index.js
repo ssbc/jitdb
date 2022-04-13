@@ -1472,6 +1472,19 @@ module.exports = function (log, indexesPath) {
     })
   }
 
+  function lookup(opOrIndexName, seq, cb) {
+    const op =
+      typeof opOrIndexName === 'string'
+        ? { data: { indexName: 'seq' } }
+        : opOrIndexName
+    onReady(() => {
+      ensureIndexSync(op, () => {
+        const result = indexes[op.data.indexName].tarr[seq]
+        cb(null, result)
+      })
+    })
+  }
+
   // live will return new messages as they enter the log
   // can be combined with a normal all or paginate first
   function live(op) {
@@ -1616,6 +1629,7 @@ module.exports = function (log, indexesPath) {
     all,
     count,
     prepare,
+    lookup,
     live,
     status: status.obv,
     reindex,
