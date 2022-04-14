@@ -88,9 +88,7 @@ module.exports = function (log, indexesPath) {
 
   log.compactionProgress((stats) => {
     if (stats.done && waitingCompaction.length > 0) {
-      for (let i = 0, n = waitingCompaction.length; i < n; ++i) {
-        waitingCompaction[i]()
-      }
+      for (const cb of waitingCompaction) cb()
       waitingCompaction.length = 0
     }
   })
