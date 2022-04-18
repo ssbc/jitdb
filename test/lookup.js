@@ -1,57 +1,19 @@
-// SPDX-FileCopyrightText: 2021 Anders Rune Jensen
+// SPDX-FileCopyrightText: 2022 Anders Rune Jensen
 //
 // SPDX-License-Identifier: Unlicense
 
-const test = require('tape')
-const pull = require('pull-stream')
-const Pushable = require('pull-pushable')
 const validate = require('ssb-validate')
 const ssbKeys = require('ssb-keys')
-const { prepareAndRunTest, addMsg, helpers } = require('./common')()
+const { prepareAndRunTest, addMsg } = require('./common')()
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
-const {
-  query,
-  and,
-  or,
-  not,
-  equal,
-  where,
-  slowEqual,
-  includes,
-  slowIncludes,
-  gt,
-  gte,
-  lt,
-  lte,
-  deferred,
-  liveSeqs,
-  seqs,
-  offsets,
-  fromDB,
-  paginate,
-  batch,
-  startFrom,
-  live,
-  count,
-  descending,
-  sortByArrival,
-  asOffsets,
-  toCallback,
-  toPromise,
-  toPullStream,
-  toAsyncIter,
-  slowPredicate,
-  slowAbsent,
-  absent,
-} = require('../operators')
+const { slowEqual } = require('../operators')
 
 const dir = '/tmp/jitdb-lookup-api'
 rimraf.sync(dir)
 mkdirp.sync(dir)
 
 const alice = ssbKeys.generate('ed25519', Buffer.alloc(32, 'a'))
-const bob = ssbKeys.generate('ed25519', Buffer.alloc(32, 'b'))
 
 prepareAndRunTest('lookup "seq"', dir, (t, jitdb, log) => {
   log.append(Buffer.from('hello'), (e1, offset0) => {
