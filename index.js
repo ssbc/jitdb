@@ -1478,8 +1478,15 @@ module.exports = function (log, indexesPath) {
         ? { data: { indexName: opOrIndexName } }
         : opOrIndexName
     onReady(() => {
+      const indexName = op.data.indexName
+      if (!indexes[indexName]) {
+        return cb(new Error(`Cannot lookup, index ${indexName} not found`))
+      }
+      if (indexes[indexName].lazy) {
+        return cb(new Error(`Cannot lookup, index ${indexName} not loaded`))
+      }
       ensureIndexSync(op, () => {
-        const result = indexes[op.data.indexName].tarr[seq]
+        const result = indexes[indexName].tarr[seq]
         cb(null, result)
       })
     })

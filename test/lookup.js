@@ -71,3 +71,31 @@ prepareAndRunTest('lookup operation', dir, (t, jitdb, log) => {
     })
   })
 })
+
+prepareAndRunTest('lookup operation on unready index', dir, (t, jitdb, log) => {
+  const msg1 = { type: 'post', text: '1st', animals: ['cat', 'dog', 'bird'] }
+  const msg2 = { type: 'contact', text: '2nd', animals: ['bird'] }
+  const msg3 = { type: 'post', text: '3rd', animals: ['cat'] }
+
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg1, Date.now())
+  state = validate.appendNew(state, null, alice, msg2, Date.now() + 1)
+  state = validate.appendNew(state, null, alice, msg3, Date.now() + 2)
+
+  addMsg(state.queue[0].value, log, (e1, m1) => {
+    addMsg(state.queue[1].value, log, (e2, m2) => {
+      addMsg(state.queue[2].value, log, (e3, m3) => {
+        const op = slowEqual('value.author', 'whatever', {
+          prefix: 32,
+          indexType: 'value_author',
+        })
+        jitdb.lookup(op, 0, (err, authorAsUint32LE) => {
+          t.ok(err, 'has error')
+          t.notOk(authorAsUint32LE, 'no result')
+          t.match(err.message, /not found/)
+          t.end()
+        })
+      })
+    })
+  })
+})
