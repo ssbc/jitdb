@@ -1475,7 +1475,7 @@ module.exports = function (log, indexesPath) {
   function lookup(opOrIndexName, seq, cb) {
     const op =
       typeof opOrIndexName === 'string'
-        ? { data: { indexName: 'seq' } }
+        ? { data: { indexName: opOrIndexName } }
         : opOrIndexName
     onReady(() => {
       ensureIndexSync(op, () => {
