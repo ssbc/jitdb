@@ -24,7 +24,7 @@
     "jsesc": "^3.0.2",
     "mkdirp": "^1.0.4",
     "multicb": "1.2.2",
-    "obz": "~1.0.3",
+    "obz": "^1.1.0",
     "promisify-4loc": "1.0.0",
     "pull-async": "~1.0.0",
     "pull-awaitable": "^1.0.0",
