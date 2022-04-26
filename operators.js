@@ -40,7 +40,7 @@ function seekFromDesc(desc) {
   const fn = function (buffer, start = 0) {
     var p = start
     for (let key of keys) {
-      p = bipf.seekKey2(buffer, p, key)
+      p = bipf.seekKey2(buffer, p, key, 0)
       if (p < 0) return -1
     }
     return p
