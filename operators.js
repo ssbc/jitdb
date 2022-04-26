@@ -35,12 +35,12 @@ function seekFromDesc(desc) {
   if (seekFromDescCache.has(desc)) {
     return seekFromDescCache.get(desc)
   }
-  const keys = desc.split('.').map((str) => Buffer.from(str))
+  const keys = desc.split('.').map((str) => bipf.allocAndEncode(str))
   // The 2nd arg `start` is to support plucks too
   const fn = function (buffer, start = 0) {
     var p = start
     for (let key of keys) {
-      p = bipf.seekKey(buffer, p, key)
+      p = bipf.seekKey2(buffer, p, key)
       if (p < 0) return -1
     }
     return p
