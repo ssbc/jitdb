@@ -93,9 +93,9 @@ module.exports = function (log, indexesPath) {
     }
   })
 
-  const B_TIMESTAMP = Buffer.from('timestamp')
-  const B_SEQUENCE = Buffer.from('sequence')
-  const B_VALUE = Buffer.from('value')
+  const BIPF_TIMESTAMP = bipf.allocAndEncode('timestamp')
+  const BIPF_SEQUENCE = bipf.allocAndEncode('sequence')
+  const BIPF_VALUE = bipf.allocAndEncode('value')
 
   function loadIndexes(cb) {
     function parseIndexes(err, files) {
@@ -270,15 +270,15 @@ module.exports = function (log, indexesPath) {
 
   function seekMinTimestamp(buffer, pValue) {
     var p = 0 // note you pass in p!
-    p = bipf.seekKey(buffer, p, B_TIMESTAMP)
+    p = bipf.seekKey2(buffer, p, BIPF_TIMESTAMP, 0)
     const arrivalTimestamp = bipf.decode(buffer, p)
-    p = bipf.seekKey(buffer, pValue, B_TIMESTAMP)
+    p = bipf.seekKey2(buffer, pValue, BIPF_TIMESTAMP, 0)
     const declaredTimestamp = bipf.decode(buffer, p)
     return Math.min(arrivalTimestamp, declaredTimestamp)
   }
 
   function seekSequence(buffer, pValue) {
-    var p = bipf.seekKey(buffer, pValue, B_SEQUENCE)
+    var p = bipf.seekKey2(buffer, pValue, BIPF_SEQUENCE, 0)
     return bipf.decode(buffer, p)
   }
 
@@ -341,7 +341,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function checkComparison(op, buffer) {
-    const pValue = bipf.seekKey(buffer, 0, B_VALUE)
+    const pValue = bipf.seekKey2(buffer, 0, BIPF_VALUE, 0)
 
     if (op.data.indexName === 'timestamp') {
       const timestamp = seekMinTimestamp(buffer, pValue)
@@ -551,7 +551,7 @@ module.exports = function (log, indexesPath) {
           return
         }
 
-        const pValue = bipf.seekKey(buffer, 0, B_VALUE)
+        const pValue = bipf.seekKey2(buffer, 0, BIPF_VALUE, 0)
 
         if (updateTimestampIndex(seq, offset, buffer, pValue))
           updatedTimestampIndex = true
@@ -687,7 +687,7 @@ module.exports = function (log, indexesPath) {
           return
         }
 
-        const pValue = bipf.seekKey(buffer, 0, B_VALUE)
+        const pValue = bipf.seekKey2(buffer, 0, BIPF_VALUE, 0)
 
         if (updateTimestampIndex(seq, offset, buffer, pValue))
           updatedTimestampIndex = true
@@ -897,7 +897,7 @@ module.exports = function (log, indexesPath) {
     function checker(value) {
       if (!value) return false // deleted
 
-      const pValue = bipf.seekKey(value, 0, B_VALUE)
+      const pValue = bipf.seekKey2(value, 0, BIPF_VALUE, 0)
       const fieldStart = seek(value, 0, pValue)
 
       if (target) return bipf.compare(value, fieldStart, target, 0) === 0
@@ -1165,7 +1165,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function isValueOk(ops, value, isOr) {
-    const pValue = bipf.seekKey(value, 0, B_VALUE)
+    const pValue = bipf.seekKey2(value, 0, BIPF_VALUE, 0)
 
     for (let i = 0; i < ops.length; ++i) {
       const op = ops[i]
