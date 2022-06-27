@@ -26,8 +26,12 @@ const FIELD_SIZE = 4 // bytes
  */
 
 function calculateCRCAndWriteFile(buf, filename, cb) {
-  const crc = crcCalculate(buf)
-  buf.writeUInt32LE(crc, 3 * FIELD_SIZE)
+  try {
+    const crc = crcCalculate(buf)
+    buf.writeUInt32LE(crc, 3 * FIELD_SIZE)
+  } catch (err) {
+    return cb(err)
+  }
   writeFile(filename, buf, cb)
 }
 
@@ -46,7 +50,7 @@ function readFileAndCheckCRC(filename, cb) {
       return cb(err)
     }
 
-    if (crcFile !== 0 && crc !== crcFile) return cb('crc check failed')
+    if (crcFile !== 0 && crc !== crcFile) return cb(Error('crc check failed'))
     cb(null, buf)
   })
 }
@@ -58,18 +62,23 @@ function saveTypedArrayFile(filename, version, offset, count, tarr, cb) {
     }
 
   if (typeof version !== 'number') {
-    return cb(new Error('cannot save file ' + filename + ' without version'))
+    return cb(Error('cannot save file ' + filename + ' without version'))
   }
 
-  const dataBuffer = toBuffer(tarr)
-  // we try to save an extra 10% so we don't have to immediately grow
-  // after loading and adding again
-  const saveSize = Math.min(count * 1.1, tarr.length)
-  const buf = Buffer.alloc(4 * FIELD_SIZE + saveSize * tarr.BYTES_PER_ELEMENT)
-  buf.writeUInt32LE(version, 0)
-  buf.writeUInt32LE(offset, FIELD_SIZE)
-  buf.writeUInt32LE(count, 2 * FIELD_SIZE)
-  dataBuffer.copy(buf, 4 * FIELD_SIZE)
+  let buf
+  try {
+    const dataBuffer = toBuffer(tarr)
+    // we try to save an extra 10% so we don't have to immediately grow
+    // after loading and adding again
+    const saveSize = Math.min(count * 1.1, tarr.length)
+    buf = Buffer.alloc(4 * FIELD_SIZE + saveSize * tarr.BYTES_PER_ELEMENT)
+    buf.writeUInt32LE(version, 0)
+    buf.writeUInt32LE(offset, FIELD_SIZE)
+    buf.writeUInt32LE(count, 2 * FIELD_SIZE)
+    dataBuffer.copy(buf, 4 * FIELD_SIZE)
+  } catch (err) {
+    return cb(err)
+  }
 
   calculateCRCAndWriteFile(buf, filename, cb)
 }
@@ -78,21 +87,22 @@ function loadTypedArrayFile(filename, Type, cb) {
   readFileAndCheckCRC(filename, (err, buf) => {
     if (err) return cb(err)
 
-    const version = buf.readUInt32LE(0)
-    const offset = buf.readUInt32LE(FIELD_SIZE)
-    const count = buf.readUInt32LE(2 * FIELD_SIZE)
-    const body = buf.slice(4 * FIELD_SIZE)
-
-    cb(null, {
-      version,
-      offset,
-      count,
-      tarr: new Type(
+    let version, offset, count, tarr
+    try {
+      version = buf.readUInt32LE(0)
+      offset = buf.readUInt32LE(FIELD_SIZE)
+      count = buf.readUInt32LE(2 * FIELD_SIZE)
+      const body = buf.slice(4 * FIELD_SIZE)
+      tarr = new Type(
         body.buffer,
         body.offset,
         body.byteLength / (Type === Float64Array ? 8 : 4)
-      ),
-    })
+      )
+    } catch (err) {
+      return cb(err)
+    }
+
+    cb(null, { version, offset, count, tarr })
   })
 }
 
@@ -103,15 +113,20 @@ function savePrefixMapFile(filename, version, offset, count, map, cb) {
     }
 
   if (typeof version !== 'number') {
-    return cb(new Error('cannot save file ' + filename + ' without version'))
+    return cb(Error('cannot save file ' + filename + ' without version'))
   }
 
-  const jsonMap = JSON.stringify(map)
-  const buf = Buffer.alloc(4 * FIELD_SIZE + jsonMap.length)
-  buf.writeUInt32LE(version, 0)
-  buf.writeUInt32LE(offset, FIELD_SIZE)
-  buf.writeUInt32LE(count, 2 * FIELD_SIZE)
-  Buffer.from(jsonMap).copy(buf, 4 * FIELD_SIZE)
+  let buf
+  try {
+    const jsonMap = JSON.stringify(map)
+    buf = Buffer.alloc(4 * FIELD_SIZE + jsonMap.length)
+    buf.writeUInt32LE(version, 0)
+    buf.writeUInt32LE(offset, FIELD_SIZE)
+    buf.writeUInt32LE(count, 2 * FIELD_SIZE)
+    Buffer.from(jsonMap).copy(buf, 4 * FIELD_SIZE)
+  } catch (err) {
+    return cb(err)
+  }
 
   calculateCRCAndWriteFile(buf, filename, cb)
 }
@@ -120,24 +135,29 @@ function loadPrefixMapFile(filename, cb) {
   readFileAndCheckCRC(filename, (err, buf) => {
     if (err) return cb(err)
 
-    const version = buf.readUInt32LE(0)
-    const offset = buf.readUInt32LE(FIELD_SIZE)
-    const count = buf.readUInt32LE(2 * FIELD_SIZE)
-    const body = buf.slice(4 * FIELD_SIZE)
-    const map = JSON.parse(body)
+    let version, offset, count, map
+    try {
+      version = buf.readUInt32LE(0)
+      offset = buf.readUInt32LE(FIELD_SIZE)
+      count = buf.readUInt32LE(2 * FIELD_SIZE)
+      const body = buf.slice(4 * FIELD_SIZE)
+      map = JSON.parse(body)
+    } catch (err) {
+      return cb(err)
+    }
 
-    cb(null, {
-      version,
-      offset,
-      count,
-      map,
-    })
+    cb(null, { version, offset, count, map })
   })
 }
 
 function saveBitsetFile(filename, version, offset, bitset, cb) {
-  bitset.trim()
-  const count = bitset.words.length
+  let count
+  try {
+    bitset.trim()
+    count = bitset.words.length
+  } catch (err) {
+    return cb(err)
+  }
   saveTypedArrayFile(filename, version, offset, count, bitset.words, cb)
 }
 
