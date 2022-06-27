@@ -138,6 +138,17 @@ test('load non-existing file', (t) => {
   })
 })
 
+test('load corrupted header', (t) => {
+  const filename = path.join(dir, 'corrupted-header.index')
+  const data = new Uint8Array([0, 0, 0, 0, 0, 0])
+  writeFile(filename, data, (err) => {
+    loadTypedArrayFile(filename, Uint32Array, (err, index) => {
+      t.equal(err.message, 'file too short')
+      t.end()
+    })
+  })
+})
+
 test('save and load corrupt bitset', (t) => {
   const idxDir = path.join(dir, 'test-bitset-corrupt')
   mkdirp.sync(idxDir)
