@@ -34,11 +34,18 @@ function calculateCRCAndWriteFile(buf, filename, cb) {
 function readFileAndCheckCRC(filename, cb) {
   readFile(filename, (err, buf) => {
     if (err) return cb(err)
+    if (buf.length < 16) return cb(Error('file too short'))
 
-    const crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
-    buf.writeUInt32LE(0, 3 * FIELD_SIZE)
+    let crcFile
+    let crc
+    try {
+      crcFile = buf.readUInt32LE(3 * FIELD_SIZE)
+      buf.writeUInt32LE(0, 3 * FIELD_SIZE)
+      crc = crcCalculate(buf)
+    } catch (err) {
+      return cb(err)
+    }
 
-    const crc = crcCalculate(buf)
     if (crcFile !== 0 && crc !== crcFile) return cb('crc check failed')
     cb(null, buf)
   })
