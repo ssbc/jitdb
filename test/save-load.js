@@ -162,7 +162,7 @@ test('save and load corrupt bitset', (t) => {
       b.writeUInt32LE(123456, 4 * 4)
       writeFile(filename, b, (err) => {
         loadBitsetFile(filename, (err, index) => {
-          t.equal(err, 'crc check failed')
+          t.equal(err.message, 'crc check failed')
           t.end()
         })
       })
