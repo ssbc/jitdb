@@ -165,7 +165,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
 })
 
 prepareAndRunTest('Update index', dir, (t, db, raf) => {
-  t.plan(7)
+  t.plan(5)
   t.timeoutAfter(5000)
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
@@ -182,7 +182,7 @@ prepareAndRunTest('Update index', dir, (t, db, raf) => {
     },
   }
 
-  const expectedIndexingActive = [0, 1 /* seq */, 0, 1 /* type_post */, 0]
+  const expectedIndexingActive = [0, 1, 0]
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
     db.all(typeQuery, 0, false, false, 'declared', (err, results) => {

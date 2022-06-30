@@ -6,6 +6,7 @@ const path = require('path')
 const bipf = require('bipf')
 const push = require('push-stream')
 const pull = require('pull-stream')
+const mutexify = require('mutexify')
 const toPull = require('push-stream-to-pull-stream')
 const pullAsync = require('pull-async')
 const TypedFastBitSet = require('typedfastbitset')
@@ -206,6 +207,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function saveIndex(name, index, count, cb) {
+    debug('saving index: %s', name)
     if (index.prefix && index.map) savePrefixMapIndex(name, index, count, cb)
     else if (index.prefix) savePrefixIndex(name, index, count, cb)
     else saveBitsetIndex(name, index, cb)
@@ -313,7 +315,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function getSeqFromOffset(offset) {
-    if (offset === -1) return 0
+    if (offset === -1) return -1
     const { tarr, count } = indexes['seq']
     const seq = bsb.eq(tarr, offset, 0, count - 1)
     if (seq < 0) return 0
@@ -483,281 +485,193 @@ module.exports = function (log, indexesPath) {
     waitingMap.delete(indexName)
   }
 
-  // concurrent index update
-  const waitingIndexUpdate = new Map()
+  const updateIndexesLock = mutexify()
 
-  function updateIndex(op, cb) {
-    const index = indexes[op.data.indexName]
-
-    const indexNamesForStatus = [...coreIndexNames, op.data.indexName]
-
-    const waitingKey = op.data.indexName
-    if (onlyOneIndexAtATime(waitingIndexUpdate, waitingKey, cb)) return
-
-    // Reset index if version was bumped
-    if (op.data.version > index.version) {
-      index.offset = -1
-      index.count = 0
-    }
-
-    // Find the next possible seq
-    let seq = index.offset === -1 ? 0 : getSeqFromOffset(index.offset) + 1
-
-    let updatedSeqIndex = false
-    let updatedTimestampIndex = false
-    let updatedSequenceIndex = false
-    const startSeq = seq
-    const start = Date.now()
-    let lastSaved = start
-
-    const indexNeedsUpdate = !coreIndexNames.includes(op.data.indexName)
-
-    function save(count, offset) {
-      const done = multicb({ pluck: 1 })
-      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count, done())
-
-      if (updatedTimestampIndex)
-        saveCoreIndex('timestamp', indexes['timestamp'], count, done())
-
-      if (updatedSequenceIndex)
-        saveCoreIndex('sequence', indexes['sequence'], count, done())
-
-      index.offset = offset
-      if (op.data.version > index.version) index.version = op.data.version
-
-      if (indexNeedsUpdate) {
-        done(() => {
-          saveIndex(op.data.indexName, index, count)
+  function updateIndexes(ops, cb) {
+    updateIndexesLock(function onUpdateIndexesLockReleased(unlock) {
+      const oldOps = ops
+        .filter((op) => op.data.indexName in indexes)
+        .map((op) => {
+          if (coreIndexNames.includes(op.data.indexName)) op.isCore = true
+          return op
         })
+      const newOps = ops.filter((op) => !(op.data.indexName in indexes))
+      const oldIndexNames = oldOps.map((op) => op.data.indexName)
+      const newIndexNames = newOps.map((op) => op.data.indexName)
+
+      const indexNamesForStatus = [...coreIndexNames, ...oldIndexNames]
+
+      // Reset old index if version was bumped
+      for (const op of oldOps) {
+        const index = indexes[op.data.indexName]
+        if (op.data.version > index.version) {
+          index.offset = -1
+          index.count = 0
+        }
       }
-    }
 
-    const logstreamId = Math.ceil(Math.random() * 1000)
-    debug(`log.stream #${logstreamId} started, to update index ${waitingKey}`)
-    status.update(indexes, indexNamesForStatus)
-    indexingActive.set(indexingActive.value + 1)
+      // Prepare new indexes
+      const newIndexes = {}
+      for (const op of newOps) {
+        if (op.data.prefix && op.data.useMap)
+          newIndexes[op.data.indexName] = {
+            offset: 0,
+            count: 0,
+            map: {},
+            prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
+            version: op.data.version || 1,
+          }
+        else if (op.data.prefix)
+          newIndexes[op.data.indexName] = {
+            offset: 0,
+            count: 0,
+            tarr: new Uint32Array(16 * 1000),
+            prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
+            version: op.data.version || 1,
+          }
+        else
+          newIndexes[op.data.indexName] = {
+            offset: 0,
+            bitset: new TypedFastBitSet(),
+            version: op.data.version || 1,
+          }
+      }
 
-    log.stream({ gt: index.offset }).pipe({
-      paused: false,
-      write: function (record) {
-        const offset = record.offset
-        const buffer = record.value
+      const latestOffset =
+        newOps.length > 0
+          ? -1
+          : Math.min(...oldIndexNames.map((name) => indexes[name].offset))
 
-        if (updateSeqIndex(seq, offset)) updatedSeqIndex = true
+      if (latestOffset === log.since.value && latestOffset >= 0) {
+        unlock(cb)
+        return
+      }
 
-        if (!buffer) {
-          // deleted
-          seq++
-          return
-        }
+      let seq = getSeqFromOffset(latestOffset) + 1
 
-        const pValue = bipf.seekKey2(buffer, 0, BIPF_VALUE, 0)
+      let updatedSeqIndex = false
+      let updatedTimestampIndex = false
+      let updatedSequenceIndex = false
+      const startSeq = seq
+      const start = Date.now()
+      let lastSaved = start
 
-        if (updateTimestampIndex(seq, offset, buffer, pValue))
-          updatedTimestampIndex = true
+      function save(count, offset, doneIndexing) {
+        const done = multicb({ pluck: 1 })
+        if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count, done())
 
-        if (updateSequenceIndex(seq, offset, buffer, pValue))
-          updatedSequenceIndex = true
+        if (updatedTimestampIndex)
+          saveCoreIndex('timestamp', indexes['timestamp'], count, done())
 
-        if (indexNeedsUpdate) {
-          if (op.data.prefix && op.data.useMap)
-            updatePrefixMapIndex(op.data, index, buffer, seq, offset, pValue)
-          else if (op.data.prefix)
-            updatePrefixIndex(op.data, index, buffer, seq, offset, pValue)
-          else updateIndexValue(op, index, buffer, seq, pValue)
-        }
+        if (updatedSequenceIndex)
+          saveCoreIndex('sequence', indexes['sequence'], count, done())
 
-        if (seq % 1000 === 0) {
-          status.update(indexes, indexNamesForStatus)
-          const now = Date.now()
-          if (now - lastSaved >= 60e3) {
-            lastSaved = now
-            save(seq, offset)
+        for (const op of oldOps) {
+          const indexName = op.data.indexName
+          const index = indexes[indexName]
+          if (index.offset < offset) {
+            index.offset = offset
+            if (op.data.version > index.version) index.version = op.data.version
           }
         }
-
-        seq++
-      },
-      end: () => {
-        const count = seq // incremented at end
-        debug(
-          `log.stream #${logstreamId} done ${seq - startSeq} records in ${
-            Date.now() - start
-          }ms`
-        )
-
-        save(count, indexes['seq'].offset)
-
-        status.update(indexes, indexNamesForStatus)
-        status.done(indexNamesForStatus)
-        indexingActive.set(indexingActive.value - 1)
-
-        runWaitingIndexLoadCbs(waitingIndexUpdate, waitingKey)
-
-        cb()
-      },
-    })
-  }
-
-  // concurrent index create
-  const waitingIndexCreate = new Map()
-
-  function createIndexes(opsMissingIdx, cb) {
-    const newIndexes = {}
-
-    const newIndexNames = opsMissingIdx.map((op) => op.data.indexName)
-
-    const waitingKey = newIndexNames.join('|')
-    if (onlyOneIndexAtATime(waitingIndexCreate, waitingKey, cb)) return
-
-    opsMissingIdx.forEach((op) => {
-      if (op.data.prefix && op.data.useMap) {
-        newIndexes[op.data.indexName] = {
-          offset: 0,
-          count: 0,
-          map: {},
-          prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
-          version: op.data.version || 1,
-        }
-      } else if (op.data.prefix)
-        newIndexes[op.data.indexName] = {
-          offset: 0,
-          count: 0,
-          tarr: new Uint32Array(16 * 1000),
-          prefix: typeof op.data.prefix === 'number' ? op.data.prefix : 32,
-          version: op.data.version || 1,
-        }
-      else
-        newIndexes[op.data.indexName] = {
-          offset: 0,
-          bitset: new TypedFastBitSet(),
-          version: op.data.version || 1,
-        }
-    })
-
-    let seq = 0
-
-    let updatedSeqIndex = false
-    let updatedTimestampIndex = false
-    let updatedSequenceIndex = false
-    const start = Date.now()
-    let lastSaved = start
-
-    function save(count, offset, doneIndexing) {
-      const done = multicb({ pluck: 1 })
-      if (updatedSeqIndex) saveCoreIndex('seq', indexes['seq'], count, done())
-
-      if (updatedTimestampIndex)
-        saveCoreIndex('timestamp', indexes['timestamp'], count, done())
-
-      if (updatedSequenceIndex)
-        saveCoreIndex('sequence', indexes['sequence'], count, done())
-
-      for (var indexName in newIndexes) {
-        const index = newIndexes[indexName]
-        if (doneIndexing) indexes[indexName] = index
-        index.offset = offset
-      }
-
-      done(() => {
-        for (var indexName in newIndexes) {
+        for (const indexName in newIndexes) {
           const index = newIndexes[indexName]
-          saveIndex(indexName, index, count)
-        }
-      })
-    }
-
-    const logstreamId = Math.ceil(Math.random() * 1000)
-    debug(`log.stream #${logstreamId} started, to create indexes ${waitingKey}`)
-    status.update(indexes, coreIndexNames)
-    status.update(newIndexes, newIndexNames)
-    indexingActive.set(indexingActive.value + 1)
-
-    log.stream({}).pipe({
-      paused: false,
-      write: function (record) {
-        const offset = record.offset
-        const buffer = record.value
-
-        if (updateSeqIndex(seq, offset)) updatedSeqIndex = true
-
-        if (!buffer) {
-          // deleted
-          seq++
-          return
+          if (doneIndexing) indexes[indexName] = index
+          index.offset = offset
         }
 
-        const pValue = bipf.seekKey2(buffer, 0, BIPF_VALUE, 0)
-
-        if (updateTimestampIndex(seq, offset, buffer, pValue))
-          updatedTimestampIndex = true
-
-        if (updateSequenceIndex(seq, offset, buffer, pValue))
-          updatedSequenceIndex = true
-
-        opsMissingIdx.forEach((op) => {
-          if (op.data.prefix && op.data.useMap)
-            updatePrefixMapIndex(
-              op.data,
-              newIndexes[op.data.indexName],
-              buffer,
-              seq,
-              offset,
-              pValue
-            )
-          else if (op.data.prefix)
-            updatePrefixIndex(
-              op.data,
-              newIndexes[op.data.indexName],
-              buffer,
-              seq,
-              offset,
-              pValue
-            )
-          else if (op.data.indexAll)
-            updateAllIndexValue(op.data, newIndexes, buffer, seq, pValue)
-          else
-            updateIndexValue(
-              op,
-              newIndexes[op.data.indexName],
-              buffer,
-              seq,
-              pValue
-            )
-        })
-
-        if (seq % 1000 === 0) {
-          status.update(indexes, coreIndexNames)
-          status.update(newIndexes, newIndexNames)
-          const now = Date.now()
-          if (now - lastSaved >= 60e3) {
-            lastSaved = now
-            save(seq, offset, false)
+        done(() => {
+          for (const op of oldOps) {
+            if (op.isCore) continue
+            const indexName = op.data.indexName
+            const index = indexes[indexName]
+            saveIndex(indexName, index, count)
           }
-        }
+          for (const indexName in newIndexes) {
+            const index = newIndexes[indexName]
+            saveIndex(indexName, index, count)
+          }
+        })
+      }
 
-        seq++
-      },
-      end: () => {
-        const count = seq // incremented at end
-        debug(
-          `log.stream #${logstreamId} done ${count} records in ${
-            Date.now() - start
-          }ms`
-        )
+      const logstreamId = Math.ceil(Math.random() * 1000)
+      // prettier-ignore
+      debug(`log.stream #${logstreamId} started, updating indexes ${oldIndexNames.concat(newIndexNames).join('|')}`)
+      status.update(indexes, indexNamesForStatus)
+      status.update(newIndexes, newIndexNames)
+      indexingActive.set(indexingActive.value + 1)
 
-        save(count, indexes['seq'].offset, true)
+      log.stream({ gt: latestOffset }).pipe({
+        paused: false,
+        write(record) {
+          const offset = record.offset
+          const buffer = record.value
 
-        status.update(indexes, coreIndexNames)
-        status.update(newIndexes, newIndexNames)
-        status.done(coreIndexNames)
-        status.done(newIndexNames)
-        indexingActive.set(indexingActive.value - 1)
+          if (updateSeqIndex(seq, offset)) updatedSeqIndex = true
 
-        runWaitingIndexLoadCbs(waitingIndexCreate, waitingKey)
+          if (!buffer) {
+            // deleted
+            seq++
+            return
+          }
 
-        cb()
-      },
+          const pValue = bipf.seekKey2(buffer, 0, BIPF_VALUE, 0)
+
+          if (updateTimestampIndex(seq, offset, buffer, pValue))
+            updatedTimestampIndex = true
+
+          if (updateSequenceIndex(seq, offset, buffer, pValue))
+            updatedSequenceIndex = true
+
+          for (const op of oldOps) {
+            if (op.isCore) continue
+            const index = indexes[op.data.indexName]
+            if (op.data.prefix && op.data.useMap)
+              updatePrefixMapIndex(op.data, index, buffer, seq, offset, pValue)
+            else if (op.data.prefix)
+              updatePrefixIndex(op.data, index, buffer, seq, offset, pValue)
+            else updateIndexValue(op, index, buffer, seq, pValue)
+          }
+
+          for (const op of newOps) {
+            const index = newIndexes[op.data.indexName]
+            if (op.data.prefix && op.data.useMap)
+              updatePrefixMapIndex(op.data, index, buffer, seq, offset, pValue)
+            else if (op.data.prefix)
+              updatePrefixIndex(op.data, index, buffer, seq, offset, pValue)
+            else if (op.data.indexAll)
+              updateAllIndexValue(op.data, newIndexes, buffer, seq, pValue)
+            else updateIndexValue(op, index, buffer, seq, pValue)
+          }
+
+          if (seq % 1000 === 0) {
+            status.update(indexes, indexNamesForStatus)
+            status.update(newIndexes, newIndexNames)
+            const now = Date.now()
+            if (now - lastSaved >= 60e3) {
+              lastSaved = now
+              save(seq, offset, false)
+            }
+          }
+
+          seq++
+        },
+        end() {
+          // prettier-ignore
+          debug(`log.stream #${logstreamId} ended, scanned ${seq - startSeq} records in ${Date.now() - start}ms`)
+
+          const count = seq // incremented at the end of write()
+          save(count, indexes['seq'].offset, true)
+
+          status.update(indexes, indexNamesForStatus)
+          status.update(newIndexes, newIndexNames)
+          status.done(indexNamesForStatus)
+          status.done(newIndexNames)
+          indexingActive.set(indexingActive.value - 1)
+
+          unlock(cb)
+        },
+      })
     })
   }
 
@@ -831,7 +745,7 @@ module.exports = function (log, indexesPath) {
   function ensureIndexSync(op, cb) {
     const index = indexes[op.data.indexName]
     if (log.since.value > index.offset || op.data.version > index.version) {
-      updateIndex(op, cb)
+      updateIndexes([op], cb)
     } else {
       debug('ensureIndexSync %s is already synced', op.data.indexName)
       cb()
@@ -843,34 +757,30 @@ module.exports = function (log, indexesPath) {
   }
 
   function filterIndex(op, filterCheck, cb) {
-    ensureIndexSync(op, () => {
-      if (op.data.indexName === 'sequence') {
-        const bitset = new TypedFastBitSet()
-        const { tarr, count } = indexes['sequence']
-        for (let seq = 0; seq < count; ++seq) {
-          if (filterCheck(tarr[seq], op)) bitset.add(seq)
-        }
-        cb(bitset)
-      } else if (op.data.indexName === 'timestamp') {
-        const bitset = new TypedFastBitSet()
-        const { tarr, count } = indexes['timestamp']
-        for (let seq = 0; seq < count; ++seq) {
-          if (filterCheck(tarr[seq], op)) bitset.add(seq)
-        }
-        cb(bitset)
-      } else {
-        debug('filterIndex() is unsupported for %s', op.data.indexName)
+    if (op.data.indexName === 'sequence') {
+      const bitset = new TypedFastBitSet()
+      const { tarr, count } = indexes['sequence']
+      for (let seq = 0; seq < count; ++seq) {
+        if (filterCheck(tarr[seq], op)) bitset.add(seq)
       }
-    })
+      cb(bitset)
+    } else if (op.data.indexName === 'timestamp') {
+      const bitset = new TypedFastBitSet()
+      const { tarr, count } = indexes['timestamp']
+      for (let seq = 0; seq < count; ++seq) {
+        if (filterCheck(tarr[seq], op)) bitset.add(seq)
+      }
+      cb(bitset)
+    } else {
+      debug('filterIndex() is unsupported for %s', op.data.indexName)
+    }
   }
 
   function getFullBitset(cb) {
-    ensureIndexSync({ data: { indexName: 'sequence' } }, () => {
-      const bitset = new TypedFastBitSet()
-      const { count } = indexes['sequence']
-      bitset.addRange(0, count)
-      cb(bitset)
-    })
+    const bitset = new TypedFastBitSet()
+    const { count } = indexes['sequence']
+    bitset.addRange(0, count)
+    cb(bitset)
   }
 
   function getOffsetsBitset(opOffsets, cb) {
@@ -1016,13 +926,9 @@ module.exports = function (log, indexesPath) {
       op.type === 'ABSENT'
     ) {
       if (op.data.prefix) {
-        ensureIndexSync(op, () => {
-          matchAgainstPrefix(op, indexes[op.data.indexName], cb)
-        })
+        matchAgainstPrefix(op, indexes[op.data.indexName], cb)
       } else {
-        ensureIndexSync(op, () => {
-          cb(indexes[op.data.indexName].bitset)
-        })
+        cb(indexes[op.data.indexName].bitset)
       }
     } else if (op.type === 'GT') {
       filterIndex(op, (num, op) => num > op.data.value, cb)
@@ -1033,13 +939,9 @@ module.exports = function (log, indexesPath) {
     } else if (op.type === 'LTE') {
       filterIndex(op, (num, op) => num <= op.data.value, cb)
     } else if (op.type === 'OFFSETS') {
-      ensureSeqIndexSync(() => {
-        getOffsetsBitset(op.offsets, cb)
-      })
+      getOffsetsBitset(op.offsets, cb)
     } else if (op.type === 'SEQS') {
-      ensureSeqIndexSync(() => {
-        cb(new TypedFastBitSet(op.seqs))
-      })
+      cb(new TypedFastBitSet(op.seqs))
     } else if (op.type === 'LIVESEQS') {
       cb(new TypedFastBitSet())
     } else if (op.type === 'AND') {
@@ -1107,14 +1009,6 @@ module.exports = function (log, indexesPath) {
     return results
   }
 
-  function detectOpsMissingIndexes(operation) {
-    const results = []
-    forEachLeafOperationIn(operation, (op) => {
-      if (!indexes[op.data.indexName]) results.push(op)
-    })
-    return results
-  }
-
   function executeOperation(operation, cb) {
     updateCacheWithLog()
     if (bitsetCache.has(operation)) return cb(null, bitsetCache.get(operation))
@@ -1134,19 +1028,18 @@ module.exports = function (log, indexesPath) {
         )
       }),
 
-      // create missing indexes, if any
+      // update all relevant indexes, creating missing indexes, if any
       //
       // this needs to happen after loading lazy indexes because some
       // lazy indexes may have failed to load, and are now considered missing
       push.asyncMap((_, next) => {
-        const opsMissingIdx = detectOpsMissingIndexes(operation)
-        if (opsMissingIdx.length === 0) return next()
-        debug('missing indexes: %o', opsMissingIdx)
-        createIndexes(opsMissingIdx, next)
+        const ops = []
+        ops.push({ data: { indexName: 'seq' } }) // always ensure seq updated
+        forEachLeafOperationIn(operation, (op) => {
+          ops.push(op)
+        })
+        updateIndexes(ops, next)
       }),
-
-      // ensure that the seq->offset index is synchronized with the log
-      push.asyncMap((_, next) => ensureSeqIndexSync(next)),
 
       // get bitset for the input operation, and cache it
       push.asyncMap((_, next) => {
