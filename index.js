@@ -752,10 +752,6 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function ensureSeqIndexSync(cb) {
-    ensureIndexSync({ data: { indexName: 'seq' } }, cb)
-  }
-
   function filterIndex(op, filterCheck, cb) {
     if (op.data.indexName === 'sequence') {
       const bitset = new TypedFastBitSet()
@@ -1477,7 +1473,7 @@ module.exports = function (log, indexesPath) {
           recordStream = pull(
             seqStream,
             pull.asyncMap((seq, cb) => {
-              ensureSeqIndexSync(() => {
+              ensureIndexSync({ data: { indexName: 'seq' } }, () => {
                 getRecord(seq, cb)
               })
             })
