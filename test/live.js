@@ -278,7 +278,7 @@ prepareAndRunTest('Live with initial values', dir, (t, db, raf) => {
 prepareAndRunTest('Live with seq values', dir, (t, db, raf) => {
   let state = validate.initial()
 
-  const n = 1001
+  const n = 11
 
   let a = []
   for (var i = 0; i < n; ++i) {
@@ -380,8 +380,10 @@ prepareAndRunTest('Live with cleanup', dir, (t, db, raf) => {
   )
 
   addMsg(state.queue[0].value, raf, (err, msg1) => {
-    addMsg(state.queue[1].value, raf, (err, msg1) => {
-      // console.log("waiting for live query")
-    })
+    setTimeout(() => {
+      addMsg(state.queue[1].value, raf, (err, msg1) => {
+        // console.log("waiting for live query")
+      })
+    }, 100)
   })
 })
