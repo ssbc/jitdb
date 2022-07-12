@@ -535,7 +535,7 @@ function toPullStream() {
               else if (answer.total === 0) cb(true)
               else {
                 total = answer.total
-                seq += limit
+                seq = answer.nextSeq
                 cb(null, answer.results)
               }
             }
