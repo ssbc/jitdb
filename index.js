@@ -89,7 +89,7 @@ module.exports = function (log, indexesPath) {
 
   log.compactionProgress((stats) => {
     if (stats.done && waitingCompaction.length > 0) {
-      for (const cb of waitingCompaction) cb()
+      for (const cb of waitingCompaction) cb(stats.holesFound)
       waitingCompaction.length = 0
     }
   })
@@ -1270,8 +1270,9 @@ module.exports = function (log, indexesPath) {
 
   function paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb) {
     if (!log.compactionProgress.value.done) {
-      waitingCompaction.push(() =>
-        paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb)
+      waitingCompaction.push((holesFound) =>
+        // prettier-ignore
+        paginate(operation, seq - holesFound, limit, descending, onlyOffset, sortBy, cb)
       )
       return
     }
@@ -1294,6 +1295,7 @@ module.exports = function (log, indexesPath) {
             queriesActive.set(queriesActive.value - 1)
             if (err1) return cb(err1)
             answer.duration = Date.now() - start
+            answer.nextSeq = seq + answer.results.length
             if (debugQuery.enabled)
               debugQuery(
                 `paginate(${getNameFromOperation(
