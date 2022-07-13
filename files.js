@@ -172,18 +172,20 @@ function loadBitsetFile(filename, cb) {
   })
 }
 
-function listFilesIDB(dir, cb) {
-  const IdbKvStore = require('idb-kv-store')
-  const store = new IdbKvStore(dir, { disableBroadcast: true })
-  store.keys(cb)
-}
-
-function listFilesFS(dir, cb) {
-  const fs = require('fs')
-  const mkdirp = require('mkdirp')
-  mkdirp(dir).then(() => {
-    fs.readdir(dir, cb)
-  }, cb)
+function listFiles(dir, cb) {
+  if (typeof window !== 'undefined') {
+    // browser
+    const IdbKvStore = require('idb-kv-store')
+    const store = new IdbKvStore(dir, { disableBroadcast: true })
+    store.keys(cb)
+  } else {
+    // node.js
+    const fs = require('fs')
+    const mkdirp = require('mkdirp')
+    mkdirp(dir).then(() => {
+      fs.readdir(dir, cb)
+    }, cb)
+  }
 }
 
 function safeFilename(filename) {
@@ -211,7 +213,6 @@ module.exports = {
   loadPrefixMapFile,
   saveBitsetFile,
   loadBitsetFile,
-  listFilesIDB,
-  listFilesFS,
+  listFiles,
   safeFilename,
 }
