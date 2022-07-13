@@ -25,8 +25,7 @@ const {
   saveBitsetFile,
   loadBitsetFile,
   safeFilename,
-  listFilesIDB,
-  listFilesFS,
+  listFiles,
 } = require('./files')
 
 module.exports = function (log, indexesPath) {
@@ -99,7 +98,7 @@ module.exports = function (log, indexesPath) {
   const BIPF_VALUE = bipf.allocAndEncode('value')
 
   function loadIndexes(cb) {
-    function parseIndexes(err, files) {
+    listFiles(indexesPath, function parseIndexes(err, files) {
       push(
         push.values(files),
         push.asyncMap((file, cb) => {
@@ -166,15 +165,7 @@ module.exports = function (log, indexesPath) {
         }),
         push.collect(cb)
       )
-    }
-
-    if (typeof window !== 'undefined') {
-      // browser
-      listFilesIDB(indexesPath, parseIndexes)
-    } else {
-      // node.js
-      listFilesFS(indexesPath, parseIndexes)
-    }
+    })
   }
 
   function clearCache() {
