@@ -81,8 +81,6 @@ prepareAndRunTest('toPullStream post-compact', dir, async (t, jitdb, log) => {
   t.equals(msgs[1].value.content.text, 'Testing 3', 'msg 3')
   t.equals(msgs[2].value.content.text, 'Testing 4', 'msg 4')
 
-  // FIXME: AAOL needs to set stats.done = false as soon as compact() is called
-
   let queryStarted = false
   let queryEnded = false
   await new Promise((resolve) => {
