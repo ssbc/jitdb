@@ -42,7 +42,7 @@ module.exports = function (log, indexesPath) {
   let isReady = false
   let waiting = []
   const waitingCompaction = []
-  const coreIndexNames = ['seq', 'timestamp', 'sequence']
+  const coreIndexNames = ['seq', 'timestamp', 'sequence', 'present']
   const indexingActive = Obv().set(0)
   const queriesActive = Obv().set(0)
 
@@ -73,6 +73,14 @@ module.exports = function (log, indexesPath) {
         version: 1,
       }
     }
+    if (!indexes['present']) {
+      indexes['present'] = {
+        offset: -1,
+        count: 0,
+        bitset: new TypedFastBitSet(),
+        version: 1,
+      }
+    }
 
     status.update(indexes, coreIndexNames)
 
@@ -91,6 +99,14 @@ module.exports = function (log, indexesPath) {
       for (const cb of waitingCompaction) cb(stats.holesFound)
       waitingCompaction.length = 0
     }
+  })
+
+  log.deleted((offset) => {
+    const seq = getSeqFromOffset(offset)
+    if (seq < 0) return
+    updatePresentIndex(seq, offset, null)
+    // FIXME: debounce this save:
+    saveBitsetIndex('present', indexes['present'], () => {})
   })
 
   const BIPF_TIMESTAMP = bipf.allocAndEncode('timestamp')
@@ -130,6 +146,11 @@ module.exports = function (log, indexesPath) {
                 cb()
               }
             )
+          } else if (file === 'present.index') {
+            loadBitsetFile(path.join(indexesPath, file), (err, idx) => {
+              if (!err) indexes[indexName] = idx
+              cb()
+            })
           } else if (file.endsWith('.32prefix')) {
             // Don't load it yet, just tag it `lazy`
             indexes[indexName] = {
@@ -185,6 +206,10 @@ module.exports = function (log, indexesPath) {
 
   function saveCoreIndex(name, coreIndex, count, cb) {
     if (coreIndex.offset < 0) return
+    if (name === 'present') {
+      saveBitsetIndex(name, coreIndex, cb)
+      return
+    }
     debug('saving core index: %s', name)
     const filename = path.join(indexesPath, name + '.index')
     saveTypedArrayFile(
@@ -305,10 +330,24 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function updatePresentIndex(seq, offset, buffer) {
+    if (!buffer) {
+      indexes['present'].bitset.remove(seq)
+    } else {
+      indexes['present'].bitset.add(seq)
+    }
+
+    if (seq > indexes['present'].count - 1) {
+      indexes['present'].offset = offset
+      indexes['present'].count = seq + 1
+    }
+  }
+
   function getSeqFromOffset(offset) {
     if (offset === -1) return -1
-    const { tarr, count } = indexes['seq']
-    const seq = bsb.eq(tarr, offset, 0, count - 1)
+    const seqIndex = indexes['seq']
+    if (offset > seqIndex.offset) return -1
+    const seq = bsb.eq(seqIndex.tarr, offset, 0, seqIndex.count - 1)
     if (seq < 0) return 0
     return seq
   }
@@ -557,6 +596,8 @@ module.exports = function (log, indexesPath) {
         if (updatedSequenceIndex)
           saveCoreIndex('sequence', indexes['sequence'], count, done())
 
+        saveCoreIndex('present', indexes['present'], count, done())
+
         for (const op of oldOps) {
           const indexName = op.data.indexName
           const index = indexes[indexName]
@@ -602,6 +643,7 @@ module.exports = function (log, indexesPath) {
 
           if (!buffer) {
             // deleted
+            updatePresentIndex(seq, offset, buffer)
             seq++
             return
           }
@@ -613,6 +655,8 @@ module.exports = function (log, indexesPath) {
 
           if (updateSequenceIndex(seq, offset, buffer, pValue))
             updatedSequenceIndex = true
+
+          updatePresentIndex(seq, offset, buffer)
 
           for (const op of oldOps) {
             if (op.isCore) continue
@@ -996,9 +1040,19 @@ module.exports = function (log, indexesPath) {
     return results
   }
 
+  function intersectWithPresent([bitset, filters]) {
+    const present = indexes['present'].bitset
+    const bitset2 = bitset.new_intersection(present)
+    return [bitset2, filters]
+  }
+
   function executeOperation(operation, cb) {
     updateCacheWithLog()
-    if (bitsetCache.has(operation)) return cb(null, bitsetCache.get(operation))
+    if (bitsetCache.has(operation)) {
+      // FIXME: does this intersect annul the perf benefits of the cache?
+      cb(null, intersectWithPresent(bitsetCache.get(operation)))
+      return
+    }
 
     push(
       // kick-start this chain with a dummy null value
@@ -1034,6 +1088,12 @@ module.exports = function (log, indexesPath) {
           bitsetCache.set(operation, [bitset, filters])
           next(null, [bitset, filters])
         })
+      }),
+
+      // cross with present.index to avoid deleted seqs
+      // FIXME: replace this with push.map
+      push.asyncMap((result, next) => {
+        next(null, intersectWithPresent(result))
       }),
 
       // return bitset and filter functions

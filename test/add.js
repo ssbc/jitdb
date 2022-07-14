@@ -287,7 +287,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
             t.error(err)
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
-            t.equal(Object.keys(db.indexes).length, 3 + 2 + 1 + 1)
+            t.equal(Object.keys(db.indexes).length, 4 + 2 + 1 + 1)
             t.end()
           })
         })

@@ -16,27 +16,26 @@ module.exports = function () {
     return '%' + hash(JSON.stringify(msg, null, 2))
   }
 
-  function addMsg(msg, raf, cb) {
-    var data = {
-      key: getId(msg),
-      value: msg,
+  function addMsg(msgVal, log, cb) {
+    const msg = {
+      key: getId(msgVal),
+      value: msgVal,
       timestamp: Date.now(),
     }
-    var b = Buffer.alloc(bipf.encodingLength(data))
-    bipf.encode(data, b, 0)
-    raf.append(b, function (err, offset) {
+    const buf = bipf.allocAndEncode(msg)
+    log.append(buf, (err, offset) => {
       if (err) cb(err)
       // instead of cluttering the tests with onDrain, we just
       // simulate sync adds here
-      else raf.onDrain(() => cb(null, data, offset))
+      else log.onDrain(() => cb(null, msg, offset))
     })
   }
 
   function addMsgPromise(msg, raf) {
     return new Promise((resolve, reject) => {
-      addMsg(msg, raf, (err, data, offset) => {
+      addMsg(msg, raf, (err, msg, offset) => {
         if (err) reject(err)
-        else resolve({ data, offset })
+        else resolve({ msg, offset })
       })
     })
   }
