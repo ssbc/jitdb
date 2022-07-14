@@ -1075,7 +1075,9 @@ module.exports = function (log, indexesPath) {
       // lazy indexes may have failed to load, and are now considered missing
       push.asyncMap((_, next) => {
         const ops = []
-        ops.push({ data: { indexName: 'seq' } }) // always ensure seq updated
+        // always ensure seq and present indexes are up-to-date
+        ops.push({ data: { indexName: 'seq' } })
+        ops.push({ data: { indexName: 'present' } })
         forEachLeafOperationIn(operation, (op) => {
           ops.push(op)
         })
