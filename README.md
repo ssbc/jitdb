@@ -487,7 +487,7 @@ First some terminology: offset refers to the byte position in the log
 of a message. Seq refers to the 0-based position of a message in the
 log.
 
-### paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb)
+### paginate(operation, seq, limit, descending, onlyOffset, sortBy, latestMsgKeyPrecompaction, cb)
 
 Query the database returning paginated results. If one or more indexes
 doesn't exist or are outdated, the indexes will be updated before the
@@ -498,6 +498,9 @@ refers to the timestamp for when a message was created, while
 `arrival` refers to when a message was added to the database. This can
 be important for messages from other peers that might arrive out of
 order compared when they were created.
+
+`latestMsgKeyPrecompaction` is used internally, and it's safe to just pass
+`null` as its value when you're calling `paginate`.
 
 The result is an object with the fields:
 
