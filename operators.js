@@ -494,6 +494,7 @@ function toCallback(cb) {
           descending,
           asOffsets,
           sortBy,
+          null,
           cb
         )
       else meta.jitdb.all(ops, seq, descending, asOffsets, sortBy, cb)
