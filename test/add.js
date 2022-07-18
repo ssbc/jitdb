@@ -45,6 +45,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
         false,
         false,
         'declared',
+        null,
         (err, { results }) => {
           t.equal(results.length, 2)
 
@@ -56,6 +57,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
             true,
             false,
             'declared',
+            null,
             (err, { results }) => {
               t.equal(results.length, 2)
               t.equal(results[0].value.author, keys2.id)
@@ -67,6 +69,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                 false,
                 false,
                 'declared',
+                null,
                 (err, { results }) => {
                   t.equal(results.length, 2)
                   t.equal(results[0].value.author, keys.id)
@@ -87,6 +90,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                     false,
                     false,
                     'declared',
+                    null,
                     (err, { results }) => {
                       t.equal(results.length, 1)
                       t.equal(results[0].id, msg1.id)
@@ -99,6 +103,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                         false,
                         false,
                         'declared',
+                        null,
                         (err, { results }) => {
                           t.equal(results.length, 1)
                           t.equal(results[0].id, msg1.id)
@@ -113,6 +118,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                             false,
                             false,
                             'declared',
+                            null,
                             (err, { results }) => {
                               t.equal(results.length, 1)
                               t.equal(results[0].id, msg1.id)
@@ -143,6 +149,7 @@ prepareAndRunTest('Base', dir, (t, db, raf) => {
                                 false,
                                 false,
                                 'declared',
+                                null,
                                 (err, { results }) => {
                                   t.equal(results.length, 2)
                                   t.end()
@@ -233,6 +240,7 @@ prepareAndRunTest('grow', dir, (t, db, raf) => {
         false,
         false,
         'declared',
+        null,
         (err, { results }) => {
           t.equal(results.length, 1)
           t.equal(results[0].value.content.text, 'Testing 31999')
