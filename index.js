@@ -1285,9 +1285,12 @@ module.exports = function (log, indexesPath) {
     }
   }
 
-  function slowFindSeqForMsgKey(msgKey, cb) {
+  // Scanning the log for this purpose is much slower than the keys index in
+  // ssb-db2, but we don't need this to be fast because it's a one-time job only
+  // after compaction has ended. We should use ssb-db2 `keys` in the future.
+  function findSeqForMsgKey(msgKey, cb) {
     let seq = 0
-    log.stream({ offsets: false, values: true }).pipe(
+    log.stream({ offsets: false, values: true, decrypt: false }).pipe(
       push.drain(
         function sinkToFindSeq(buffer) {
           const pKey = bipf.seekKey2(buffer, 0, BIPF_KEY, 0)
@@ -1324,7 +1327,7 @@ module.exports = function (log, indexesPath) {
     if (!log.compactionProgress.value.done) {
       waitingCompaction.push(() => {
         if (latestMsgKey) {
-          slowFindSeqForMsgKey(latestMsgKey, (err, seqForMsgKey) => {
+          findSeqForMsgKey(latestMsgKey, (err, seqForMsgKey) => {
             if (err) return cb(err)
             const resumeSeq = seqForMsgKey + 1
             // prettier-ignore
