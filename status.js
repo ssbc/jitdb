@@ -33,7 +33,7 @@ module.exports = function Status() {
   function update(indexes, names) {
     let changed = false
     for (const name of names) {
-      const index = indexes[name]
+      const index = indexes.get(name)
       const previous = indexesStatus[name] || -Infinity
       if (index.offset > previous) {
         indexesStatus[name] = index.offset

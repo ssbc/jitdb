@@ -43,12 +43,12 @@ prepareAndRunTest('Ensure seq index is updated always', dir, (t, db, raf) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.type, 'post')
 
-        db.indexes['seq'] = {
+        db.indexes.set('seq', {
           offset: -1,
           count: 0,
           tarr: new Uint32Array(16 * 1000),
           version: 1,
-        }
+        })
 
         addMsg(state.queue[2].value, raf, (err, msg) => {
           db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
