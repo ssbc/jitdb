@@ -26,6 +26,7 @@ const {
   loadBitsetFile,
   safeFilename,
   listFiles,
+  EmptyFile,
 } = require('./files')
 
 module.exports = function (log, indexesPath) {
@@ -41,6 +42,9 @@ module.exports = function (log, indexesPath) {
   const indexes = {}
   let isReady = false
   let waiting = []
+  let compacting = false
+  let compactStartOffset = null
+  const postCompactReindexPath = path.join(indexesPath, 'post-compact-reindex')
   const waitingCompaction = []
   const coreIndexNames = ['seq', 'timestamp', 'sequence']
   const indexingActive = Obv().set(0)
@@ -87,9 +91,40 @@ module.exports = function (log, indexesPath) {
   }
 
   log.compactionProgress((stats) => {
-    if (stats.done && waitingCompaction.length > 0) {
-      for (const cb of waitingCompaction) cb(stats.holesFound)
-      waitingCompaction.length = 0
+    if (typeof stats.startOffset === 'number' && compactStartOffset === null) {
+      compactStartOffset = stats.startOffset
+    }
+
+    if (!stats.done && !compacting) {
+      compacting = true
+      EmptyFile.create(postCompactReindexPath)
+    } else if (stats.done && compacting) {
+      compacting = false
+      const offset = compactStartOffset || 0
+      compactStartOffset = null
+
+      if (stats.sizeDiff > 0) {
+        EmptyFile.exists(postCompactReindexPath, (err, exists) => {
+          if (exists) {
+            reindex(offset, (err) => {
+              if (err) console.error('reindex jitdb after compact', err)
+              conclude()
+            })
+          } else {
+            conclude()
+          }
+        })
+      } else {
+        conclude()
+      }
+
+      function conclude() {
+        EmptyFile.delete(postCompactReindexPath, () => {
+          if (waitingCompaction.length === 0) return
+          for (const cb of waitingCompaction) cb(stats.holesFound)
+          waitingCompaction.length = 0
+        })
+      }
     }
   })
 
@@ -1518,6 +1553,8 @@ module.exports = function (log, indexesPath) {
             index.map[prefix] = arr.filter((x) => x < seq)
           }
         }
+
+        if (index.bitset) index.bitset.removeRange(seq, Infinity)
 
         index.offset = prevOffset
       }
