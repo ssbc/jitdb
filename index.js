@@ -234,7 +234,6 @@ module.exports = function (log, indexesPath) {
   }
 
   function saveIndex(name, index, count, cb) {
-    debug('saving index: %s', name)
     if (index.prefix && index.map) savePrefixMapIndex(name, index, count, cb)
     else if (index.prefix) savePrefixIndex(name, index, count, cb)
     else saveBitsetIndex(name, index, cb)
@@ -278,7 +277,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function growTarrIndex(index, Type) {
-    debug('growing index')
+    debug('growing index %s', index.name)
     const newArray = new Type(index.tarr.length * 2)
     newArray.set(index.tarr)
     index.tarr = newArray
@@ -623,7 +622,7 @@ module.exports = function (log, indexesPath) {
 
       const logstreamId = Math.ceil(Math.random() * 1000)
       // prettier-ignore
-      debug(`log.stream #${logstreamId} started, updating indexes ${oldIndexNames.concat(newIndexNames).join('|')}`)
+      debug(`log.stream #${logstreamId} started, updating indexes ${oldIndexNames.concat(newIndexNames).join('|')} from offset ${latestOffset}`)
       status.update(indexes, indexNamesForStatus)
       status.update(newIndexes, newIndexNames)
       indexingActive.set(indexingActive.value + 1)
@@ -774,7 +773,6 @@ module.exports = function (log, indexesPath) {
     if (log.since.value > index.offset || op.data.version > index.version) {
       updateIndexes([op], cb)
     } else {
-      debug('ensureIndexSync %s is already synced', op.data.indexName)
       cb()
     }
   }
