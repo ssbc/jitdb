@@ -295,7 +295,7 @@ prepareAndRunTest('indexAll', dir, (t, db, raf) => {
             t.error(err)
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 1')
-            t.equal(Object.keys(db.indexes).length, 3 + 2 + 1 + 1)
+            t.equal(db.indexes.size, 3 + 2 + 1 + 1)
             t.end()
           })
         })
@@ -353,9 +353,16 @@ prepareAndRunTest('indexAll multiple reindexes', dir, (t, db, raf) => {
                   'declared',
                   (err, results) => {
                     t.equal(results.length, 2)
-                    t.deepEqual(db.indexes['type_post'].bitset.array(), [0, 2])
-                    t.deepEqual(db.indexes['type_contact'].bitset.array(), [1])
-                    t.deepEqual(db.indexes['type_about'].bitset.array(), [3])
+                    t.deepEqual(
+                      db.indexes.get('type_post').bitset.array(),
+                      [0, 2]
+                    )
+                    t.deepEqual(db.indexes.get('type_contact').bitset.array(), [
+                      1,
+                    ])
+                    t.deepEqual(db.indexes.get('type_about').bitset.array(), [
+                      3,
+                    ])
                     t.end()
                   }
                 )
@@ -394,7 +401,7 @@ prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
       addMsg(q.value, raf, cb)
     }),
     push.collect((err, results) => {
-      t.notOk(db.indexes['type_post'])
+      t.notOk(db.indexes.get('type_post'))
       t.notOk(db.status.value['type_post'])
       const expectedStatus = [undefined, -1, undefined]
       db.status((stats) => {
@@ -405,7 +412,7 @@ prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
         t.error(err, 'no error')
         t.equals(typeof duration, 'number')
         t.ok(duration)
-        t.ok(db.indexes['type_post'])
+        t.ok(db.indexes.get('type_post'))
         db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 1000)
         })
