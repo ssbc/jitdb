@@ -121,7 +121,7 @@ module.exports = function (log, indexesPath) {
       function conclude() {
         EmptyFile.delete(postCompactReindexPath, () => {
           if (waitingCompaction.length === 0) return
-          for (const cb of waitingCompaction) cb(stats.holesFound)
+          for (const cb of waitingCompaction) cb()
           waitingCompaction.length = 0
         })
       }
@@ -1321,13 +1321,13 @@ module.exports = function (log, indexesPath) {
     descending,
     onlyOffset,
     sortBy,
-    latestMsgKey,
+    latestMsgKeyPrecompaction,
     cb
   ) {
     if (!log.compactionProgress.value.done) {
       waitingCompaction.push(() => {
-        if (latestMsgKey) {
-          findSeqForMsgKey(latestMsgKey, (err, seqForMsgKey) => {
+        if (latestMsgKeyPrecompaction) {
+          findSeqForMsgKey(latestMsgKeyPrecompaction, (err, seqForMsgKey) => {
             if (err) return cb(err)
             const resumeSeq = seqForMsgKey + 1
             // prettier-ignore
