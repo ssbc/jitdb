@@ -206,6 +206,58 @@ function safeFilename(filename) {
   return sanitize(result)
 }
 
+const EmptyFile = {
+  create(filename) {
+    if (typeof window !== 'undefined') {
+      // browser
+      const IdbKvStore = require('idb-kv-store')
+      const store = new IdbKvStore(filename, { disableBroadcast: true })
+      store.set('x', 'y', () => {})
+    } else {
+      // node.js
+      const fs = require('fs')
+      fs.closeSync(fs.openSync(filename, 'w'))
+    }
+  },
+
+  exists(filename, cb) {
+    if (typeof window !== 'undefined') {
+      // browser
+      const IdbKvStore = require('idb-kv-store')
+      const store = new IdbKvStore(filename, { disableBroadcast: true })
+      store.get('x', (err, y) => {
+        if (err) return cb(null, false)
+        cb(null, y === 'y')
+      })
+    } else {
+      // node.js
+      const fs = require('fs')
+      cb(null, fs.existsSync(filename))
+    }
+  },
+
+  delete(filename, cb) {
+    EmptyFile.exists(filename, (err, exists) => {
+      if (cb) return cb(err)
+      if (!exists) cb(null)
+      else EmptyFile._actuallyDelete(filename, cb)
+    })
+  },
+
+  _actuallyDelete(filename, cb) {
+    if (typeof window !== 'undefined') {
+      // browser
+      const IdbKvStore = require('idb-kv-store')
+      const store = new IdbKvStore(filename, { disableBroadcast: true })
+      store.remove('x', cb)
+    } else {
+      // node.js
+      const rimraf = require('rimraf')
+      cb(null, rimraf.sync(filename))
+    }
+  },
+}
+
 module.exports = {
   saveTypedArrayFile,
   loadTypedArrayFile,
@@ -214,5 +266,6 @@ module.exports = {
   saveBitsetFile,
   loadBitsetFile,
   listFiles,
+  EmptyFile,
   safeFilename,
 }
