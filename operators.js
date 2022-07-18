@@ -542,11 +542,22 @@ function toPullStream() {
           )
         }
       }
-      if (meta.pageSize || meta.count) {
+
+      if (meta.count) {
         return readable
+      } else if (meta.pageSize) {
+        return pull(
+          readable,
+          pull.filter((page) => page.length > 0)
+        )
       } else {
         // Flatten the "pages" (arrays) into individual messages
-        return pull(readable, pull.map(pull.values), pull.flatten())
+        return pull(
+          readable,
+          pull.filter((page) => page.length > 0),
+          pull.map(pull.values),
+          pull.flatten()
+        )
       }
     }
 

@@ -1192,12 +1192,12 @@ module.exports = function (log, indexesPath) {
     seq = seq || 0
 
     const sorted = sortedBy(bitset, descending, sortBy)
-    const resultSize = sorted.size
+    const total = sorted.size
 
     // seq -> record buffer
     const recBufferCache = {}
 
-    function processResults(seqs, resultSize) {
+    function processResults(seqs) {
       push(
         push.values(seqs),
         push.asyncMap((seq, continueCB) => {
@@ -1206,10 +1206,7 @@ module.exports = function (log, indexesPath) {
         }),
         push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
         push.collect((err, results) => {
-          cb(err, {
-            results: results,
-            total: resultSize,
-          })
+          cb(err, { results, total, nextSeq: seq + seqs.length })
         })
       )
     }
@@ -1229,7 +1226,7 @@ module.exports = function (log, indexesPath) {
             seqs,
             (e, seqs) => ensureEnoughResults(e, startSeq + rawLength, seqs)
           )
-        else processResults(seqs, resultSize)
+        else processResults(seqs)
       }
 
       function getMoreResults(startSeq, remaining, seqs, continueCB) {
@@ -1250,7 +1247,7 @@ module.exports = function (log, indexesPath) {
       )
     } else {
       const slicedSeqs = sliceResults(sorted, seq, limit).map((s) => s.seq)
-      processResults(slicedSeqs, resultSize)
+      processResults(slicedSeqs)
     }
   }
 
@@ -1286,7 +1283,6 @@ module.exports = function (log, indexesPath) {
             queriesActive.set(queriesActive.value - 1)
             if (err1) return cb(err1)
             answer.duration = Date.now() - start
-            answer.nextSeq = seq + answer.results.length
             if (debugQuery.enabled)
               debugQuery(
                 `paginate(${getNameFromOperation(
