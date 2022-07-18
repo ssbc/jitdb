@@ -516,6 +516,7 @@ function toPullStream() {
       let total = Infinity
       const limit = meta.pageSize || meta.batchSize || 20
       let shouldEnd = false
+      let latestMsgKey = null
       function readable(end, cb) {
         if (end) return cb(end)
         if (seq >= total || shouldEnd) return cb(true)
@@ -530,12 +531,16 @@ function toPullStream() {
             meta.descending,
             meta.asOffsets,
             meta.sortBy,
+            latestMsgKey,
             (err, answer) => {
               if (err) return cb(err)
               else if (answer.total === 0) cb(true)
               else {
                 total = answer.total
                 seq = answer.nextSeq
+                if (answer.results.length > 0) {
+                  latestMsgKey = answer.results[answer.results.length - 1].key
+                }
                 cb(null, answer.results)
               }
             }

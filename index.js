@@ -131,6 +131,7 @@ module.exports = function (log, indexesPath) {
   const BIPF_TIMESTAMP = bipf.allocAndEncode('timestamp')
   const BIPF_SEQUENCE = bipf.allocAndEncode('sequence')
   const BIPF_VALUE = bipf.allocAndEncode('value')
+  const BIPF_KEY = bipf.allocAndEncode('key')
 
   function loadIndexes(cb) {
     listFiles(indexesPath, function parseIndexes(err, files) {
@@ -1286,17 +1287,56 @@ module.exports = function (log, indexesPath) {
     }
   }
 
+  function slowFindSeqForMsgKey(msgKey, cb) {
+    let seq = 0
+    log.stream({ offsets: false, values: true }).pipe(
+      push.drain(
+        function sinkToFindSeq(buffer) {
+          const pKey = bipf.seekKey2(buffer, 0, BIPF_KEY, 0)
+          const msgKeyCandidate = bipf.decode(buffer, pKey)
+          if (msgKeyCandidate === msgKey) {
+            cb(null, seq)
+            return false // abort sink
+          } else {
+            seq += 1
+          }
+        },
+        function sinkEndedLookingForSeq() {
+          cb(new Error('msgKey not found'))
+        }
+      )
+    )
+  }
+
   function countBitsetSlice(bitset, seq, descending) {
     if (!seq) return bitset.size()
     else return bitset.size() - seq
   }
 
-  function paginate(operation, seq, limit, descending, onlyOffset, sortBy, cb) {
+  function paginate(
+    operation,
+    seq,
+    limit,
+    descending,
+    onlyOffset,
+    sortBy,
+    latestMsgKey,
+    cb
+  ) {
     if (!log.compactionProgress.value.done) {
-      waitingCompaction.push((holesFound) =>
-        // prettier-ignore
-        paginate(operation, seq - holesFound, limit, descending, onlyOffset, sortBy, cb)
-      )
+      waitingCompaction.push(() => {
+        if (latestMsgKey) {
+          slowFindSeqForMsgKey(latestMsgKey, (err, seqForMsgKey) => {
+            if (err) return cb(err)
+            const resumeSeq = seqForMsgKey + 1
+            // prettier-ignore
+            paginate(operation, resumeSeq, limit, descending, onlyOffset, sortBy, null, cb)
+          })
+        } else {
+          // prettier-ignore
+          paginate(operation, seq, limit, descending, onlyOffset, sortBy, null, cb)
+        }
+      })
       return
     }
 

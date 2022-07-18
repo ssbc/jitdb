@@ -98,6 +98,7 @@ prepareAndRunTest('Top 1 multiple types', dir, (t, db, raf) => {
           true,
           false,
           'declared',
+          null,
           (err, { results }) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing 2!')
@@ -133,6 +134,7 @@ prepareAndRunTest('Limit -1', dir, (t, db, raf) => {
       true,
       false,
       'declared',
+      null,
       (err2, { results }) => {
         t.error(err2)
         t.equal(results.length, 0)
@@ -166,6 +168,7 @@ prepareAndRunTest('Limit 0', dir, (t, db, raf) => {
       true,
       false,
       'declared',
+      null,
       (err2, { results }) => {
         t.error(err2)
         t.equal(results.length, 0)
@@ -288,6 +291,7 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
           false,
           false,
           'declared',
+          null,
           (err, { results }) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, '1st')
@@ -298,6 +302,7 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
               false,
               false,
               'declared',
+              null,
               (err, { results }) => {
                 t.equal(results.length, 1)
                 t.equal(results[0].value.content.text, '2nd')
@@ -308,6 +313,7 @@ prepareAndRunTest('Paginate many pages', dir, (t, db, raf) => {
                   false,
                   false,
                   'declared',
+                  null,
                   (err, { results }) => {
                     t.equal(results.length, 1)
                     t.equal(results[0].value.content.text, '3rd')
@@ -350,6 +356,7 @@ prepareAndRunTest('Paginate empty', dir, (t, db, raf) => {
         false,
         false,
         'declared',
+        null,
         (err3, { results }) => {
           t.error(err3)
           t.equal(results.length, 0)
@@ -390,6 +397,7 @@ prepareAndRunTest('Seq', dir, (t, db, raf) => {
           true,
           false,
           'declared',
+          null,
           (err, { results }) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing!')
@@ -425,6 +433,7 @@ prepareAndRunTest('Buffer', dir, (t, db, raf) => {
       true,
       false,
       'declared',
+      null,
       (err, { results }) => {
         t.equal(results.length, 1)
         t.equal(results[0].value.content.text, 'Testing!')
@@ -464,6 +473,7 @@ prepareAndRunTest('Undefined', dir, (t, db, raf) => {
           false,
           false,
           'declared',
+          null,
           (err, { results }) => {
             t.equal(results.length, 2)
             t.equal(results[0].value.content.text, 'Testing no root')
@@ -506,6 +516,7 @@ prepareAndRunTest('Null', dir, (t, db, raf) => {
           false,
           false,
           'declared',
+          null,
           (err, { results }) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing root null')
@@ -702,6 +713,7 @@ prepareAndRunTest('Data offsets', dir, (t, db, raf) => {
           true,
           false,
           'declared',
+          null,
           (err, { results }) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing no root')
@@ -781,6 +793,7 @@ prepareAndRunTest('Data seqs', dir, (t, db, raf) => {
           true,
           false,
           'declared',
+          null,
           (err, { results }) => {
             t.equal(results.length, 1)
             t.equal(results[0].value.content.text, 'Testing no root')

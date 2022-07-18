@@ -56,7 +56,8 @@ prepareAndRunTest('delete then index', dir, async (t, jitdb, log) => {
     2,
     false,
     false,
-    'declared'
+    'declared',
+    null
   )
   t.deepEqual(
     answer.results.map((msg) => msg.value.content.text),
@@ -106,7 +107,8 @@ prepareAndRunTest('index then delete', dir, async (t, jitdb, log) => {
     2,
     false,
     false,
-    'declared'
+    'declared',
+    null
   )
   t.deepEqual(
     answer.results.map((msg) => msg.value.content.text),
@@ -120,7 +122,8 @@ prepareAndRunTest('index then delete', dir, async (t, jitdb, log) => {
     2,
     false,
     false,
-    'declared'
+    'declared',
+    null
   )
   t.deepEqual(
     answer2.results.map((msg) => msg.value.content.text),

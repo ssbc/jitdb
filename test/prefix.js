@@ -517,6 +517,7 @@ prepareAndRunTest('Prefix delete', dir, (t, db, raf) => {
                 false,
                 false,
                 'declared',
+                null,
                 (err, answer) => {
                   t.equal(answer.results.length, 1)
                   t.equal(answer.results[0].value.content.text, 'Testing 2!')
