@@ -41,11 +41,11 @@ module.exports = function (log, indexesPath) {
 
   const indexes = {}
   let isReady = false
-  let waiting = []
+  const waitingReady = new Set()
   let compacting = false
   let compactStartOffset = null
   const postCompactReindexPath = path.join(indexesPath, 'post-compact-reindex')
-  const waitingCompaction = []
+  const waitingCompaction = new Set()
   const coreIndexNames = ['seq', 'timestamp', 'sequence']
   const indexingActive = Obv().set(0)
   const queriesActive = Obv().set(0)
@@ -81,13 +81,13 @@ module.exports = function (log, indexesPath) {
     status.update(indexes, coreIndexNames)
 
     isReady = true
-    for (let i = 0; i < waiting.length; ++i) waiting[i]()
-    waiting = []
+    for (const cb of waitingReady) cb()
+    waitingReady.clear()
   })
 
   function onReady(cb) {
     if (isReady) cb()
-    else waiting.push(cb)
+    else waitingReady.add(cb)
   }
 
   log.compactionProgress((stats) => {
@@ -120,9 +120,9 @@ module.exports = function (log, indexesPath) {
 
       function conclude() {
         EmptyFile.delete(postCompactReindexPath, () => {
-          if (waitingCompaction.length === 0) return
+          if (waitingCompaction.size === 0) return
           for (const cb of waitingCompaction) cb()
-          waitingCompaction.length = 0
+          waitingCompaction.clear()
         })
       }
     }
@@ -1325,7 +1325,7 @@ module.exports = function (log, indexesPath) {
     cb
   ) {
     if (!log.compactionProgress.value.done) {
-      waitingCompaction.push(() => {
+      waitingCompaction.add(() => {
         if (latestMsgKeyPrecompaction) {
           findSeqForMsgKey(latestMsgKeyPrecompaction, (err, seqForMsgKey) => {
             if (err) return cb(err)
@@ -1376,7 +1376,7 @@ module.exports = function (log, indexesPath) {
 
   function all(operation, seq, descending, onlyOffset, sortBy, cb) {
     if (!log.compactionProgress.value.done) {
-      waitingCompaction.push(() =>
+      waitingCompaction.add(() =>
         all(operation, seq, descending, onlyOffset, sortBy, cb)
       )
       return
@@ -1415,7 +1415,7 @@ module.exports = function (log, indexesPath) {
 
   function count(operation, seq, descending, cb) {
     if (!log.compactionProgress.value.done) {
-      waitingCompaction.push(() => count(operation, seq, descending, cb))
+      waitingCompaction.add(() => count(operation, seq, descending, cb))
       return
     }
 
@@ -1441,7 +1441,7 @@ module.exports = function (log, indexesPath) {
 
   function prepare(operation, cb) {
     if (!log.compactionProgress.value.done) {
-      waitingCompaction.push(() => prepare(operation, cb))
+      waitingCompaction.add(() => prepare(operation, cb))
       return
     }
 
