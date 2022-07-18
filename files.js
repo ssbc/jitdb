@@ -238,7 +238,7 @@ const EmptyFile = {
 
   delete(filename, cb) {
     EmptyFile.exists(filename, (err, exists) => {
-      if (cb) return cb(err)
+      if (err) return cb(err)
       if (!exists) cb(null)
       else EmptyFile._actuallyDelete(filename, cb)
     })
