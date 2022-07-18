@@ -50,6 +50,7 @@
     "hash-wasm": "^4.6.0",
     "husky": "^4.3.8",
     "nodemark": "^0.3.0",
+    "nyc": "^15.1.0",
     "prettier": "^2.1.2",
     "pretty-bytes": "^5.6.0",
     "pretty-quick": "^3.1.0",
@@ -63,7 +64,8 @@
     "tape": "^5.2.2"
   },
   "scripts": {
-    "test": "tape test/*.js | tap-bail | tap-arc",
+    "test": "tape test/*.js | tap-arc --bail",
+    "coverage": "nyc --reporter=lcov npm run test",
     "format-code": "prettier --write \"*.js\" \"test/*.js\"",
     "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\"",
     "benchmark": "node benchmark/index.js | tap-arc",

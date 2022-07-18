@@ -7,3 +7,5 @@
 /.vscode
 pnpm-lock.yaml
 *~
+.nyc_output
+coverage
