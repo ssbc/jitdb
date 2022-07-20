@@ -1294,6 +1294,10 @@ module.exports = function (log, indexesPath) {
     log.stream({ offsets: false, values: true, decrypt: false }).pipe(
       push.drain(
         function sinkToFindSeq(buffer) {
+          if (!buffer) {
+            seq += 1
+            return
+          }
           const pKey = bipf.seekKey2(buffer, 0, BIPF_KEY, 0)
           const msgKeyCandidate = bipf.decode(buffer, pKey)
           if (msgKeyCandidate === msgKey) {
