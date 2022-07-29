@@ -847,6 +847,42 @@ prepareAndRunTest('operators toPullStream', dir, (t, db, raf) => {
   })
 })
 
+prepareAndRunTest('paginate prefix false positives', dir, (t, db, raf) => {
+  const msg = { type: 'postAAAA', text: 'Testing!' }
+  let state = validate.initial()
+  state = validate.appendNew(state, null, alice, msg, Date.now())
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 1)
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 2)
+  state = validate.appendNew(state, null, bob, msg, Date.now() + 3)
+
+  addMsg(state.queue[0].value, raf, (e0, msg0) => {
+    addMsg(state.queue[1].value, raf, (e1, msg1) => {
+      addMsg(state.queue[2].value, raf, (e2, msg2) => {
+        addMsg(state.queue[3].value, raf, (e3, msg3) => {
+          pull(
+            query(
+              fromDB(db),
+              where(
+                equal(helpers.seekType, 'postBBBB', {
+                  prefix: 32,
+                  indexType: 'type',
+                })
+              ),
+              paginate(2),
+              toPullStream()
+            ),
+            pull.collect((err, pages) => {
+              t.error(err, 'toPullStream got no error')
+              t.equal(pages.length, 0, 'toPullStream got zero pages')
+              t.end()
+            })
+          )
+        })
+      })
+    })
+  })
+})
+
 prepareAndRunTest('operators toAsyncIter', dir, (t, db, raf) => {
   const msg = { type: 'post', text: 'Testing!' }
   let state = validate.initial()
