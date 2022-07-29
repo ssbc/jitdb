@@ -1241,7 +1241,8 @@ module.exports = function (log, indexesPath) {
         }),
         push.filter((x) => (onlyOffset ? true : x)), // removes deleted messages
         push.collect((err, results) => {
-          cb(err, { results, total, nextSeq: seq + seqs.length })
+          const more = seqs.length || limit
+          cb(err, { results, total, nextSeq: seq + more })
         })
       )
     }
