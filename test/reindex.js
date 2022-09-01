@@ -187,7 +187,14 @@ prepareAndRunTest('reindex prefix map', dir, (t, db, raf) => {
         removeFilter()
         db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
           t.equal(results.length, 2)
-          t.end()
+
+          const secondMsgOffset = 352
+          db.reindex(secondMsgOffset, () => {
+            db.all(typeQuery, 0, false, false, 'declared', (err, results) => {
+              t.equal(results.length, 2)
+              t.end()
+            })
+          })
         })
       })
     })
