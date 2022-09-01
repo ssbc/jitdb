@@ -1597,11 +1597,15 @@ module.exports = function (log, indexesPath) {
         if (index.map) {
           // prefix map pushes to arrays, so we need to clean up
           for (let [prefix, arr] of Object.entries(index.map)) {
-            index.map[prefix] = arr.filter((x) => x < seq)
+            if (seq === 0) index.map[prefix].length = 0
+            else index.map[prefix] = arr.filter((x) => x < seq)
           }
         }
 
-        if (index.bitset) index.bitset.removeRange(seq, Infinity)
+        if (index.bitset) {
+          if (seq === 0) index.bitset.clear()
+          else index.bitset.removeRange(seq, Infinity)
+        }
 
         index.offset = prevOffset
       }
