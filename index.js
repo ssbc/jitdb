@@ -1080,6 +1080,7 @@ module.exports = function (log, indexesPath) {
   }
 
   function isValueOk(ops, value, isOr) {
+    if (!value) return false
     const pValue = bipf.seekKey2(value, 0, BIPF_VALUE, 0)
 
     for (let i = 0; i < ops.length; ++i) {
