@@ -8,6 +8,7 @@ const ssbKeys = require('ssb-keys')
 const path = require('path')
 const push = require('push-stream')
 const { prepareAndRunTest, addMsg, helpers } = require('./common')()
+const { loadTypedArrayFile } = require('../files')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 
@@ -25,7 +26,7 @@ prepareAndRunTest('wip-index-save', dir, (t, db, raf) => {
     return
   }
 
-  t.timeoutAfter(240e3)
+  t.timeoutAfter(500e3)
   let post = { type: 'post', text: 'Testing' }
   // with our simulated slow log, each msg takes 1.2ms to index
   // so we need at least 50k msgs
@@ -54,6 +55,8 @@ prepareAndRunTest('wip-index-save', dir, (t, db, raf) => {
     'type_post.index'
   )
 
+  const seqIndexPath = path.join(dir, 'indexes' + 'wip-index-save', 'seq.index')
+
   push(
     push.values(state.queue),
     push.asyncMap((m, cb) => {
@@ -74,6 +77,12 @@ prepareAndRunTest('wip-index-save', dir, (t, db, raf) => {
         const originalStream = raf.stream
         raf.stream = function (opts) {
           const s = originalStream(opts)
+          const originalAbort = s.abort
+          s.abort = function (...args) {
+            setTimeout(() => {
+              originalAbort.apply(s, args)
+            }, 30e3)
+          }
           const originalPipe = s.pipe.bind(s)
           s.pipe = function pipe(o) {
             let originalWrite = o.write
@@ -99,7 +108,12 @@ prepareAndRunTest('wip-index-save', dir, (t, db, raf) => {
 
         setTimeout(() => {
           t.equal(fs.existsSync(indexPath), true, 'type_post.index is saved')
-          savedAfter1min = true
+          loadTypedArrayFile(seqIndexPath, Uint32Array, (err, loadedIdx) => {
+            t.error(err, 'loaded seq.index')
+            t.equal(loadedIdx.count, TOTAL, 'seq.index count is correct')
+            t.equal(loadedIdx.offset, 37095426, 'seq.index offset is correct')
+            savedAfter1min = true
+          })
         }, 65e3)
 
         // Run an actual query to check if it saves every 1min

@@ -345,6 +345,7 @@ module.exports = function (log, indexesPath) {
   function getSeqFromOffset(offset) {
     if (offset === -1) return -1
     const { tarr, count } = seqIndex
+    if (tarr[count - 1] === offset) return count - 1
     const seq = bsb.eq(tarr, offset, 0, count - 1)
     if (seq < 0) return 0
     return seq
@@ -676,7 +677,7 @@ module.exports = function (log, indexesPath) {
             const now = Date.now()
             if (now - lastSaved >= 60e3) {
               lastSaved = now
-              save(seq, offset, false)
+              save(seq + 1, offset, false)
             }
           }
 
