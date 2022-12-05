@@ -9,6 +9,7 @@ const pull = require('pull-stream')
 const mutexify = require('mutexify')
 const toPull = require('push-stream-to-pull-stream')
 const pullAsync = require('pull-async')
+const pullMany = require('pull-many')
 const TypedFastBitSet = require('typedfastbitset')
 const bsb = require('binary-search-bounds')
 const multicb = require('multicb')
@@ -1497,73 +1498,94 @@ module.exports = function (log, indexesPath) {
     })
   }
 
+  function createLazyPull() {
+    let onValue
+
+    return {
+      add(val) {
+        if (onValue) onValue(null, val)
+      },
+      source(abort, cb) {
+        if (abort) cb(abort)
+        else if (!onValue) onValue = cb
+      },
+    }
+  }
+
+  const reindexValues = createLazyPull()
+
   // live will return new messages as they enter the log
   // can be combined with a normal all or paginate first
   function live(op) {
     return pull(
-      pullAsync((cb) =>
-        onReady(() => {
-          executeOperation(op, (err) => cb(err))
-        })
-      ),
-      pull.map(() => {
-        let offset = -1
-        let seqStream
-
-        function detectOffsetAndSeqStream(ops) {
-          ops.forEach((op) => {
-            if (
-              op.type === 'EQUAL' ||
-              op.type === 'INCLUDES' ||
-              op.type === 'PREDICATE' ||
-              op.type === 'ABSENT'
-            ) {
-              if (!indexes.has(op.data.indexName)) offset = -1
-              else offset = indexes.get(op.data.indexName).offset
-            } else if (
-              op.type === 'AND' ||
-              op.type === 'OR' ||
-              op.type === 'NOT'
-            ) {
-              detectOffsetAndSeqStream(op.data)
-            } else if (op.type === 'LIVESEQS') {
-              if (seqStream)
-                throw new Error('Only one seq stream in live supported')
-              seqStream = op.stream
-            }
-          })
-        }
-
-        detectOffsetAndSeqStream([op])
-
-        // There are two cases here:
-        // - op contains a live seq stream, in which case we let the
-        //   seq stream drive new values
-        // - op doesn't, in which we let the log stream drive new values
-
-        let recordStream
-        if (seqStream) {
-          recordStream = pull(
-            seqStream,
-            pull.asyncMap((seq, cb) => {
-              ensureIndexSync({ data: { indexName: 'seq' } }, () => {
-                getRecord(seq, cb)
-              })
+      pullMany([
+        pull(
+          pullAsync((cb) =>
+            onReady(() => {
+              executeOperation(op, (err) => cb(err))
             })
-          )
-        } else {
-          const opts =
-            offset === -1
-              ? { live: true, gt: seqIndex.offset }
-              : { live: true, gt: offset }
-          const logstreamId = Math.ceil(Math.random() * 1000)
-          debug(`log.stream #${logstreamId} started, for a live query`)
-          recordStream = toPull(log.stream(opts))
-        }
+          ),
+          pull.map(() => {
+            let offset = -1
+            let seqStream
 
-        return recordStream
-      }),
-      pull.flatten(),
+            function detectOffsetAndSeqStream(ops) {
+              ops.forEach((op) => {
+                if (
+                  op.type === 'EQUAL' ||
+                  op.type === 'INCLUDES' ||
+                  op.type === 'PREDICATE' ||
+                  op.type === 'ABSENT'
+                ) {
+                  if (!indexes.has(op.data.indexName)) offset = -1
+                  else offset = indexes.get(op.data.indexName).offset
+                } else if (
+                  op.type === 'AND' ||
+                  op.type === 'OR' ||
+                  op.type === 'NOT'
+                ) {
+                  detectOffsetAndSeqStream(op.data)
+                } else if (op.type === 'LIVESEQS') {
+                  if (seqStream)
+                    throw new Error('Only one seq stream in live supported')
+                  seqStream = op.stream
+                }
+              })
+            }
+
+            detectOffsetAndSeqStream([op])
+
+            // There are two cases here:
+            // - op contains a live seq stream, in which case we let the
+            //   seq stream drive new values
+            // - op doesn't, in which we let the log stream drive new values
+
+            let recordStream
+            if (seqStream) {
+              recordStream = pull(
+                seqStream,
+                pull.asyncMap((seq, cb) => {
+                  ensureIndexSync({ data: { indexName: 'seq' } }, () => {
+                    getRecord(seq, cb)
+                  })
+                })
+              )
+            } else {
+              const opts =
+                offset === -1
+                  ? { live: true, gt: seqIndex.offset }
+                  : { live: true, gt: offset }
+              const logstreamId = Math.ceil(Math.random() * 1000)
+              debug(`log.stream #${logstreamId} started, for a live query`)
+              recordStream = toPull(log.stream(opts))
+            }
+
+            return recordStream
+          }),
+          pull.flatten()
+        ),
+        reindexValues.source,
+      ]),
       pull.filter((record) => isValueOk([op], record.value)),
       pull.through(() => {
         if (debugQuery.enabled)
@@ -1591,6 +1613,12 @@ module.exports = function (log, indexesPath) {
       // not found
       seq = 1
     }
+
+    // add value to live streams
+    log.get(offset, (err, recBuffer) => {
+      if (err) return
+      else reindexValues.add({ value: recBuffer })
+    })
 
     function resetIndex(index) {
       if (index.offset >= prevOffset) {
