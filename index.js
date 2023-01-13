@@ -206,7 +206,7 @@ module.exports = function (log, indexesPath) {
             cb()
           } else cb()
         }),
-        push.collect(cb)
+        push.drain(null, cb)
       )
     })
   }
@@ -1047,7 +1047,7 @@ module.exports = function (log, indexesPath) {
         push(
           push.values(lazyIdxNames),
           push.asyncMap(loadLazyIndex),
-          push.collect(next)
+          push.drain(null, next)
         )
       }),
 
@@ -1634,7 +1634,7 @@ module.exports = function (log, indexesPath) {
           cb()
         }
       }),
-      push.collect((err) => {
+      push.drain(null, (err) => {
         if (err) return cb(err)
 
         clearCache()
