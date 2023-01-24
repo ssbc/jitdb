@@ -319,7 +319,7 @@ function liveSeqs(pullStream) {
 function offsets(values) {
   return {
     type: 'OFFSETS',
-    offsets: values,
+    offsets: values.slice(0),
   }
 }
 
