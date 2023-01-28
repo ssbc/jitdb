@@ -993,23 +993,9 @@ module.exports = function (log, indexesPath) {
       // to support `query(fromDB(jitdb), toCallback(cb))`
       getFullBitset(cb)
     } else if (op.type === 'DEFERRED') {
-      // DEFERRED only appears in this pipeline when using `prepare()` API
-      op.task(
-        { jitdb },
-        (err, newOp) => {
-          if (err) {
-            console.error('Error executing DEFERRED operation', err)
-            cb(null, new TypedFastBitSet())
-            return
-          }
-          if (newOp) {
-            getBitsetForOperation(newOp, cb)
-          } else {
-            cb(new TypedFastBitSet())
-          }
-        },
-        function onAbort() {}
-      )
+      // DEFERRED only appears in this pipeline when using `prepare()` API,
+      // and only updateIndexes() is the important part in `prepare()`.
+      cb(new TypedFastBitSet())
     } else console.error('Unknown type in jitdb executeOperation:', op)
   }
 
@@ -1033,7 +1019,8 @@ module.exports = function (log, indexesPath) {
           op.type === 'LTE' ||
           op.type === 'GT' ||
           op.type === 'GTE' ||
-          !op.type // e.g. query(fromDB, toCallback), or empty deferred()
+          op.type === 'DEFERRED' ||
+          !op.type // e.g. query(fromDB, toCallback), or empty deferred() result
         );
         else debug('Unknown operator type: ' + op.type)
       })
