@@ -44,6 +44,7 @@ module.exports = function (log, indexesPath) {
   let timestampIndex
   let sequenceIndex
   let isReady = false
+  let jitdb
   const waitingReady = new Set()
   let compacting = false
   let compactStartOffset = null
@@ -991,7 +992,25 @@ module.exports = function (log, indexesPath) {
     } else if (!op.type) {
       // to support `query(fromDB(jitdb), toCallback(cb))`
       getFullBitset(cb)
-    } else console.error('Unknown type', op)
+    } else if (op.type === 'DEFERRED') {
+      // DEFERRED only appears in this pipeline when using `prepare()` API
+      op.task(
+        { jitdb },
+        (err, newOp) => {
+          if (err) {
+            console.error('Error executing DEFERRED operation', err)
+            cb(null, new TypedFastBitSet())
+            return
+          }
+          if (newOp) {
+            getBitsetForOperation(newOp, cb)
+          } else {
+            cb(new TypedFastBitSet())
+          }
+        },
+        function onAbort() {}
+      )
+    } else console.error('Unknown type in jitdb executeOperation:', op)
   }
 
   function forEachLeafOperationIn(operation, fn) {
@@ -1643,7 +1662,7 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  return {
+  jitdb = {
     onReady,
     paginate,
     all,
@@ -1659,4 +1678,5 @@ module.exports = function (log, indexesPath) {
     // testing
     indexes,
   }
+  return jitdb
 }
