@@ -420,3 +420,18 @@ prepareAndRunTest('prepare an index', dir, (t, db, raf) => {
     })
   )
 })
+
+prepareAndRunTest('prepare a DEFERRED operation', dir, (t, db, raf) => {
+  const deferredQuery = {
+    type: 'DEFERRED',
+    task: (meta, cb) => {
+      cb()
+    },
+  }
+
+  db.prepare(deferredQuery, (err, duration) => {
+    t.error(err, 'no error')
+    t.equals(typeof duration, 'number')
+    t.end()
+  })
+})

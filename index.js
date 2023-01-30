@@ -991,7 +991,11 @@ module.exports = function (log, indexesPath) {
     } else if (!op.type) {
       // to support `query(fromDB(jitdb), toCallback(cb))`
       getFullBitset(cb)
-    } else console.error('Unknown type', op)
+    } else if (op.type === 'DEFERRED') {
+      // DEFERRED only appears in this pipeline when using `prepare()` API,
+      // and only updateIndexes() is the important part in `prepare()`.
+      cb(new TypedFastBitSet())
+    } else console.error('Unknown type in jitdb executeOperation:', op)
   }
 
   function forEachLeafOperationIn(operation, fn) {
@@ -1014,7 +1018,8 @@ module.exports = function (log, indexesPath) {
           op.type === 'LTE' ||
           op.type === 'GT' ||
           op.type === 'GTE' ||
-          !op.type // e.g. query(fromDB, toCallback), or empty deferred()
+          op.type === 'DEFERRED' ||
+          !op.type // e.g. query(fromDB, toCallback), or empty deferred() result
         );
         else debug('Unknown operator type: ' + op.type)
       })
