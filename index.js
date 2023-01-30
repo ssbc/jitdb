@@ -44,7 +44,6 @@ module.exports = function (log, indexesPath) {
   let timestampIndex
   let sequenceIndex
   let isReady = false
-  let jitdb
   const waitingReady = new Set()
   let compacting = false
   let compactStartOffset = null
@@ -1649,7 +1648,7 @@ module.exports = function (log, indexesPath) {
     )
   }
 
-  jitdb = {
+  return {
     onReady,
     paginate,
     all,
@@ -1665,5 +1664,4 @@ module.exports = function (log, indexesPath) {
     // testing
     indexes,
   }
-  return jitdb
 }

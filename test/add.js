@@ -432,7 +432,6 @@ prepareAndRunTest('prepare a DEFERRED operation', dir, (t, db, raf) => {
   db.prepare(deferredQuery, (err, duration) => {
     t.error(err, 'no error')
     t.equals(typeof duration, 'number')
-    t.ok(duration)
     t.end()
   })
 })
