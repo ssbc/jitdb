@@ -98,7 +98,7 @@ jobs:
           node-version: 16.x
       - run: npm install
       - name: Download Benchmark Fixture
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: benchmark-fixture
           path: /tmp/jitdb-benchmark
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Results
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           path: /tmp/artifacts
       - id: get-comment-body
